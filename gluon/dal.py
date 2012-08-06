@@ -1784,7 +1784,10 @@ class BaseAdapter(ConnectionPool):
                             virtualtables.append(tablename)
                     else:
                         colset = new_row[tablename]
-                    value = self.parse_value(value,field.type,blob_decode)
+                    try:
+                        value = self.parse_value(value,field.type,blob_decode)
+                    except AttributeError:
+                        pass
                     if field.filter_out: value = field.filter_out(value)
                     colset[fieldname] = value
 
