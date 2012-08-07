@@ -97,9 +97,13 @@ function web2py_ajax_page(method, action, data, target) {
       if(command)
 	  eval(decodeURIComponent(command));
       if(flash)
-	  jQuery('.flash').html(flash).slideDown();
-      }
-    });
+	  jQuery('.flash').html(decodeURIComponent(flash)).slideDown();
+    },
+	// the three options below should allow multipart uploads but not in IE
+    'cache': false,
+    'contentType': false,
+    'processData': false
+  });
 }
 
 function web2py_component(action, target, timeout, times){
