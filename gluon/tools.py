@@ -1207,18 +1207,16 @@ class Auth(object):
         else:
             raise HTTP(404)
 
-    def navbar(self, prefix='Welcome %(first_name)s', action=None,
-               separators=(' [ ',' | ',' ] '),
+    def navbar(self, prefix='Welcome', action=None,
+               separators=(' [ ',' | ',' ] '), user_identifier=DEFAULT,
                referrer_actions=DEFAULT):
         referrer_actions = [] if not referrer_actions else referrer_actions
         request = current.request
         T = current.T
-        if isinstance(prefix,str) and self.user:
-            # backward compatibility
-            if not '%' in prefix: prefix+' %(first_name)s'
-            prefix_str = (T(prefix) % self.user).strip()+' '
-        else:
-            prefix_str = str(prefix or '')
+        if isinstance(prefix, str):
+            prefix = T(prefix)
+        if prefix:
+            prefix = prefix.strip() + ' '
         if not action:
             action=self.url(self.settings.function)
         s1,s2,s3 = separators
@@ -1232,15 +1230,24 @@ class Auth(object):
             next if referrer_actions is DEFAULT or function in referrer_actions else '')
         
         if self.user_id:
+            if user_identifier is DEFAULT:
+                user_identifier = '%(first_name)s'
+            if callable(user_identifier):
+                user_identifier = user_identifier(self.user)
+            elif ((isinstance(user_identifier, str) or
+                  type(user_identifier).__name__ == 'lazyT') and
+                  re.search(r'%\(.+\)s', user_identifier)):
+                user_identifier = user_identifier % self.user
+            if not user_identifier:
+                user_identifier = ''
             logout = A(T('Logout'), _href='%s/logout?_next=%s' %
                       (action, urllib.quote(self.settings.logout_next)))
             profile = A(T('Profile'), _href=href('profile'))
             password = A(T('Password'), _href=href('change_password'))
-            bar = SPAN(prefix_str,
-                       s1, logout, s3, _class='auth_navbar')
+            bar = SPAN(prefix, user_identifier, s1, logout, s3, _class='auth_navbar')
             if not 'profile' in self.settings.actions_disabled:
-                bar.insert(4, s2)
-                bar.insert(5, profile)
+                bar.insert(-1, s2)
+                bar.insert(-1, profile)
             if not 'change_password' in self.settings.actions_disabled:
                 bar.insert(-1, s2)
                 bar.insert(-1, password)
@@ -1252,8 +1259,8 @@ class Auth(object):
             bar = SPAN(s1, login, s3, _class='auth_navbar')
 
             if not 'register' in self.settings.actions_disabled:
-                bar.insert(2, s2)
-                bar.insert(3, register)
+                bar.insert(-1, s2)
+                bar.insert(-1, register)
             if 'username' in self.settings.table_user.fields() and \
                     not 'retrieve_username' in self.settings.actions_disabled:
                 bar.insert(-1, s2)
@@ -1600,7 +1607,7 @@ class Auth(object):
         self.settings.table_event.insert(description=description % vars,
                                          origin=origin, user_id=user_id)
 
-    def get_or_create_user(self, keys):
+    def get_or_create_user(self, keys, update_fields=['email']):
         """
         Used for alternate login methods:
             If the user exists already then password is updated.
@@ -1613,20 +1620,36 @@ class Auth(object):
         for fieldname in ['registration_id','username','email']:
             if fieldname in table_user.fields() and keys.get(fieldname,None):
                 checks.append(fieldname)
-                user = user or table_user(**{fieldname:keys[fieldname]})
-        # if we think we found the user but registration_id does not match, make new user
-        if 'registration_id' in checks and user and user.registration_id and user.registration_id!=keys.get('registration_id',None):
+                value = keys[fieldname]
+                user = user or table_user._db(
+                    (table_user.registration_id==value)|
+                    (table_user[fieldname]==value)).select().first()
+        if not checks:
+            return None
+        if not 'registration_id' in keys:
+            keys['registration_id'] = keys[checks[0]]
+        # if we think we found the user but registration_id does not match,
+        # make new user
+        if 'registration_id' in checks \
+                and user \
+                and user.registration_id \
+                and user.registration_id!=keys.get('registration_id',None):
             user = None # THINK MORE ABOUT THIS? DO WE TRUST OPENID PROVIDER?
-        keys['registration_key']=''
         if user:
-            user.update_record(**table_user._filter_fields(keys))
+            update_keys = dict(registration_id=keys['registration_id'])
+            for key in update_fields:
+                if key in keys:
+                    update_keys[key] = keys[key]
+            user.update_record(**update_keys)
         elif checks:
             if not 'first_name' in keys and 'first_name' in table_user.fields:
-                keys['first_name'] = keys.get('username',keys.get('email','anonymous')).split('@')[0]
+                guess = keys.get('email','anonymous').split('@')[0]
+                keys['first_name'] = keys.get('username',guess)
             user_id = table_user.insert(**table_user._filter_fields(keys))
             user =  self.user = table_user[user_id]
             if self.settings.create_user_groups:
-                group_id = self.add_group(self.settings.create_user_groups % user)
+                group_id = self.add_group(
+                    self.settings.create_user_groups % user)
                 self.add_membership(group_id, user_id)
             if self.settings.everybody_group_id:
                 self.add_membership(self.settings.everybody_group_id, user_id)
@@ -2455,10 +2478,11 @@ class Auth(object):
 
     def email_reset_password(self,user):
         reset_password_key = str(int(time.time()))+'-' + web2py_uuid()
-        if self.settings.mailer.send(to=user.email,
-                                     subject=self.messages.reset_password_subject,
-                                     message=self.messages.reset_password % \
-                                         dict(key=reset_password_key)):
+        if self.settings.mailer.send(
+            to=user.email,
+            subject=self.messages.reset_password_subject,
+            message=self.messages.reset_password % \
+                dict(key=reset_password_key)):
             user.update_record(reset_password_key=reset_password_key)
             return True
         return False
@@ -4465,7 +4489,7 @@ class Wiki(object):
         db.wiki_page._after_update.append(update_tags_update)
     # WIKI ACCESS POLICY
     def not_authorized(self,page=None):
-        raise HTTH(401)
+        raise HTTP(401)
     def can_read(self,page):
         if 'everybody' in page.can_read or not self.manage_permissions:
             return True

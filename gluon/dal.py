@@ -2700,24 +2700,24 @@ class OracleAdapter(BaseAdapter):
         self.execute(query)
         self.execute('CREATE SEQUENCE %s START WITH 1 INCREMENT BY 1 NOMAXVALUE MINVALUE -1;' % sequence_name)
         self.execute("""
-            CREATE OR REPLACE TRIGGER {trigger_name} BEFORE INSERT ON {tablename} FOR EACH ROW
+            CREATE OR REPLACE TRIGGER %(trigger_name)s BEFORE INSERT ON %(tablename)s FOR EACH ROW
             DECLARE
                 curr_val NUMBER;
                 diff_val NUMBER;
                 PRAGMA autonomous_transaction;
             BEGIN
                 IF :NEW.id IS NOT NULL THEN
-                    EXECUTE IMMEDIATE 'SELECT {sequence_name}.nextval FROM dual' INTO curr_val;
+                    EXECUTE IMMEDIATE 'SELECT %(sequence_name)s.nextval FROM dual' INTO curr_val;
                     diff_val := :NEW.id - curr_val - 1;
                     IF diff_val != 0 THEN
-                      EXECUTE IMMEDIATE 'alter sequence {sequence_name} increment by '|| diff_val;
-                      EXECUTE IMMEDIATE 'SELECT {sequence_name}.nextval FROM dual' INTO curr_val;
-                      EXECUTE IMMEDIATE 'alter sequence {sequence_name} increment by 1';
+                      EXECUTE IMMEDIATE 'alter sequence %(sequence_name)s increment by '|| diff_val;
+                      EXECUTE IMMEDIATE 'SELECT %(sequence_name)s.nextval FROM dual' INTO curr_val;
+                      EXECUTE IMMEDIATE 'alter sequence %(sequence_name)s increment by 1';
                     END IF;
                 END IF;
-                SELECT {sequence_name}.nextval INTO :NEW.id FROM DUAL;
+                SELECT %(sequence_name)s.nextval INTO :NEW.id FROM DUAL;
             END;
-        """.format(trigger_name=trigger_name, tablename=tablename, sequence_name=sequence_name))
+        """ % dict(trigger_name=trigger_name, tablename=tablename, sequence_name=sequence_name))
 
     def lastrowid(self,table):
         sequence_name = table._sequence_name
@@ -4509,7 +4509,8 @@ class CouchDBAdapter(NoSQLAdapter):
             return repr(str(int(value)))
         elif fieldtype in ('date','time','datetime','boolean'):
             return serializers.json(value)
-        return repr(not isinstance(value,unicode) and value or value.encode('utf8'))
+        return repr(not isinstance(value,unicode) and value \
+                        or value and value.encode('utf8'))
 
     def __init__(self,db,uri='couchdb://127.0.0.1:5984',
                  pool_size=0,folder=None,db_codec ='UTF-8',
