@@ -1056,7 +1056,10 @@ class BaseAdapter(ConnectionPool):
         if hasattr(table,'_primarykey'):
             return dict([(k[0].name, k[1]) for k in fields \
                              if k[0].name in table._primarykey])
-        id = self.lastrowid(table)
+        if table._id.name in fields:
+            id = fields[table._id.name]
+        else:
+            id = self.lastrowid(table)
         if not isinstance(id,int):
             return id
         rid = Reference(id)
@@ -2706,18 +2709,19 @@ class OracleAdapter(BaseAdapter):
                 diff_val NUMBER;
                 PRAGMA autonomous_transaction;
             BEGIN
-                IF :NEW.id IS NOT NULL THEN
+                IF :NEW.%(pk_name)s IS NOT NULL THEN
                     EXECUTE IMMEDIATE 'SELECT %(sequence_name)s.nextval FROM dual' INTO curr_val;
-                    diff_val := :NEW.id - curr_val - 1;
-                    IF diff_val != 0 THEN
-                      EXECUTE IMMEDIATE 'alter sequence %(sequence_name)s increment by '|| diff_val;
-                      EXECUTE IMMEDIATE 'SELECT %(sequence_name)s.nextval FROM dual' INTO curr_val;
-                      EXECUTE IMMEDIATE 'alter sequence %(sequence_name)s increment by 1';
+                    diff_val := :NEW.%(pk_name)s - curr_val;
+                    IF diff_val > 0 THEN
+                        EXECUTE IMMEDIATE 'alter sequence %(sequence_name)s increment by '|| diff_val;
+                        SELECT %(sequence_name)s.nextval INTO curr_val FROM DUAL;
+                        EXECUTE IMMEDIATE 'alter sequence %(sequence_name)s increment by 1';
                     END IF;
+                ELSE
+                    SELECT %(sequence_name)s.nextval INTO :NEW.%(pk_name) FROM DUAL;
                 END IF;
-                SELECT %(sequence_name)s.nextval INTO :NEW.id FROM DUAL;
             END;
-        """ % dict(trigger_name=trigger_name, tablename=tablename, sequence_name=sequence_name))
+        """ % dict(trigger_name=trigger_name, tablename=tablename, sequence_name=sequence_name, pk_name=table._id.name))
 
     def lastrowid(self,table):
         sequence_name = table._sequence_name
