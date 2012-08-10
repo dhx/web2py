@@ -1778,11 +1778,8 @@ class BaseAdapter(ConnectionPool):
                 if not regex_table_field.match(colnames[j]):
                     if not '_extra' in new_row:
                         new_row['_extra'] = Row()
-                    try:
-                        new_row['_extra'][colnames[j]] = \
-                            self.parse_value(value, fields[j].type,blob_decode)
-                    except AttributeError:
-                        new_row['_extra'][colnames[j]] = value
+                    new_row['_extra'][colnames[j]] = \
+                        self.parse_value(value, fields[j].type,blob_decode)
 
                     new_column_name = \
                         regex_select_as_parser.search(colnames[j])
@@ -1799,10 +1796,7 @@ class BaseAdapter(ConnectionPool):
                             virtualtables.append(tablename)
                     else:
                         colset = new_row[tablename]
-                    try:
-                        value = self.parse_value(value,field.type,blob_decode)
-                    except AttributeError:
-                        pass
+                    value = self.parse_value(value,field.type,blob_decode)
                     if field.filter_out: value = field.filter_out(value)
                     colset[fieldname] = value
 
