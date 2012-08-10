@@ -219,7 +219,10 @@ def restricted(code, environment=None, layer='Unknown'):
 
 def snapshot(info=None, context=5, code=None, environment=None):
     """Return a dict describing a given traceback (based on cgitb.text)."""
-    import os, types, time, linecache, inspect, pydoc, cgitb
+    import os, types, time, linecache, inspect, cgitb, repr
+
+    r = repr.Repr()
+    r.maxstring = 10000000
 
     # if no exception info given, get current:
     etype, evalue, etb = info or sys.exc_info()
@@ -241,7 +244,7 @@ def snapshot(info=None, context=5, code=None, environment=None):
         call = ''
         if func != '?':
             call = inspect.formatargvalues(args, varargs, varkw, locals,
-                    formatvalue=lambda value: '=' + pydoc.text.repr(value))
+                    formatvalue=lambda value: '=' + r.repr(value)
 
         # basic frame information
         f = {'file': file, 'func': func, 'call': call, 'lines': {}, 'lnum': lnum}
@@ -273,7 +276,7 @@ def snapshot(info=None, context=5, code=None, environment=None):
             if value is not cgitb.__UNDEF__:
                 if where == 'global': name = 'global ' + name
                 elif where != 'local': name = where + name.split('.')[-1]
-                f['dump'][name] = pydoc.text.repr(value)
+                f['dump'][name] = r.repr(value)
             else:
                 f['dump'][name] = 'undefined'
 
@@ -287,13 +290,13 @@ def snapshot(info=None, context=5, code=None, environment=None):
         for name in dir(evalue):
             # prevent py26 DeprecatedWarning:
             if name!='message' or sys.version_info<(2.6):
-                value = pydoc.text.repr(getattr(evalue, name))
+                value = r.repr(getattr(evalue, name))
                 s['exception'][name] = value
 
     # add all local values (of last frame) to the snapshot
     s['locals'] = {}
     for name, value in locals.items():
-        s['locals'][name] = pydoc.text.repr(value)
+        s['locals'][name] = r.repr(value)
 
     # add web2py environment variables
     for k,v in environment.items():
