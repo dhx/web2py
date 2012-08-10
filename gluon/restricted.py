@@ -244,7 +244,7 @@ def snapshot(info=None, context=5, code=None, environment=None):
         call = ''
         if func != '?':
             call = inspect.formatargvalues(args, varargs, varkw, locals,
-                    formatvalue=lambda value: '=' + r.repr(value)
+                    formatvalue=lambda value: '=' + r.repr(value))
 
         # basic frame information
         f = {'file': file, 'func': func, 'call': call, 'lines': {}, 'lnum': lnum}
