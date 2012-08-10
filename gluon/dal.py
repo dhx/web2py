@@ -1056,10 +1056,7 @@ class BaseAdapter(ConnectionPool):
         if hasattr(table,'_primarykey'):
             return dict([(k[0].name, k[1]) for k in fields \
                              if k[0].name in table._primarykey])
-        if table._id.name in fields:
-            id = fields[table._id.name]
-        else:
-            id = self.lastrowid(table)
+        id = self.lastrowid(table)
         if not isinstance(id,int):
             return id
         rid = Reference(id)
