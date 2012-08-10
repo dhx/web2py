@@ -2714,7 +2714,7 @@ class OracleAdapter(BaseAdapter):
                         EXECUTE IMMEDIATE 'alter sequence %(sequence_name)s increment by '|| -diff_val';
                     END IF;
                 ELSE
-                    SELECT %(sequence_name)s.nextval INTO :NEW.%(pk_name) FROM DUAL;
+                    SELECT %(sequence_name)s.nextval INTO :NEW.%(pk_name)s FROM DUAL;
                     EXECUTE IMMEDIATE 'alter sequence %(sequence_name)s increment by 1';
                 END IF;
             END;
