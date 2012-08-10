@@ -2712,7 +2712,11 @@ class OracleAdapter(BaseAdapter):
                     IF diff_val != 0 THEN
                         EXECUTE IMMEDIATE 'alter sequence %(sequence_name)s increment by '|| diff_val;
                         SELECT %(sequence_name)s.nextval INTO curr_val FROM DUAL;
-                        EXECUTE IMMEDIATE 'alter sequence %(sequence_name)s increment by '|| -diff_val;
+                        IF diff_val < 0 THEN
+                            EXECUTE IMMEDIATE 'alter sequence %(sequence_name)s increment by '|| -diff_val;
+                        ELSE
+                            EXECUTE IMMEDIATE 'alter sequence %(sequence_name)s increment by 1';
+                        END IF;
                     END IF;
                 ELSE
                     SELECT %(sequence_name)s.nextval INTO :NEW.%(pk_name)s FROM DUAL;
