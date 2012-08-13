@@ -258,11 +258,14 @@ class MetaScheduler(threading.Thread):
                 task_output = ""
                 start = time.time()
                 while p.is_alive() and (time.time()-start < task.timeout):
-                    p.join(timeout=1)
+                    logging.debug('     we are alive for %s, timeout is %s'%(str(time.time()-start),str(task.timeout)))
+                    p.join(timeout=2)
                     tout = out.get()
+                    logging.debug('     output: %s'%str(tout))
                     if tout:
                         task_output += tout
-                        task.scheduler_run('scheduler_run.id==%s'%task.run_id).update(output = task_output)
+                        self.db(self.db.scheduler_run.id==task.run_id).update(output = task_output)
+                        self.db.commit()
             else:
                 p.join(task.timeout)
         except:
