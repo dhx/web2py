@@ -170,19 +170,19 @@ def _decode_dict(dct):
         newdict[k] = v
     return newdict
 
-def executor(queue,task,mpipe):
+def executor(queue,task,out):
     """ the background process """
 
     class LogOutput(object):
-        def __init__(self, tee_pipe):
-            self.tee_pipe = tee_pipe
+        def __init__(self, out_queue):
+            self.out_queue = out_queue
             self.stdout = sys.stdout
             sys.stdout = self
             self.istr = ""
         def __del__(self):
             sys.stdout = self.stdout
         def write(self,data):
-            self.tee_pipe.write(data)
+            self.out_queue.put(data)
             self.istr += data
         def getvalue(self):
             return self.istr
@@ -190,7 +190,7 @@ def executor(queue,task,mpipe):
 
     logging.debug('    task started')
     
-    stdout = LogOutput(mpipe)
+    stdout = LogOutput(out)
     try:
         if task.app:
             os.chdir(os.environ['WEB2PY_PATH'])
@@ -247,22 +247,22 @@ class MetaScheduler(threading.Thread):
         """
         queue = multiprocessing.Queue(maxsize=1)
 
-        mpipe = multiprocessing.Pipe(duplex = False)
+        out = multiprocessing.Queue()
 
-        p = multiprocessing.Process(target=executor,args=(queue,task,mpipe))
+        p = multiprocessing.Process(target=executor,args=(queue,task,out))
         self.process = p
         logging.debug('   task starting')
         p.start()
         try:
             if True:
-                toutput = ""
+                task_output = ""
                 start = time.time()
                 while p.is_alive() and (time.time()-start < task.timeout):
                     p.join(timeout=1)
-                    tout = mpipe.recv()
+                    tout = out.get()
                     if tout:
-                        toutput += tout
-                        task.scheduler_run('scheduler_run.id==%s'%task.run_id).update(output = toutput)
+                        task_output += tout
+                        task.scheduler_run('scheduler_run.id==%s'%task.run_id).update(output = task_output)
             else:
                 p.join(task.timeout)
         except:
