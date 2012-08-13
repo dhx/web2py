@@ -254,7 +254,7 @@ class MetaScheduler(threading.Thread):
         logging.debug('   task starting')
         p.start()
         try:
-            if True:
+            if True: # better would be: if task.live_output: or something like that 
                 task_output = ""
                 start = time.time()
                 while p.is_alive() and (time.time()-start < task.timeout):
