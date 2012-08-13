@@ -170,10 +170,27 @@ def _decode_dict(dct):
         newdict[k] = v
     return newdict
 
-def executor(queue,task):
+def executor(queue,task,mpipe):
     """ the background process """
+
+    class LogOutput(object):
+        def __init__(self, tee_pipe):
+            self.tee_pipe = tee_pipe
+            self.stdout = sys.stdout
+            sys.stdout = self
+            self.istr = ""
+        def __del__(self):
+            sys.stdout = self.stdout
+        def write(self,data):
+            self.tee_pipe.write(data)
+            self.istr += data
+        def getvalue(self):
+            return self.istr
+
+
     logging.debug('    task started')
-    stdout, sys.stdout = sys.stdout, cStringIO.StringIO()
+    
+    stdout = LogOutput(mpipe)
     try:
         if task.app:
             os.chdir(os.environ['WEB2PY_PATH'])
@@ -206,10 +223,10 @@ def executor(queue,task):
             result = eval(task.function)(
                 *loads(task.args, object_hook=_decode_dict),
                  **loads(task.vars, object_hook=_decode_dict))
-        stdout, sys.stdout = sys.stdout, stdout
+        sys.stdout = stdout.stdout
         queue.put(TaskReport(COMPLETED, result,stdout.getvalue()))
     except BaseException,e:
-        sys.stdout = stdout
+        sys.stdout = stdout.stdout
         tb = traceback.format_exc()
         queue.put(TaskReport(FAILED,tb=tb))
 
@@ -229,12 +246,25 @@ class MetaScheduler(threading.Thread):
         ('terminated',None,None)
         """
         queue = multiprocessing.Queue(maxsize=1)
-        p = multiprocessing.Process(target=executor,args=(queue,task))
+
+        mpipe = multiprocessing.Pipe(duplex = False)
+
+        p = multiprocessing.Process(target=executor,args=(queue,task,mpipe))
         self.process = p
         logging.debug('   task starting')
         p.start()
         try:
-            p.join(task.timeout)
+            if True:
+                toutput = ""
+                start = time.time()
+                while p.is_alive() and (time.time()-start < task.timeout):
+                    p.join(timeout=1)
+                    tout = mpipe.recv()
+                    if tout:
+                        toutput += tout
+                        task.scheduler_run('scheduler_run.id==%s'%task.run_id).update(output = toutput)
+            else:
+                p.join(task.timeout)
         except:
             p.terminate()
             p.join()
