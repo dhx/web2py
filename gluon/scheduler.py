@@ -254,15 +254,17 @@ class MetaScheduler(threading.Thread):
         logging.debug('   task starting')
         p.start()
         try:
-            if True: # better would be: if task.live_output: or something like that 
+            if True: # better would be: if task.update_frequency > 0: or something like that 
                 task_output = ""
                 start = time.time()
                 while p.is_alive() and (time.time()-start < task.timeout):
                     logging.debug('     we are alive for %s, timeout is %s'%(str(time.time()-start),str(task.timeout)))
-                    p.join(timeout=2)
-                    tout = out.get()
-                    logging.debug('     output: %s'%str(tout))
+                    p.join(timeout=2) # p.join(timeout=task.update_frequency)
+                    tout = ""
+                    while not out.empty():
+                        tout += out.get()
                     if tout:
+                        logging.debug('     output: "%s"'%str(tout))
                         task_output += tout
                         self.db(self.db.scheduler_run.id==task.run_id).update(output = task_output)
                         self.db.commit()
