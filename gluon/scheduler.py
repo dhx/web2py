@@ -63,7 +63,6 @@ import os
 import time
 import multiprocessing
 import sys
-import signal
 import cStringIO
 import threading
 import traceback
@@ -107,6 +106,7 @@ EXPIRED = 'EXPIRED'
 SECONDS = 1
 HEARTBEAT = 3*SECONDS
 MAXHIBERNATION = 10
+CLEAROUT = '!clear!'
 
 CALLABLETYPES = (types.LambdaType, types.FunctionType, 
                  types.BuiltinFunctionType,
@@ -170,10 +170,12 @@ def _decode_dict(dct):
         newdict[k] = v
     return newdict
 
-def executor(queue,task,out):
+def executor(queue,task, out):
     """ the background process """
+    logging.debug('    task started')
 
     class LogOutput(object):
+        """Facility to log output at intervals"""
         def __init__(self, out_queue):
             self.out_queue = out_queue
             self.stdout = sys.stdout
@@ -186,10 +188,8 @@ def executor(queue,task,out):
             self.istr += data
         def getvalue(self):
             return self.istr
-
-
-    logging.debug('    task started')
     
+    #stdout, sys.stdout = sys.stdout, cStringIO.StringIO()
     stdout = LogOutput(out)
     try:
         if task.app:
@@ -223,12 +223,13 @@ def executor(queue,task,out):
             result = eval(task.function)(
                 *loads(task.args, object_hook=_decode_dict),
                  **loads(task.vars, object_hook=_decode_dict))
+        #stdout, sys.stdout = sys.stdout, stdout
         sys.stdout = stdout.stdout
         queue.put(TaskReport(COMPLETED, result,stdout.getvalue()))
     except BaseException,e:
-        sys.stdout = stdout.stdout
+        stdout, sys.stdout = sys.stdout, stdout
         tb = traceback.format_exc()
-        queue.put(TaskReport(FAILED,tb=tb))
+        queue.put(TaskReport(FAILED,tb=tb, output=stdout.getvalue()))
 
 class MetaScheduler(threading.Thread):
     def __init__(self):
@@ -245,27 +246,32 @@ class MetaScheduler(threading.Thread):
         ('timeout',None,None)
         ('terminated',None,None)
         """
-        queue = multiprocessing.Queue(maxsize=1)
-
+        db = self.db
+        sr = db.scheduler_run
         out = multiprocessing.Queue()
-
+        queue = multiprocessing.Queue(maxsize=1)
         p = multiprocessing.Process(target=executor,args=(queue,task,out))
         self.process = p
         logging.debug('   task starting')
         p.start()
         try:
-            if True:
+            if task.sync_output > 0:
                 task_output = ""
                 start = time.time()
                 while p.is_alive() and (time.time()-start < task.timeout):
-                    logging.debug('     we are alive for %s, timeout is %s'%(str(time.time()-start),str(task.timeout)))
-                    p.join(timeout=2)
-                    tout = out.get()
-                    logging.debug('     output: %s'%str(tout))
+                    #logging.debug(' we are alive for %s, timeout is %s'%(str(time.time()-start),str(task.timeout)))
+                    p.join(timeout=task.sync_output) # p.join(timeout=task.update_frequency)
+                    tout = ""
+                    while not out.empty():
+                        tout += out.get()
                     if tout:
-                        task_output += tout
-                        self.db(self.db.scheduler_run.id==task.run_id).update(output = task_output)
-                        self.db.commit()
+                        logging.debug(' output: "%s"'%str(tout))
+                        if CLEAROUT in tout:
+                            task_output = tout[tout.rfind(CLEAROUT)+len(CLEAROUT):]
+                        else:
+                            task_output += tout
+                        db(sr.id==task.run_id).update(output = task_output)
+                        db.commit()
             else:
                 p.join(task.timeout)
         except:
@@ -278,7 +284,9 @@ class MetaScheduler(threading.Thread):
             p.terminate()
             p.join()
             logging.debug('    task timeout')
-            return TaskReport(TIMEOUT)
+            tr = queue.get()
+            tr.status = TIMEOUT
+            return tr
         elif queue.empty():
             self.have_heartbeat = False
             logging.debug('    task stopped')
@@ -440,6 +448,8 @@ class Scheduler(MetaScheduler):
             Field('retry_failed', 'integer', default=0, comment="-1=unlimited"),
             Field('period','integer',default=60,comment='seconds'),
             Field('timeout','integer',default=60,comment='seconds'),
+            Field('sync_output', 'integer', default=0,
+                  comment="update output every n sec: 0=never"),
             Field('times_run','integer',default=0,writable=False),
             Field('times_failed','integer',default=0,writable=False),
             Field('last_run_time','datetime',writable=False,readable=False),
@@ -516,6 +526,7 @@ class Scheduler(MetaScheduler):
                     db.rollback()
                     logging.error('TICKER: error assigning tasks')
             return None
+        db.commit()
         grabbed = db(ts.assigned_worker_name==self.worker_name)\
             (ts.status==ASSIGNED)
 
@@ -561,50 +572,65 @@ class Scheduler(MetaScheduler):
             times_run = times_run,
             stop_time = task.stop_time,
             retry_failed = task.retry_failed,
-            times_failed = task.times_failed)
+            times_failed = task.times_failed,
+            sync_output = task.sync_output)
 
     def report_task(self,task,task_report):
         db = self.db
         now = self.now()
-        if not self.discard_results:
-            if task_report.result != 'null' or task_report.tb:
-                #result is 'null' as a string if task completed
-                #if it's stopped it's None as NoneType, so we record
-                #the STOPPED "run" anyway
-                logging.debug(' recording task report in db (%s)' % task_report.status)
-                db(db.scheduler_run.id==task.run_id).update(
-                    status = task_report.status,
-                    stop_time = now,
-                    result = task_report.result,
-                    output = task_report.output,
-                    traceback = task_report.tb)
-            else:
-                logging.debug(' deleting task report in db because of no result')
-                db(db.scheduler_run.id==task.run_id).delete()
-        is_expired = task.stop_time and task.next_run_time > task.stop_time and True or False
-        status = (task.run_again and is_expired and EXPIRED
-                  or task.run_again and not is_expired and QUEUED or COMPLETED)
-        if task_report.status == COMPLETED:
-            d = dict(status = status,
-                     next_run_time = task.next_run_time,
-                     times_run = task.times_run,
-                     times_failed = 0 #reset times_failed counter for the next run
-                     )
-            db(db.scheduler_task.id==task.task_id)\
-                (db.scheduler_task.status==RUNNING).update(**d)
-        else:
-            st_mapping = {'FAILED':'FAILED',
-                          'TIMEOUT':'TIMEOUT',
-                          'STOPPED':'QUEUED'}[task_report.status]
-            status = (task.retry_failed and task.times_failed < task.retry_failed
-                      and QUEUED or task.retry_failed==-1 and QUEUED or st_mapping)
-            db(db.scheduler_task.id==task.task_id)\
-                (db.scheduler_task.status==RUNNING).update(
-                    times_failed=db.scheduler_task.times_failed+1,
-                    next_run_time = task.next_run_time,
-                    status=status)
-        db.commit()
-        logging.info('task completed (%s)' % task_report.status)
+        while True:
+            try:
+                if not self.discard_results:
+                    if task_report.result != 'null' or task_report.tb:
+                        #result is 'null' as a string if task completed
+                        #if it's stopped it's None as NoneType, so we record
+                        #the STOPPED "run" anyway
+                        logging.debug(' recording task report in db (%s)' % task_report.status)
+                        #CLEAROUT clears the output
+                        tout = task_report.output
+                        if CLEAROUT in tout:
+                            tout = tout[tout.rfind(CLEAROUT)+len(CLEAROUT):]
+                        db(db.scheduler_run.id==task.run_id).update(
+                            status = task_report.status,
+                            stop_time = now,
+                            result = task_report.result,
+                            output = tout,
+                            traceback = task_report.tb)
+                    else:
+                        logging.debug(' deleting task report in db because of no result')
+                        db(db.scheduler_run.id==task.run_id).delete()
+                is_expired = (task.stop_time
+                              and task.next_run_time > task.stop_time
+                              and True or False)
+                status = (task.run_again and is_expired and EXPIRED
+                          or task.run_again and not is_expired
+                          and QUEUED or COMPLETED)
+                if task_report.status == COMPLETED:
+                    d = dict(status = status,
+                             next_run_time = task.next_run_time,
+                             times_run = task.times_run,
+                             times_failed = 0
+                             )
+                    db(db.scheduler_task.id==task.task_id)\
+                        (db.scheduler_task.status==RUNNING).update(**d)
+                else:
+                    st_mapping = {'FAILED':'FAILED',
+                                  'TIMEOUT':'TIMEOUT',
+                                  'STOPPED':'QUEUED'}[task_report.status]
+                    status = (task.retry_failed
+                              and task.times_failed < task.retry_failed
+                              and QUEUED or task.retry_failed==-1
+                              and QUEUED or st_mapping)
+                    db(db.scheduler_task.id==task.task_id)\
+                        (db.scheduler_task.status==RUNNING).update(
+                            times_failed=db.scheduler_task.times_failed+1,
+                            next_run_time = task.next_run_time,
+                            status=status)
+                db.commit()
+                logging.info('task completed (%s)' % task_report.status)
+                break
+            except:
+                db.rollback()
 
     def adj_hibernation(self):
         if self.worker_status[0] == DISABLED:
@@ -685,6 +711,7 @@ class Scheduler(MetaScheduler):
             db(sw.worker_name == self.worker_name).update(is_ticker = True)
             db(sw.worker_name != self.worker_name).update(is_ticker = False)
             logging.info("TICKER: I'm a ticker (%s)" % self.worker_name)
+            db.commit()
             return True
         else:
             logging.info("%s is a ticker, I'm a poor worker" % ticker.worker_name)
