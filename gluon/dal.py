@@ -210,12 +210,12 @@ sql_locker = threading.RLock()
 thread = threading.local()
 
 # internal representation of tables with field
-#  <table>.<field>, tables and fields may only be [a-zA-Z0-0_]
+#  <table>.<field>, tables and fields may only be [a-zA-Z0-9_]
 
 regex_type = re.compile('^([\w\_\:]+)')
 regex_dbname = re.compile('^(\w+)(\:\w+)*')
-regex_safe = re.compile('^[\w_]+$')
-regex_table_field = re.compile('^([\w_]+)\.([\w_]+)$')
+regex_safe = re.compile('^\w+$')
+regex_table_field = re.compile('^(\w+)\.(\w+)$')
 regex_content = re.compile('(?P<table>[\w\-]+)\.(?P<field>[\w\-]+)\.(?P<uuidkey>[\w\-]+)\.(?P<name>\w+)\.\w+$')
 regex_cleanup_fn = re.compile('[\'"\s;]+')
 string_unpack=re.compile('(?<!\|)\|(?!\|)')
@@ -3871,9 +3871,9 @@ class GoogleSQLAdapter(UseDatabaseStoredFile,MySQLAdapter):
         self.dbengine = "mysql"
         self.uri = uri
         self.pool_size = pool_size
-        self.folder = folder
         self.db_codec = db_codec
-        self.folder = folder or '$HOME/'+thread.folder.split('/applications/',1)[1]
+        self.folder = folder or os.path.join('$HOME',thread.folder.split(
+                os.sep+'applications'+os.sep,1)[1])
 
         m = re.compile('^(?P<instance>.*)/(?P<db>.*)$').match(self.uri[len('google:sql://'):])
         if not m:
@@ -4333,7 +4333,7 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
                 items = [i for i in items if filter.apply(
                         getattr(item,filter.name),filter.value)]
             else:
-                if filter.name=='__key__':
+                if filter.name=='__key__' and filter.op != 'in':
                     items.order('__key__')
                 items = items.filter('%s %s' % (filter.name,filter.op),
                                      filter.value)
@@ -8316,7 +8316,7 @@ class Field(Expression):
         return (value, None)
 
     def count(self, distinct=None):
-        return Expression(self.db, self.db._adapter.COUNT, self, distinct, self.type)
+        return Expression(self.db, self.db._adapter.COUNT, self, distinct, 'integer')
 
     def __nonzero__(self):
         return True
