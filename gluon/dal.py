@@ -6262,6 +6262,8 @@ def bar_decode_integer(value):
     return [int(x) for x in value.split('|') if x.strip()]
 
 def bar_decode_string(value):
+    if not hasattr(value,'split') and hasattr(value,'read'):
+        value = value.read()
     return [x.replace('||', '|') for x in string_unpack.split(value[1:-1]) if x.strip()]
 
 
