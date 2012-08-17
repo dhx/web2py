@@ -271,8 +271,11 @@ class MetaScheduler(threading.Thread):
                         task_output = tout[tout.rfind(CLEAROUT)+len(CLEAROUT):]
                     else:
                         task_output += tout
-                    db(sr.id==task.run_id).update(output = task_output)
-                    db.commit()
+                    try:
+                        db(sr.id==task.run_id).update(output = task_output)
+                        db.commit()
+                    except:
+                        pass
         except:
             p.terminate()
             p.join()
