@@ -29,16 +29,16 @@ or
 python scheduler.py -h
 
 ## schedule jobs using
-http://127.0.0.1:8000/scheduler/appadmin/insert/db/scheduler_task
+http://127.0.0.1:8000/myapp/appadmin/insert/db/scheduler_task
 
 ## monitor scheduled jobs
-http://127.0.0.1:8000/scheduler/appadmin/select/db?query=db.scheduler_task.id>0
+http://127.0.0.1:8000/myapp/appadmin/select/db?query=db.scheduler_task.id>0
 
 ## view completed jobs
-http://127.0.0.1:8000/scheduler/appadmin/select/db?query=db.scheduler_run.id>0
+http://127.0.0.1:8000/myapp/appadmin/select/db?query=db.scheduler_run.id>0
 
 ## view workers
-http://127.0.0.1:8000/scheduler/appadmin/select/db?query=db.scheduler_worker.id>0
+http://127.0.0.1:8000/myapp/appadmin/select/db?query=db.scheduler_worker.id>0
 
 ## To install the scheduler as a permanent daemon on Linux (w/ Upstart), put the
 ## following into /etc/init/web2py-scheduler.conf:
@@ -72,6 +72,7 @@ import datetime
 import logging
 import optparse
 import types
+import Queue
 
 if 'WEB2PY_PATH' in os.environ:
     sys.path.append(os.environ['WEB2PY_PATH'])
@@ -227,14 +228,14 @@ def executor(queue,task, out):
         sys.stdout = stdout.stdout
         queue.put(TaskReport(COMPLETED, result,stdout.getvalue()))
     except BaseException,e:
-        stdout, sys.stdout = sys.stdout, stdout
+        sys.stdout = stdout.stdout
         tb = traceback.format_exc()
         queue.put(TaskReport(FAILED,tb=tb, output=stdout.getvalue()))
 
 class MetaScheduler(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
-        self.process = None     # the backround process
+        self.process = None     # the background process
         self.have_heartbeat = True   # set to False to kill
         self.empty_runs = 0
 
@@ -259,13 +260,12 @@ class MetaScheduler(threading.Thread):
                 task_output = ""
                 start = time.time()
                 while p.is_alive() and (time.time()-start < task.timeout):
-                    #logging.debug(' we are alive for %s, timeout is %s'%(str(time.time()-start),str(task.timeout)))
-                    p.join(timeout=task.sync_output) # p.join(timeout=task.update_frequency)
+                    p.join(timeout=task.sync_output)
                     tout = ""
                     while not out.empty():
                         tout += out.get()
                     if tout:
-                        logging.debug(' output: "%s"'%str(tout))
+                        logging.debug(' partial output: "%s"' % str(tout))
                         if CLEAROUT in tout:
                             task_output = tout[tout.rfind(CLEAROUT)+len(CLEAROUT):]
                         else:
@@ -282,10 +282,12 @@ class MetaScheduler(threading.Thread):
             return TaskReport(STOPPED)
         if p.is_alive():
             p.terminate()
-            p.join()
             logging.debug('    task timeout')
-            tr = queue.get()
-            tr.status = TIMEOUT
+            try:
+                tr = queue.get(timeout=2)
+                tr.status = TIMEOUT
+            except Queue.Empty:
+                tr = TaskReport(TIMEOUT)
             return tr
         elif queue.empty():
             self.have_heartbeat = False
@@ -588,7 +590,7 @@ class Scheduler(MetaScheduler):
                         logging.debug(' recording task report in db (%s)' % task_report.status)
                         #CLEAROUT clears the output
                         tout = task_report.output
-                        if CLEAROUT in tout:
+                        if tout and CLEAROUT in tout:
                             tout = tout[tout.rfind(CLEAROUT)+len(CLEAROUT):]
                         db(db.scheduler_run.id==task.run_id).update(
                             status = task_report.status,
