@@ -252,6 +252,7 @@ class MetaScheduler(threading.Thread):
         p.start()
 
         task_output = ""
+        tout = ""
 
         try:
             if task.sync_output > 0:
@@ -260,7 +261,14 @@ class MetaScheduler(threading.Thread):
                 run_timeout = task.timeout
 
             start = time.time()
+
             while p.is_alive() and (time.time()-start < task.timeout):
+                if tout:
+                    try:
+                        db(sr.id==task.run_id).update(output = task_output)
+                        db.commit()
+                    except:
+                        pass
                 p.join(timeout=run_timeout)
                 tout = ""
                 while not out.empty():
@@ -271,11 +279,6 @@ class MetaScheduler(threading.Thread):
                         task_output = tout[tout.rfind(CLEAROUT)+len(CLEAROUT):]
                     else:
                         task_output += tout
-                    try:
-                        db(sr.id==task.run_id).update(output = task_output)
-                        db.commit()
-                    except:
-                        pass
         except:
             p.terminate()
             p.join()
