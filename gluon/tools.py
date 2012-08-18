@@ -1383,11 +1383,12 @@ class Auth(object):
             signature_list = [signature]
         else:
             signature_list = signature
+        lazy_tables, db._lazy_tables = db._lazy_tables, False
         if not settings.table_user_name in db.tables:
             passfield = settings.password_field
             extra_fields = settings.extra_fields.get(
                 settings.table_user_name,[])+signature_list
-            if username or settings.cas_provider:
+            if username or settings.cas_provider:                
                 table = db.define_table(
                     settings.table_user_name,
                     Field('first_name', length=128, default='',
@@ -1570,6 +1571,7 @@ class Auth(object):
                     settings.table_user_name,
                     settings.table_user._format)
             settings.table_cas = db[settings.table_cas_name]
+        db._lazy_tables = lazy_tables
         if settings.cas_provider:
             settings.actions_disabled = \
                 ['profile','register','change_password','request_reset_password']
@@ -2433,7 +2435,6 @@ class Auth(object):
             [, onvalidation=DEFAULT [, onaccept=DEFAULT [, log=DEFAULT]]]])
 
         """
-
         table_user = self.settings.table_user
         request = current.request
         response = current.response
@@ -2466,7 +2467,7 @@ class Auth(object):
                        separator=self.settings.label_separator
                        )
         if captcha:
-            addrow(form, captcha.label, captcha, captcha.comment, self.settings.formstyle,'captcha__row')
+            addrow(form, captcha.label, captcha, captcha.comment, self.settings.formstyle,'captcha__row')        
         if form.accepts(request, session,
                         formname='reset_password', dbio=False,
                         onvalidation=onvalidation,
@@ -3118,13 +3119,12 @@ class Auth(object):
         table = form.table
         if not archive_table:
             archive_table_name = '%s_archive' % table
-            if archive_table_name in table._db:
-                archive_table = table._db[archive_table_name]
-            else:
-                archive_table = table._db.define_table(
+            if not archive_table_name in table._db:
+                table._db.define_table(
                     archive_table_name,
                     Field(current_record,table),
                     *[field.clone(unique=False) for field in table])
+            archive_table = table._db[archive_table_name]    
         new_record = {current_record:form.vars.id}
         for fieldname in archive_table.fields:
             if not fieldname in ['id',current_record]:
@@ -4458,9 +4458,19 @@ class Wiki(object):
     def markmin_render(self,page):
         return MARKMIN(page.body,url=True,environment=self.env,
                        autolinks=lambda link: expand_one(link,{})).xml()
+    @staticmethod
+    def component(text):
+        """
+        In wiki docs allows @{component:controller/function/args}
+        which renders as a LOAD(..., ajax=True)
+        """
+        items = text.split('/')
+        controller, function, args = items[0], items[1], items[2:]
+        return LOAD(controller, function, args=args, ajax=True).xml()
     def __init__(self,auth,env=None,automenu=True,render='markmin',
                  manage_permissions=False,force_prefix=''):
         self.env = env or {}
+        self.env['component'] = Wiki.component
         if render == 'markmin': render=self.markmin_render
         self.auth = auth
         self.automenu = automenu
