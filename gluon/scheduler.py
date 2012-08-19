@@ -265,6 +265,7 @@ class MetaScheduler(threading.Thread):
             while p.is_alive() and (time.time()-start < task.timeout):
                 if tout:
                     try:
+                        logging.debug("aaaaaaaaaaaaaa partial output saved")
                         db(sr.id==task.run_id).update(output = task_output)
                         db.commit()
                     except:
