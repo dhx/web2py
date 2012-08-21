@@ -28,7 +28,7 @@ from email import MIMEBase, MIMEMultipart, MIMEText, Encoders, Header, message_f
 from contenttype import contenttype
 from storage import Storage, StorageList, Settings, Messages
 from utils import web2py_uuid
-from fileutils import read_file
+from fileutils import read_file, check_credentials
 from gluon import *
 from gluon.contrib.autolinks import expand_one
 
@@ -676,8 +676,8 @@ class Recaptcha(DIV):
     Usage:
 
         form = FORM(Recaptcha(public_key='...',private_key='...'))
-     
-    or 
+
+    or
 
         form = SQLFORM(...)
         form.append(Recaptcha(public_key='...',private_key='...'))
@@ -1152,7 +1152,7 @@ class Auth(object):
 
         # for "remember me" option
         response = current.response
-        if auth  and  auth.remember: 
+        if auth  and  auth.remember:
             # when user wants to be logged in for longer
             response.cookies[response.session_id_name]["expires"] = \
                 auth.expiration
@@ -1223,12 +1223,12 @@ class Auth(object):
         if URL() == action:
             next = ''
         else:
-            next = '?_next=' + urllib.quote(URL(args=request.args, 
+            next = '?_next=' + urllib.quote(URL(args=request.args,
                                                 vars=request.get_vars))
-        
+
         href = lambda function: '%s/%s%s' % (action, function,
             next if referrer_actions is DEFAULT or function in referrer_actions else '')
-        
+
         if self.user_id:
             if user_identifier is DEFAULT:
                 user_identifier = '%(first_name)s'
@@ -1279,7 +1279,7 @@ class Auth(object):
         else:
             return True
 
-    def enable_record_versioning(self, 
+    def enable_record_versioning(self,
                                  tables,
                                  archive_db = None,
                                  archive_names='%(tablename)s_archive',
@@ -1295,13 +1295,13 @@ class Auth(object):
 
         tables can be the db (all table) or a list of tables.
         only tables with modified_by and modified_on fiels (as created
-        by auth.signature) will have versioning. Old record versions will be 
+        by auth.signature) will have versioning. Old record versions will be
         in table 'mything_archive' automatically defined.
-        
+
         when you enable enable_record_versioning, records are never
         deleted but marked with is_active=False.
 
-        enable_record_versioning enables a common_filter for 
+        enable_record_versioning enables a common_filter for
         every table that filters out records with is_active = False
 
         Important: If you use auth.enable_record_versioning,
@@ -1311,7 +1311,7 @@ class Auth(object):
 
         """
         tables = [table for table in tables]
-        for table in tables: 
+        for table in tables:
             if 'modified_on' in table.fields():
                 table._enable_record_versioning(
                     archive_db = archive_db,
@@ -1355,7 +1355,7 @@ class Auth(object):
                                         label=T('Modified By')))
 
 
-    def define_tables(self, username=False, signature=None, 
+    def define_tables(self, username=False, signature=None,
                       migrate=True, fake_migrate=False):
         """
         to be called unless tables are defined manually
@@ -1383,11 +1383,12 @@ class Auth(object):
             signature_list = [signature]
         else:
             signature_list = signature
+        lazy_tables, db._lazy_tables = db._lazy_tables, False
         if not settings.table_user_name in db.tables:
             passfield = settings.password_field
             extra_fields = settings.extra_fields.get(
                 settings.table_user_name,[])+signature_list
-            if username or settings.cas_provider:
+            if username or settings.cas_provider:                
                 table = db.define_table(
                     settings.table_user_name,
                     Field('first_name', length=128, default='',
@@ -1570,6 +1571,7 @@ class Auth(object):
                     settings.table_user_name,
                     settings.table_user._format)
             settings.table_cas = db[settings.table_cas_name]
+        db._lazy_tables = lazy_tables
         if settings.cas_provider:
             settings.actions_disabled = \
                 ['profile','register','change_password','request_reset_password']
@@ -2021,7 +2023,7 @@ class Auth(object):
             cas_user = cas.get_user()
             if cas_user:
                 next = cas.logout_url(next)
-                
+
         current.session.auth = None
         current.session.flash = self.messages.logged_out
         redirect(next)
@@ -2055,6 +2057,27 @@ class Auth(object):
             onaccept = self.settings.register_onaccept
         if log is DEFAULT:
             log = self.messages.register_log
+
+        table_user = self.settings.table_user
+        if 'username' in table_user.fields:
+            username = 'username'
+        else:
+            username = 'email'
+
+        # Ensure the username field is unique.
+        unique_validator = IS_NOT_IN_DB(self.db, table_user[username])
+        if not table_user[username].requires:
+            table_user[username].requires = unique_validator
+        elif isinstance(table_user[username].requires, (list, tuple)):
+            if not any([isinstance(validator, IS_NOT_IN_DB) for validator in
+                        table_user[username].requires]):
+                if isinstance(table_user[username].requires, list):
+                    table_user[username].requires.append(unique_validator)
+                else:
+                    table_user[username].requires += (unique_validator, )
+        elif not isinstance(table_user[username].requires, IS_NOT_IN_DB):
+            table_user[username].requires = [table_user[username].requires,
+                unique_validator]
 
         passfield = self.settings.password_field
         formstyle = self.settings.formstyle
@@ -2117,11 +2140,6 @@ class Auth(object):
                 if not self.settings.registration_requires_verification:
                     table_user[form.vars.id] = dict(registration_key='')
                 session.flash = self.messages.registration_successful
-                table_user = self.settings.table_user
-                if 'username' in table_user.fields:
-                    username = 'username'
-                else:
-                    username = 'email'
                 user = self.db(table_user[username] == form.vars[username]).select().first()
                 user = Storage(table_user._filter_fields(user, id=True))
                 session.auth = Storage(user=user, last_visit=request.now,
@@ -2417,7 +2435,6 @@ class Auth(object):
             [, onvalidation=DEFAULT [, onaccept=DEFAULT [, log=DEFAULT]]]])
 
         """
-
         table_user = self.settings.table_user
         request = current.request
         response = current.response
@@ -2450,7 +2467,7 @@ class Auth(object):
                        separator=self.settings.label_separator
                        )
         if captcha:
-            addrow(form, captcha.label, captcha, captcha.comment, self.settings.formstyle,'captcha__row')
+            addrow(form, captcha.label, captcha, captcha.comment, self.settings.formstyle,'captcha__row')        
         if form.accepts(request, session,
                         formname='reset_password', dbio=False,
                         onvalidation=onvalidation,
@@ -2623,9 +2640,8 @@ class Auth(object):
             redirect(next)
         return form
 
-    def is_impersonating(self):        
-        return current.session.auth and \
-            'impersonator' in current.session.auth
+    def is_impersonating(self):
+        return self.is_logged_in() and 'impersonator' in current.session.auth
 
     def impersonate(self, user_id=DEFAULT):
         """
@@ -2725,7 +2741,9 @@ class Auth(object):
                 if requires_login:
                     if not user:
                         if not otherwise is None:
-                            return otherwise
+                            if callable(otherwise):
+                                return otherwise()
+                            redirect(otherwise)
                         elif self.settings.allow_basic_login_only or \
                                 basic_accepted or current.request.is_restful:
                             raise HTTP(403,"Not authorized")
@@ -2835,8 +2853,8 @@ class Auth(object):
         else:
             user = self.user
         return self.settings.create_user_groups % user
-        
-    
+
+
     def has_membership(self, group_id=None, user_id=None, role=None):
         """
         checks if user is member of group_id or role
@@ -2919,7 +2937,7 @@ class Auth(object):
                 self.has_permission(
             name,table_name,record_id,user_id=None,
             group_id=self.settings.everybody_group_id): return True
-        
+
         if not user_id and not group_id and self.user:
             user_id = self.user.id
         if user_id:
@@ -3100,13 +3118,12 @@ class Auth(object):
         table = form.table
         if not archive_table:
             archive_table_name = '%s_archive' % table
-            if archive_table_name in table._db:
-                archive_table = table._db[archive_table_name]
-            else:
-                archive_table = table._db.define_table(
+            if not archive_table_name in table._db:
+                table._db.define_table(
                     archive_table_name,
                     Field(current_record,table),
                     *[field.clone(unique=False) for field in table])
+            archive_table = table._db[archive_table_name]    
         new_record = {current_record:form.vars.id}
         for fieldname in archive_table.fields:
             if not fieldname in ['id',current_record]:
@@ -4235,10 +4252,14 @@ def completion(callback):
     return _completion
 
 def prettydate(d,T=lambda x:x):
-    try:
+    if isinstance(d,datetime.datetime):
         dt = datetime.datetime.now() - d
-    except:
+    elif isinstance(d,datetime.date):
+        dt = datetime.date.today() - d
+    elif not d:
         return ''
+    else:
+        return '[invalid date]'
     if dt.days >= 2*365:
         return T('%d years ago') % int(dt.days / 365)
     elif dt.days >= 365:
@@ -4433,12 +4454,22 @@ class Wiki(object):
     everybody = 'everybody'
     rows_page = 25
     regex_redirect = re.compile('redirect\s+(\w+\://\S+)\s*')
-    def markmin_render(self,page):        
+    def markmin_render(self,page):
         return MARKMIN(page.body,url=True,environment=self.env,
                        autolinks=lambda link: expand_one(link,{})).xml()
+    @staticmethod
+    def component(text):
+        """
+        In wiki docs allows @{component:controller/function/args}
+        which renders as a LOAD(..., ajax=True)
+        """
+        items = text.split('/')
+        controller, function, args = items[0], items[1], items[2:]
+        return LOAD(controller, function, args=args, ajax=True).xml()
     def __init__(self,auth,env=None,automenu=True,render='markmin',
                  manage_permissions=False,force_prefix=''):
         self.env = env or {}
+        self.env['component'] = Wiki.component        
         if render == 'markmin': render=self.markmin_render
         self.auth = auth
         self.automenu = automenu
@@ -4446,6 +4477,7 @@ class Wiki(object):
             self.force_prefix = force_prefix % self.auth.user
         else:
             self.force_prefix = force_prefix
+        self.host = current.request.env.http_host
         perms = self.manage_permissions = manage_permissions
         db = auth.db
         db.define_table(
@@ -4481,12 +4513,17 @@ class Wiki(object):
                 if tag: db.wiki_tag.insert(name=tag,wiki_page=id)
         def update_tags_update(dbset,page,db=db):
             page = dbset.select().first()
-            db(db.wiki_tag.wiki_page==page.id).delete()            
+            db(db.wiki_tag.wiki_page==page.id).delete()
             for tag in page.tags or []:
                 tag = tag.strip().lower()
                 if tag: db.wiki_tag.insert(name=tag,wiki_page=page.id)
         db.wiki_page._after_insert.append(update_tags_insert)
         db.wiki_page._after_update.append(update_tags_update)
+        if check_credentials(current.request) and \
+                not 'wiki_editor' in auth.user_groups.values():
+            group = db.auth_group(role='wiki_editor')
+            gid = group.id if group else db.auth_group.insert(role='wiki_editor')
+            auth.add_membership(gid)            
     # WIKI ACCESS POLICY
     def not_authorized(self,page=None):
         raise HTTP(401)
@@ -4495,7 +4532,7 @@ class Wiki(object):
             return True
         elif self.auth.user:
             groups = self.auth.user_groups.values()
-            if ('wiki_editor' in groups or                 
+            if ('wiki_editor' in groups or
                 set(groups).intersection(set(page.can_read+page.can_edit)) or
                 page.created_by==self.auth.user.id): return True
         return False
@@ -4505,7 +4542,7 @@ class Wiki(object):
         return ('wiki_editor' in groups or
                 (page is None and 'wiki_author' in groups) or
                 not page is None and (
-                set(groups).intersection(set(page.can_edit)) or 
+                set(groups).intersection(set(page.can_edit)) or
                 page.created_by==self.auth.user.id))
     def can_manage(self):
         if not self.auth.user: redirect(self.auth.settings.login_url)
@@ -4520,8 +4557,8 @@ class Wiki(object):
             current.response.menu = self.menu(request.controller,
                                               request.function)
         zero = request.args(0)
-        if zero=='_media':
-            return self.media(request.args(1,cast=int))
+        if zero and zero.isdigit():
+            return self.media(int(zero))
         elif not zero or not zero.startswith('_'):
             return self.read(zero or 'index')
         elif zero=='_edit':
@@ -4544,7 +4581,7 @@ class Wiki(object):
                                )
         elif zero=='_cloud':
             return self.cloud()
-        
+
 
     def first_paragraph(self,page):
         if not self.can_read(page):
@@ -4554,6 +4591,9 @@ class Wiki(object):
             if ps: return ps[0]
         return ''
 
+    def fix_hostname(self,body):
+        return body.replace('://HOSTNAME','://%s' % self.host)
+    
     def read(self,slug):
         if slug in '_cloud':
             return self.cloud()
@@ -4562,15 +4602,15 @@ class Wiki(object):
             redirect(URL(args=('_create',slug)))
         if not self.can_read(page): return self.not_authorized(page)
         if current.request.extension == 'html':
-            if not page: 
+            if not page:
                 url = URL(args=('_edit',slug))
                 return dict(content=A('Create page "%s"' % slug,_href=url,_class="btn"))
             else:
                 match = self.regex_redirect.match(page.body)
                 if match: redirect(match.group(1))
-                return dict(content=XML(page.html))        
+                return dict(content=XML(self.fix_hostname(page.html)))
         elif current.request.extension == 'load':
-            return page.html if page else ''
+            return self.fix_hostname(page.html) if page else ''
         else:
             if not page:
                 raise HTTP(404)
@@ -4587,7 +4627,7 @@ class Wiki(object):
             redirect(self.auth.settings.login_url)
         elif not self.auth.has_membership(role):
             if not act: return False
-            raise HTTP(401, "Not Authorized")          
+            raise HTTP(401, "Not Authorized")
         return True
     def edit(self,slug):
         auth = self.auth
@@ -4606,6 +4646,9 @@ class Wiki(object):
             db.wiki_page.slug.default = slug
             db.wiki_page.menu.default = slug
             db.wiki_page.body.default = '## %s\n\npage content' % title_guess
+        vars = current.request.post_vars
+        if vars.body:
+            vars.body=vars.body.replace('://%s' % self.host,'://HOSTNAME')
         form = SQLFORM(db.wiki_page,page,deletable=True,showid=False).process()
         if form.deleted:
             current.session.flash = 'page deleted'
@@ -4617,9 +4660,13 @@ class Wiki(object):
 
     def editmedia(self,slug):
         auth = self.auth
-        db = auth.db
+        db = auth.db        
         page = db.wiki_page(slug=slug)
         if not (page and self.can_edit(page)): return self.not_authorized(page)
+        self.auth.db.wiki_media.id.represent = lambda id,row:\
+            SPAN('@////%i/%s.%s' % \
+                     (id,IS_SLUG.urlify(row.title.split('.')[0]),
+                      row.file.split('.')[-1]))
         self.auth.db.wiki_media.wiki_page.default = page.id
         self.auth.db.wiki_media.wiki_page.writable = False
         content = SQLFORM.grid(
@@ -4640,6 +4687,7 @@ class Wiki(object):
         return dict(content=form)
     def pages(self):
         if not self.can_manage(): return self.not_authorized()
+        self.auth.db.wiki_page.id.represent = lambda id,row:SPAN('@////%s' % row.slug)
         self.auth.db.wiki_page.title.represent = lambda title,row: \
             A(title,_href=URL(args=row.slug))
         content=SQLFORM.grid(
@@ -4659,7 +4707,7 @@ class Wiki(object):
         media = db.wiki_media(id)
         if media:
             if self.manage_permissions:
-                page = db.wiki_page(media.page)
+                page = db.wiki_page(media.wiki_page)
                 if not self.can_read(page): return self.not_authorized(page)
             request.args = [media.file]
             return current.response.download(request,db)
@@ -4709,7 +4757,7 @@ class Wiki(object):
                 if mode in (1,2):
                     submenu.append((current.T('Edit Page Media'),None,
                     URL(controller,function,args=('_editmedia',slug))))
-                                    
+
             submenu.append((current.T('Create New Page'),None,
                             URL(controller,function,args=('_create'))))
         # if self.can_manage():
@@ -4720,7 +4768,7 @@ class Wiki(object):
                             URL(controller,function,args=('_search'))))
         return menu
     def search(self,tags=None,query=None,cloud=True,preview=True,
-               limitby=(0,100),orderby=None):        
+               limitby=(0,100),orderby=None):
         if not self.can_search(): return self.not_authorized()
         request = current.request
         content = CAT()
@@ -4746,7 +4794,7 @@ class Wiki(object):
             pages = db(query).select(
                 *fields,**dict(orderby=orderby or ~count,
                                groupby=db.wiki_page.id,
-                               limitby=limitby))        
+                               limitby=limitby))
             if request.extension in ('html','load'):
                 if not pages:
                     content.append(DIV(T("No results",_class='w2p_wiki_form')))
@@ -4764,7 +4812,7 @@ class Wiki(object):
                 cloud=False
                 content = [p.as_dict() for p in pages]
         elif cloud:
-            content.append(self.cloud()['content'])        
+            content.append(self.cloud()['content'])
         if request.extension=='load':
             return content
         return dict(content=content)
@@ -4786,10 +4834,11 @@ class Wiki(object):
                              vars=dict(tags=item.wiki_tag.name)))
                  for item in ids]
         return dict(content=DIV(_class='w2p_cloud',*items))
-        
+
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+
 
 
 

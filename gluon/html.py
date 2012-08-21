@@ -1358,6 +1358,8 @@ class A(DIV):
     tag = 'a'
 
     def xml(self):
+        if not self.components and self['_href']:
+            self.append(self['_href'])
         if self['delete']:
             d = "jQuery(this).closest('%s').remove();" % self['delete']
         else:
@@ -2034,11 +2036,11 @@ class FORM(DIV):
         return self
 
     REDIRECT_JS = "window.location='%s';return false"
-    
+
     def add_button(self,value,url,_class=None):
         self[0][-1][1].append(INPUT(_type="button",_value=value,_class=_class,
                                     _onclick=self.REDIRECT_JS % url))
-                                    
+
 
 
     @staticmethod
@@ -2052,7 +2054,7 @@ class FORM(DIV):
         inputs += [INPUT(_type='hidden',
                          _name=name,
                          _value=value)
-                   for name,value in hidden.items()]        
+                   for name,value in hidden.items()]
         form = FORM(INPUT(_type='submit',_value=text),*inputs)
         form.process()
         return form
@@ -2385,7 +2387,7 @@ class MARKMIN(XmlComponent):
                  autolinks='default',
                  protolinks='default',
                  class_prefix='',
-                 id_prefix='markmin_'):                 
+                 id_prefix='markmin_'):
         self.text = text
         self.extra = extra or {}
         self.allowed = allowed or {}
@@ -2429,6 +2431,7 @@ class MARKMIN(XmlComponent):
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+
 
 
 

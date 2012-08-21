@@ -4,7 +4,7 @@ Released under the web2py license (LGPL)
 
 What does it do?
 
-if html is a variable containing HTML text and urls in the text, when you call 
+if html is a variable containing HTML text and urls in the text, when you call
 
     html = expend_html(html)
 
@@ -63,7 +63,7 @@ EMBED_MAPS = [
      'http://www.hulu.com/api/oembed.json'),
     (re.compile('http://vimeo.com/\S*'),
      'http://vimeo.com/api/oembed.json'),
-    (re.compile('http://www.slideshare.net/[^\/]+/\S*'), 
+    (re.compile('http://www.slideshare.net/[^\/]+/\S*'),
      'http://www.slideshare.net/api/oembed/2'),
     (re.compile('http://qik.com/\S*'),
      'http://qik.com/api/oembed.json'),
@@ -126,12 +126,19 @@ EXTENSION_MAPS = {
     'xps': googledoc_viewer,
 }
 
+class VimeoURLOpener(urllib.FancyURLopener):
+    "Vimeo blocks the urllib user agent for some reason"
+    version = "Mozilla/4.0"
+urllib._urlopener = VimeoURLOpener()
+
 def oembed(url):
     for k,v in EMBED_MAPS:
-        if k.match(url):            
-            oembed = v+'?format=json&url='+cgi.escape(url)            
-            try:
-                return loads(urllib.urlopen(oembed).read())
+        if k.match(url):
+            oembed = v+'?format=json&url='+cgi.escape(url)
+            try:                
+                data = urllib.urlopen(oembed).read()
+                print data
+                return loads(data) # json!
             except:
                 pass
     return {}
@@ -143,10 +150,10 @@ def expand_one(url,cdict):
     # try ombed but first check in cache
     if cdict and url in cdict:
         r = cdict[url]
-    elif cdict:
-        r = cdict[url] = oembed(url)
     else:
         r = oembed(url)
+        if isinstance(cdict,dict): 
+            cdict[url] = r
     # if oembed service
     if 'html' in r:
         html = r['html'].encode('utf8')
@@ -196,3 +203,4 @@ if __name__=="__main__":
         print expand_html(open(sys.argv[1]).read())
     else:
         print test()
+
