@@ -1702,6 +1702,16 @@ class BaseAdapter(ConnectionPool):
 
     def parse_datetime(self, value, field_type):
         if not isinstance(value, datetime.datetime):
+            if '+' in value:
+                value,tz = value.split('+')
+                h,m = tz.split(':')
+                dt = datetime.timedelta(seconds=3600*int(h)+60*int(m))
+            elif '-' in value:
+                value,tz = value.split('-')
+                h,m = tz.split(':')
+                dt = -datetime.timedelta(seconds=3600*int(h)+60*int(m))
+            else:
+                dt = None
             date_part, time_part = (
                 str(value).replace('T',' ')+' ').split(' ',1)
             (y, m, d) = map(int,date_part.split('-'))
@@ -1710,6 +1720,8 @@ class BaseAdapter(ConnectionPool):
             time_items = map(int,time_parts)
             (h, mi, s) = time_items
             value = datetime.datetime(y, m, d, h, mi, s)
+            if dt:
+                value = value + dt
         return value
 
     def parse_blob(self, value, field_type):
@@ -6285,6 +6297,17 @@ class Row(dict):
     this is only used to store a Row
     """
 
+    # IF NOT HAVE BUG http://bugs.python.org/issue1469629 uncommend these lines and comment __getattr__, __setattr__
+    # def __init__(self,*args,**kwargs):
+    #    dict.__init__(self,*args,**kwargs)
+    #    self.__dict__ = self
+
+    def __getattr__(self, key):
+        return self[key]
+
+    def __setattr__(self, key, value):
+        self[key] = value
+
     def __getitem__(self, key):
         key=str(key)
         m = regex_table_field.match(key)
@@ -6302,12 +6325,6 @@ class Row(dict):
 
     def __setitem__(self, key, value):
         dict.__setitem__(self, str(key), value)
-
-    def __getattr__(self, key):
-        return self[key]
-
-    def __setattr__(self, key, value):
-        self[key] = value
 
     def __str__(self):
         ### this could be made smarter
@@ -6578,6 +6595,7 @@ class DAL(dict):
         :fake_migrate_all (defaults to False). If sets to True fake migrates ALL tables
         :attempts (defaults to 5). Number of times to attempt connecting
         """
+        # self.__dict__ = self # http://bugs.python.org/issue1469629
         if not decode_credentials:
             credential_decoder = lambda cred: cred
         else:
@@ -6958,7 +6976,7 @@ def index():
         **args
         ):
         if self._common_fields:
-            fields = fields + self._common_fields
+            fields = list(fields) + list(self._common_fields)
 
         table_class = args.get('table_class',Table)
         table = table_class(self, tablename, *fields, **args)
@@ -6988,7 +7006,9 @@ def index():
             yield self[tablename]
 
     def __getitem__(self, key):
-        key = str(key)
+        return self.__getattr__(str(key))
+
+    def __getattr__(self, key):
         if not key is '_LAZY_TABLES' and key in self._LAZY_TABLES:
             tablename, fields, args = self._LAZY_TABLES.pop(key)
             return self.lazy_define_table(tablename,*fields,**args)
@@ -6997,14 +7017,13 @@ def index():
     def __setitem__(self, key, value):
         dict.__setitem__(self, str(key), value)
 
-    def __getattr__(self, key):
-        return self[key]
-
     def __setattr__(self, key, value):
         if key[:1]!='_' and key in self:
             raise SyntaxError, \
                 'Object %s exists and cannot be redefined' % key
-        self[key] = value
+        dict.__setitem__(self,key,value)
+        # replace above line with below if not have bug http://bugs.python.org/issue1469629
+        # dict.__setattr__(self,key,value)
 
     def __repr__(self):
         return '<DAL ' + dict.__repr__(self) + '>'
@@ -7206,7 +7225,7 @@ class Table(dict):
 
         :raises SyntaxError: when a supplied field is of incorrect type.
         """
-
+        # self.__dict__ = self # http://bugs.python.org/issue1469629
         self._actual = False # set to True by define_table()
         self._tablename = tablename
         self._sequence_name = args.get('sequence_name',None) or \
@@ -7277,7 +7296,7 @@ class Table(dict):
                     tmp = field.uploadfield = '%s_blob' % field.name
         if isinstance(field.uploadfield,str) and \
                 not [f for f in fields if f.name==field.uploadfield]:
-            fields.append(self._db.Field(field.uploadfield,'blob',default=''))
+            fields.append(Field(field.uploadfield,'blob',default=''))
 
         lower_fieldnames = set()
         reserved = dir(Table) + ['fields']
@@ -7468,6 +7487,10 @@ class Table(dict):
                     'value must be a dictionary: %s' % value
             dict.__setitem__(self, str(key), value)
 
+    # comment if not have bug http://bugs.python.org/issue1469629
+    def __getattr__(self, key):                                                                                               
+        return self[key]
+
     def __delitem__(self, key):
         if isinstance(key, dict):
             query = self._build_query(key)
@@ -7476,13 +7499,12 @@ class Table(dict):
         elif not str(key).isdigit() or not self._db(self._id == key).delete():
             raise SyntaxError, 'No such record: %s' % key
 
-    def __getattr__(self, key):
-        return self[key]
-
     def __setattr__(self, key, value):
         if key[:1]!='_' and key in self:
             raise SyntaxError, 'Object exists and cannot be redefined: %s' % key
         self[key] = value
+        # replace with line below if have bug http://bugs.python.org/issue1469629
+        # dict.__setattr__(self,key,value)
 
     def __iter__(self):
         for fieldname in self.fields:

@@ -3136,9 +3136,11 @@ class Auth(object):
                 new_record[key] = value
         id = archive_table.insert(**new_record)
         return id
-    def wiki(self,slug=None,env=None,manage_permissions=False,force_prefix=''):
+    def wiki(self,slug=None,env=None,automenu=True,manage_permissions=False,force_prefix=''):
         if not hasattr(self,'_wiki'):
-            self._wiki = Wiki(self,manage_permissions=manage_permissions,
+            self._wiki = Wiki(self,
+                              automenu=automenu,
+                              manage_permissions=manage_permissions,
                               force_prefix=force_prefix,env=env)
         else:
             self._wiki.env.update(env or {})
@@ -4519,7 +4521,7 @@ class Wiki(object):
                 if tag: db.wiki_tag.insert(name=tag,wiki_page=page.id)
         db.wiki_page._after_insert.append(update_tags_insert)
         db.wiki_page._after_update.append(update_tags_update)
-        if check_credentials(current.request) and \
+        if auth.user and check_credentials(current.request) and \
                 not 'wiki_editor' in auth.user_groups.values():
             group = db.auth_group(role='wiki_editor')
             gid = group.id if group else db.auth_group.insert(role='wiki_editor')
