@@ -174,7 +174,7 @@ import platform
 CALLABLETYPES = (types.LambdaType, types.FunctionType,
                  types.BuiltinFunctionType,
                  types.MethodType, types.BuiltinMethodType)
-TABLE_ARGS = ('migrate','primarykey','fake_migrate','format','singular','plural','trigger_name','sequence_name','common_filter','polymodel','table_class')
+TABLE_ARGS = ('migrate','primarykey','fake_migrate','format','singular','plural','trigger_name','sequence_name','common_filter','polymodel','table_class','on_define')
 
 ###################################################################################
 # following checks allow the use of dal without web2py, as a standalone module
@@ -1317,7 +1317,7 @@ class BaseAdapter(ConnectionPool):
                     tablename,fieldname = item.split('.')
                     new_fields.append(self.db[tablename][fieldname])
                 else:
-                    new_fields.append(Expression(self.db,item))
+                    new_fields.append(Expression(self.db,lambda:item))
             else:
                 new_fields.append(item)
         # ## if no fields specified take them all from the requested tables
@@ -1702,6 +1702,16 @@ class BaseAdapter(ConnectionPool):
 
     def parse_datetime(self, value, field_type):
         if not isinstance(value, datetime.datetime):
+            if '+' in value:
+                value,tz = value.split('+')
+                h,m = tz.split(':')
+                dt = datetime.timedelta(seconds=3600*int(h)+60*int(m))
+            elif '-' in value:
+                value,tz = value.split('-')
+                h,m = tz.split(':')
+                dt = -datetime.timedelta(seconds=3600*int(h)+60*int(m))
+            else:
+                dt = None
             date_part, time_part = (
                 str(value).replace('T',' ')+' ').split(' ',1)
             (y, m, d) = map(int,date_part.split('-'))
@@ -1710,6 +1720,8 @@ class BaseAdapter(ConnectionPool):
             time_items = map(int,time_parts)
             (h, mi, s) = time_items
             value = datetime.datetime(y, m, d, h, mi, s)
+            if dt:
+                value = value + dt
         return value
 
     def parse_blob(self, value, field_type):
@@ -2729,6 +2741,14 @@ class OracleAdapter(BaseAdapter):
         self.execute('SELECT %s.currval FROM dual;' % sequence_name)
         return int(self.cursor.fetchone()[0])
 
+    def parse_value(self, value, field_type, blob_decode=True):
+        if blob_decode and isinstance(value, cx_Oracle.LOB):
+            try:
+                value = value.read()
+            except cx_Oracle.ProgrammingError:
+                # After a subsequent fetch the LOB value is not valid anymore
+                pass
+        return BaseAdapter.parse_value(self, value, field_type, blob_decode)
 
 class MSSQLAdapter(BaseAdapter):
 
@@ -6275,6 +6295,12 @@ class Row(dict):
     this is only used to store a Row
     """
 
+    def __getattr__(self, key):
+        return self[key]
+
+    def __setattr__(self, key, value):
+        self[key] = value
+
     def __getitem__(self, key):
         key=str(key)
         m = regex_table_field.match(key)
@@ -6292,12 +6318,6 @@ class Row(dict):
 
     def __setitem__(self, key, value):
         dict.__setitem__(self, str(key), value)
-
-    def __getattr__(self, key):
-        return self[key]
-
-    def __setattr__(self, key, value):
-        self[key] = value
 
     def __str__(self):
         ### this could be made smarter
@@ -6948,7 +6968,7 @@ def index():
         **args
         ):
         if self._common_fields:
-            fields = fields + self._common_fields
+            fields = list(fields) + list(self._common_fields)
 
         table_class = args.get('table_class',Table)
         table = table_class(self, tablename, *fields, **args)
@@ -6971,6 +6991,8 @@ def index():
                 sql_locker.release()
         else:
             table._dbt = None
+        on_define = args.get('on_define',None) 
+        if on_define: on_define(table)
         return table
 
     def __iter__(self):
@@ -6978,7 +7000,9 @@ def index():
             yield self[tablename]
 
     def __getitem__(self, key):
-        key = str(key)
+        return self.__getattr__(str(key))
+
+    def __getattr__(self, key):
         if not key is '_LAZY_TABLES' and key in self._LAZY_TABLES:
             tablename, fields, args = self._LAZY_TABLES.pop(key)
             return self.lazy_define_table(tablename,*fields,**args)
@@ -6987,14 +7011,11 @@ def index():
     def __setitem__(self, key, value):
         dict.__setitem__(self, str(key), value)
 
-    def __getattr__(self, key):
-        return self[key]
-
     def __setattr__(self, key, value):
         if key[:1]!='_' and key in self:
             raise SyntaxError, \
                 'Object %s exists and cannot be redefined' % key
-        self[key] = value
+        dict.__setitem__(self,key,value)
 
     def __repr__(self):
         return '<DAL ' + dict.__repr__(self) + '>'
@@ -7196,7 +7217,6 @@ class Table(dict):
 
         :raises SyntaxError: when a supplied field is of incorrect type.
         """
-
         self._actual = False # set to True by define_table()
         self._tablename = tablename
         self._sequence_name = args.get('sequence_name',None) or \
@@ -7267,7 +7287,7 @@ class Table(dict):
                     tmp = field.uploadfield = '%s_blob' % field.name
         if isinstance(field.uploadfield,str) and \
                 not [f for f in fields if f.name==field.uploadfield]:
-            fields.append(self._db.Field(field.uploadfield,'blob',default=''))
+            fields.append(Field(field.uploadfield,'blob',default=''))
 
         lower_fieldnames = set()
         reserved = dir(Table) + ['fields']
@@ -7458,6 +7478,9 @@ class Table(dict):
                     'value must be a dictionary: %s' % value
             dict.__setitem__(self, str(key), value)
 
+    def __getattr__(self, key):                                                                                               
+        return self[key]
+
     def __delitem__(self, key):
         if isinstance(key, dict):
             query = self._build_query(key)
@@ -7465,9 +7488,6 @@ class Table(dict):
                 raise SyntaxError, 'No such record: %s' % key
         elif not str(key).isdigit() or not self._db(self._id == key).delete():
             raise SyntaxError, 'No such record: %s' % key
-
-    def __getattr__(self, key):
-        return self[key]
 
     def __setattr__(self, key, value):
         if key[:1]!='_' and key in self:
@@ -7495,33 +7515,38 @@ class Table(dict):
         return self._db._adapter.drop(self,mode)
 
     def _listify(self,fields,update=False):
-        new_fields = []
-        new_fields_names = []
+        new_fields = {} # format: new_fields[name] = (field,value)
+        # store all fields passed as input in new_fields
         for name in fields:
             if not name in self.fields:
                 if name != 'id':
-                    raise SyntaxError, 'Field %s does not belong to the table' % name
+                    raise SyntaxError, \
+                        'Field %s does not belong to the table' % name
             else:
                 field = self[name]
                 value = fields[name]
-                if field.filter_in: value = field.filter_in(value)
-                new_fields.append((field,value))
-                new_fields_names.append(name)
+                if field.filter_in:
+                    value = field.filter_in(value)
+                new_fields[name] = (field,value)
+        # check all fields that should be in the self table
         for ofield in self:
-            if not ofield.name in new_fields_names:
-                if not update and not ofield.default is None:
-                    new_fields.append((ofield,ofield.default))
-                elif update and not ofield.update is None:
-                    new_fields.append((ofield,ofield.update))
-        for ofield in self:
+            name = ofield.name
+            # if field is supposed to be computed, compute it!
             if ofield.compute:
                 try:
-                    new_fields.append((ofield,ofield.compute(Row(fields))))
+                    new_fields[name] = (ofield,ofield.compute(Row(fields)))
                 except KeyError:
                     pass
-            if not update and ofield.required and not ofield.name in new_fields_names:
-                raise SyntaxError,'Table: missing required field: %s' % ofield.name
-        return new_fields
+            # if field is required, check its default value
+            elif not name in new_fields:
+                if not update and not ofield.default is None:
+                    new_fields[name] = (ofield,ofield.default)
+                elif update and not ofield.update is None:
+                    new_fields[name] = (ofield,ofield.update)
+            # error if field if required, record to be create and field missing
+            if not update and ofield.required and not name in new_fields:
+                raise SyntaxError, 'Table: missing required field: %s' % name
+        return new_fields.values()
 
     def _attempt_upload(self, fields):
         for field in self:
@@ -8144,6 +8169,9 @@ class Field(Expression):
         self.custom_qualifier = custom_qualifier
         self.label = label if label!=None else fieldname.replace('_',' ').title()
         self.requires = requires if requires!=None else []
+
+    def set_attributes(self,*args,**attributes):
+        self.__dict__.update(*args,**attributes)
 
     def clone(self,point_self_references_to=False,**args):
         field = copy.copy(self)

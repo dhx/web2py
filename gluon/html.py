@@ -484,6 +484,19 @@ class XmlComponent(object):
             components += [other]
         return CAT(*components)
 
+    def add_class(self, name):
+        """ add a class to _class attribute """
+        classes = set(self['_class'].split())|set(name.split())
+        self['_class'] = ' '.join(classes) if classes else None
+        return self
+
+    def remove_class(self, name):
+        """ remove a class from _class attribute """
+        classes = set(self['_class'].split())-set(name.split())
+        self['_class'] = ' '.join(classes) if classes else None
+        return self
+
+
 class XML(XmlComponent):
     """
     use it to wrap a string that contains XML/HTML so that it will not be
@@ -2044,7 +2057,7 @@ class FORM(DIV):
 
 
     @staticmethod
-    def confim(text='OK',buttons=None,hidden=None):
+    def confirm(text='OK',buttons=None,hidden=None):
         if not buttons: buttons = {}
         if not hidden: hidden={}
         inputs = [INPUT(_type='button',
