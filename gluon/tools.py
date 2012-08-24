@@ -1174,7 +1174,7 @@ class Auth(object):
     def table_membership(self):
         return self.db[self.settings.table_membership_name]
     def table_permission(self):
-        return self.db[self.settings.table_membership_name]
+        return self.db[self.settings.table_permission_name]
     def table_event(self):
         return self.db[self.settings.table_event_name]
     def table_cas(self):
@@ -1414,7 +1414,8 @@ class Auth(object):
                 settings.table_user_name,[])+signature_list
             if username or settings.cas_provider:          
                 is_unique_username = \
-                    [IS_MATCH('[\w\.\-]+'), IS_NOT_IN_DB(db, table.username)]
+                    [IS_MATCH('[\w\.\-]+'), 
+                     IS_NOT_IN_DB(db,'%s.username' % settings.table_user_name)]
                 if not settings.username_case_sensitive:
                     is_unique_username.insert(1,IS_LOWER())
                 table = db.define_table(
