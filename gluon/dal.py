@@ -6291,18 +6291,12 @@ def bar_decode_string(value):
     return [x.replace('||', '|') for x in string_unpack.split(value[1:-1]) if x.strip()]
 
 
-class Row(dict):
+class Row(object):
 
     """
     a dictionary that lets you do d['a'] as well as d.a
     this is only used to store a Row
     """
-
-    def __getattr__(self, key):
-        return self[key]
-
-    def __setattr__(self, key, value):
-        self[key] = value
 
     def __getitem__(self, key):
         key=str(key)
@@ -6314,20 +6308,34 @@ class Row(dict):
                 return dict.__getitem__(self, m.group(1))[m.group(2)]
             except (KeyError,TypeError):
                 key = m.group(2)
-        return dict.__getitem__(self, key)
-
-    def __call__(self,key):
-        return self.__getitem__(key)
+        return object.__getattribute__(self, key)
 
     def __setitem__(self, key, value):
-        dict.__setitem__(self, str(key), value)
+        setattr(self, str(key), value)
+
+    __call__ = __getitem__
+
+    def get(self,key,default=None):
+        return self.__dict__.get(key,default)
+
+    def __contains__(self,key):
+        return key in self.__dict__
+
+    def keys(self):
+        return self.__dict__.keys()
+
+    def items(self):
+        return self.__dict__.items()
+
+    def values(self):
+        return self.__dict__.values()
 
     def __str__(self):
         ### this could be made smarter
-        return '<Row ' + dict.__repr__(self) + '>'
+        return '<Row %s>' % dict.__repr__(self)
 
     def __repr__(self):
-        return '<Row ' + dict.__repr__(self) + '>'
+        return '<Row %s>' % dict.__repr__(self)
 
     def __int__(self):
         return dict.__getitem__(self,'id')
@@ -6499,7 +6507,7 @@ def smart_query(fields,text):
     return query
 
 
-class DAL(dict):
+class DAL(object):
 
     """
     an instance of this class represents a database connection
@@ -6700,12 +6708,6 @@ class DAL(dict):
         for backend in self.check_reserved:
             if name.upper() in self.RSK[backend]:
                 raise SyntaxError, 'invalid table/column name "%s" is a "%s" reserved SQL keyword' % (name, backend.upper())
-
-    def __contains__(self, tablename):
-        if self.has_key(tablename):
-            return True
-        else:
-            return False
 
     def parse_as_rest(self,patterns,args,vars,queries=None,nested_select=True):
         """
@@ -6941,7 +6943,7 @@ def index():
         tablename,
         *fields,
         **args
-        ):       
+        ):
         if not isinstance(tablename,str):
             raise SyntaxError, "missing table name"
         elif tablename.startswith('_') or hasattr(self,tablename) or \
@@ -6955,7 +6957,7 @@ def index():
             invalid_args = [key for key in args if not key in TABLE_ARGS]
             if invalid_args:
                 raise SyntaxError, 'invalid table "%s" attributes: %s' \
-                    % (tablename,invalid_args)         
+                    % (tablename,invalid_args)
         if self._lazy_tables and not tablename in self._LAZY_TABLES:
             self._LAZY_TABLES[tablename] = (tablename,fields,args)
             table = None
@@ -6994,9 +6996,12 @@ def index():
                 sql_locker.release()
         else:
             table._dbt = None
-        on_define = args.get('on_define',None) 
+        on_define = args.get('on_define',None)
         if on_define: on_define(table)
         return table
+
+    def __contains__(self, tablename):
+        return tablename in self.tables
 
     def __iter__(self):
         for tablename in self.tables:
@@ -7009,19 +7014,21 @@ def index():
         if not key is '_LAZY_TABLES' and key in self._LAZY_TABLES:
             tablename, fields, args = self._LAZY_TABLES.pop(key)
             return self.lazy_define_table(tablename,*fields,**args)
-        return dict.__getitem__(self, key)
+        return object.__getattribute__(self, key)
 
     def __setitem__(self, key, value):
-        dict.__setitem__(self, str(key), value)
+        object.__setattr__(self, str(key), value)
 
     def __setattr__(self, key, value):
         if key[:1]!='_' and key in self:
             raise SyntaxError, \
                 'Object %s exists and cannot be redefined' % key
-        dict.__setitem__(self,key,value)
+        object.__setattr__(self,key,value)
+
+    __delitem__ = object.__delattr__
 
     def __repr__(self):
-        return '<DAL ' + dict.__repr__(self) + '>'
+        return '<DAL %s>' % self._uri
 
     def smart_query(self,fields,text):
         return Set(self, smart_query(fields,text))
@@ -7044,9 +7051,10 @@ def index():
             thread.instances.remove(self._adapter)
         self._adapter.close()
 
-    def executesql(self, query, placeholders=None, as_dict=False):
+    def executesql(self, query, placeholders=None, as_dict=False,
+                   fields=None, colnames=None):
         """
-        placeholders is optional and will always be None when using DAL.
+        placeholders is optional and will always be None.
         If using raw SQL with placeholders, placeholders may be
         a sequence of values to be substituted in
         or, (if supported by the DB driver), a dictionary with keys
@@ -7063,7 +7071,21 @@ def index():
 
         [{field1: value1, field2: value2}, {field1: value1b, field2: value2b}]
 
-        --bmeredyk
+        Added 2012-08-24 "fields" optional argument. If not None, the
+        results cursor returned by the DB driver will be converted to a
+        DAL Rows object using the db._adapter.parse() method. This requires
+        specifying the "fields" argument as a list of DAL Field objects
+        that match the fields returned from the DB. The Field objects should
+        be part of one or more Table objects defined on the DAL object.
+        The "fields" list can include one or more DAL Table objects in addition
+        to or instead of including Field objects, or it can be just a single
+        table (not in a list). In that case, the Field objects will be
+        extracted from the table(s).
+
+        The field names will be extracted from the Field objects, or optionally,
+        a list of field names can be provided (in tablename.fieldname format)
+        via the "colnames" argument. Note, the fields and colnames must be in
+        the same order as the fields in the results cursor returned from the DB.
         """
         if placeholders:
             self._adapter.execute(query, placeholders)
@@ -7083,11 +7105,22 @@ def index():
             # convert the list for each row into a dictionary so it's
             # easier to work with. row['field_name'] rather than row[0]
             return [dict(zip(fields,row)) for row in data]
-        # see if any results returned from database
-        try:
-            return self._adapter.cursor.fetchall()
-        except:
-            return None
+        data = self._adapter.cursor.fetchall()
+        if fields:
+            if not isinstance(fields, list):
+                fields = [fields]
+            extracted_fields = []
+            for field in fields:
+                if isinstance(field, Table):
+                    extracted_fields.extend([f for f in field])
+                else:
+                    extracted_fields.append(field)
+            if not colnames:
+                colnames = ['%s.%s' % (f.tablename, f.name)
+                            for f in extracted_fields]
+            data = self._adapter.parse(
+                data, fields=extracted_fields, colnames=colnames)
+        return data
 
     def _update_referenced_by(self, other):
         for tablename in self.tables:
@@ -7190,7 +7223,7 @@ def Reference_pickler(data):
 copy_reg.pickle(Reference, Reference_pickler, Reference_unpickler)
 
 
-class Table(dict):
+class Table(object):
 
     """
     an instance of this class represents a database table
@@ -7430,7 +7463,7 @@ class Table(dict):
         elif str(key).isdigit() or 'google' in drivers and isinstance(key, Key):
             return self._db(self._id == key).select(limitby=(0,1)).first()
         elif key:
-            return dict.__getitem__(self, str(key))
+            return object.__getattribute__(self, str(key))
 
     def __call__(self, key=DEFAULT, **kwargs):
         for_update = kwargs.get('_for_update',False)
@@ -7479,33 +7512,39 @@ class Table(dict):
             if isinstance(key, dict):
                 raise SyntaxError,\
                     'value must be a dictionary: %s' % value
-            dict.__setitem__(self, str(key), value)
+            object.__setattr__(self, str(key), value)
 
-    def __getattr__(self, key):                                                                                               
-        return self[key]
+    __getattr__ = __getitem__
+
+    def __setattr__(self, key, value):
+        if key[:1]!='_' and key in self:
+            raise SyntaxError, 'Object exists and cannot be redefined: %s' % key
+        object.__setattr__(self,key,value)
 
     def __delitem__(self, key):
         if isinstance(key, dict):
             query = self._build_query(key)
             if not self._db(query).delete():
                 raise SyntaxError, 'No such record: %s' % key
-        elif not str(key).isdigit() or not self._db(self._id == key).delete():
+        elif not str(key).isdigit() or \
+                not self._db(self._id == key).delete():
             raise SyntaxError, 'No such record: %s' % key
 
-    def __setattr__(self, key, value):
-        if key[:1]!='_' and key in self:
-            raise SyntaxError, 'Object exists and cannot be redefined: %s' % key
-        self[key] = value
+    def __contains__(self,key):
+        return hasattr(self,key)
+
+    def items(self):
+        return self.__dict__.items()
 
     def __iter__(self):
         for fieldname in self.fields:
             yield self[fieldname]
 
     def __repr__(self):
-        return '<Table ' + dict.__repr__(self) + '>'
+        return '<Table %s (%s)>' % (self._tablename,','.join(self.fields()))
 
     def __str__(self):
-        if self.get('_ot', None):
+        if hasattr(self,'_ot') and self._ot is not None:
             if 'Oracle' in str(type(self._db._adapter)):     # <<< patch
                 return '%s %s' % (self._ot, self._tablename) # <<< patch
             return '%s AS %s' % (self._ot, self._tablename)
@@ -8364,6 +8403,9 @@ class Query(object):
         self.second = second
         self.ignore_common_filters = ignore_common_filters
 
+    def __repr__(self):
+        return '<Query %s>' % BaseAdapter.expand(self.db._adapter,self)
+
     def __str__(self):
         return self.db._adapter.expand(self)
 
@@ -8419,6 +8461,9 @@ class Set(object):
             query = copy.copy(query)
             query.ignore_common_filters = ignore_common_filters
         self.query = query
+
+    def __repr__(self):
+        return '<Set %s>' % BaseAdapter.expand(self.db._adapter,self.query)
 
     def __call__(self, query, ignore_common_filters=False):
         if isinstance(query,Table):
@@ -8599,6 +8644,9 @@ class Rows(object):
         self.colnames = colnames
         self.compact = compact
         self.response = rawrows
+
+    def __repr__(self):
+        return '<Rows (%s)>' % len(self.records)
 
     def setvirtualfields(self,**keyed_virtualfields):
         """
@@ -8860,11 +8908,30 @@ class Rows(object):
                     row.append(none_exception(value))
             writer.writerow(row)
 
-    def xml(self):
+    def xml(self,strict=False,row_name='row',rows_name='rows'):
         """
         serializes the table using sqlhtml.SQLTABLE (if present)
         """
-
+        if strict:
+            ncols = len(self.colnames)
+            def f(row,field,indent='  '):
+                if isinstance(row,dict):
+                    spc = indent+'  \n'
+                    items = [f(row[x],x,indent+'  ') for x in row]
+                    return '%s<%s>\n%s\n%s</%s>' % (
+                        indent,
+                        field,
+                        spc.join(item for item in items if item),
+                        indent,
+                        field)
+                elif not callable(row):
+                    return '%s<%s>%s</%s>' % (indent,field,row,field)
+                else:
+                    return None
+            return '<%s>\n%s\n</%s>' % (
+                rows_name,
+                '\n'.join(f(row,row_name) for row in self),
+                rows_name)
         import sqlhtml
         return sqlhtml.SQLTABLE(self).xml()
 
@@ -9132,6 +9199,7 @@ DAL.Table = Table  # was necessary in gluon/globals.py session.connect
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+
 
 
 

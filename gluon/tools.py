@@ -1084,8 +1084,8 @@ class Auth(object):
         messages.is_empty = "Cannot be empty"
         messages.mismatched_password = "Password fields don't match"
         messages.verify_email = \
-            'Click on the link http://' + current.request.env.http_host + \
-            URL('default','user',args=['verify_email']) + \
+            'Click on the link ' + \
+            URL('default','user',args='verify_email',scheme=True) + \
             '/%(key)s to verify your email'
         messages.verify_email_subject = 'Email verification'
         messages.username_sent = 'Your username was emailed to you'
@@ -1096,8 +1096,8 @@ class Auth(object):
         messages.retrieve_password = 'Your password is: %(password)s'
         messages.retrieve_password_subject = 'Password retrieve'
         messages.reset_password = \
-            'Click on the link http://' + current.request.env.http_host + \
-            URL('default','user',args=['reset_password']) + \
+            'Click on the link ' + \
+            URL('default','user',args='reset_password',scheme=True) + \
             '/%(key)s to reset your password'
         messages.reset_password_subject = 'Password reset'
         messages.invalid_reset_password = 'Invalid reset password'
@@ -1412,9 +1412,9 @@ class Auth(object):
             passfield = settings.password_field
             extra_fields = settings.extra_fields.get(
                 settings.table_user_name,[])+signature_list
-            if username or settings.cas_provider:          
+            if username or settings.cas_provider:
                 is_unique_username = \
-                    [IS_MATCH('[\w\.\-]+'), 
+                    [IS_MATCH('[\w\.\-]+'),
                      IS_NOT_IN_DB(db,'%s.username' % settings.table_user_name)]
                 if not settings.username_case_sensitive:
                     is_unique_username.insert(1,IS_LOWER())
@@ -1586,7 +1586,7 @@ class Auth(object):
                  'request_reset_password']
             from gluon.contrib.login_methods.cas_auth import CasAuth
             maps = settings.cas_maps
-            if not maps: 
+            if not maps:
                 table_user = self.table_user()
                 maps = dict((name,lambda v,n=name:v.get(n,None)) for name in \
                                 table_user.fields if name!='id' \
@@ -2478,7 +2478,7 @@ class Auth(object):
                        separator=self.settings.label_separator
                        )
         if captcha:
-            addrow(form, captcha.label, captcha, captcha.comment, self.settings.formstyle,'captcha__row')        
+            addrow(form, captcha.label, captcha, captcha.comment, self.settings.formstyle,'captcha__row')
         if form.accepts(request, session,
                         formname='reset_password', dbio=False,
                         onvalidation=onvalidation,
@@ -3135,7 +3135,7 @@ class Auth(object):
                     archive_table_name,
                     Field(current_record,table),
                     *[field.clone(unique=False) for field in table])
-            archive_table = table._db[archive_table_name]    
+            archive_table = table._db[archive_table_name]
         new_record = {current_record:form.vars.id}
         for fieldname in archive_table.fields:
             if not fieldname in ['id',current_record]:
@@ -4486,7 +4486,7 @@ class Wiki(object):
     def __init__(self,auth,env=None,render='markmin',
                  manage_permissions=False,force_prefix=''):
         self.env = env or {}
-        self.env['component'] = Wiki.component        
+        self.env['component'] = Wiki.component
         if render == 'markmin': render=self.markmin_render
         self.auth = auth
         if self.auth.user:
@@ -4538,7 +4538,7 @@ class Wiki(object):
                 not 'wiki_editor' in auth.user_groups.values():
             group = db.auth_group(role='wiki_editor')
             gid = group.id if group else db.auth_group.insert(role='wiki_editor')
-            auth.add_membership(gid)            
+            auth.add_membership(gid)
     # WIKI ACCESS POLICY
     def not_authorized(self,page=None):
         raise HTTP(401)
@@ -4606,7 +4606,7 @@ class Wiki(object):
 
     def fix_hostname(self,body):
         return body.replace('://HOSTNAME','://%s' % self.host)
-    
+
     def read(self,slug):
         if slug in '_cloud': return self.cloud()
         elif slug in '_search': return self.search()
@@ -4664,7 +4664,8 @@ class Wiki(object):
         vars = current.request.post_vars
         if vars.body:
             vars.body=vars.body.replace('://%s' % self.host,'://HOSTNAME')
-        form = SQLFORM(db.wiki_page,page,deletable=True,showid=False).process()
+        form = SQLFORM(db.wiki_page,page,deletable=True,
+                       formstyle='table2cols',showid=False).process()
         if form.deleted:
             current.session.flash = 'page deleted'
             redirect(URL())
@@ -4675,7 +4676,7 @@ class Wiki(object):
 
     def editmedia(self,slug):
         auth = self.auth
-        db = auth.db        
+        db = auth.db
         page = db.wiki_page(slug=slug)
         if not (page and self.can_edit(page)): return self.not_authorized(page)
         self.auth.db.wiki_media.id.represent = lambda id,row:\
@@ -4740,9 +4741,9 @@ class Wiki(object):
             for match in regex.finditer(self.fix_hostname(menu_page.body)):
                 base = match.group('base').replace(' ','')
                 title = match.group('title')
-                link = match.group('link')                
+                link = match.group('link')
                 if link.startswith('@'):
-                    items = link[1:].split('/')
+                    items = link[2:].split('/')
                     if len(items)>3:
                         link = URL(a=items[0] or None,c=items[1] or None,f=items[2] or None, args=items[3:])
                 parent = tree.get(base[1:],tree[''])
@@ -4860,6 +4861,7 @@ class Wiki(object):
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+
 
 
 
