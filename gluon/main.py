@@ -297,6 +297,7 @@ def parse_get_post_vars(request, environ):
         except TypeError:
             keys = []
         for key in keys:
+            if key is None: continue # not sure why cgi.FieldStorage returns None key
             dpk = dpost[key]
             # if en element is not a file replace it with its value else leave it alone
             if isinstance(dpk, list):
@@ -445,8 +446,9 @@ def wsgibase(environ, responder):
                 elif not request.is_local and \
                         os.path.exists(os.path.join(request.folder,'DISABLED')):
                     raise HTTP(503, "<html><body><h1>Temporarily down for maintenance</h1></body></html>")
-                request.url = Url(r=request, args=request.args,
-                                       extension=request.raw_extension)
+                request.url = Url(r=request,
+                                  args=request.args,
+                                  extension=request.raw_extension)
 
                 # ##################################################
                 # build missing folders
@@ -846,6 +848,7 @@ class HttpServer(object):
             os.unlink(self.pid_filename)
         except:
             pass
+
 
 
 

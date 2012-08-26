@@ -213,14 +213,15 @@ class IS_EXPR(Validator):
         ('2', 'invalid expression')
     """
 
-    def __init__(self, expression, error_message='invalid expression'):
+    def __init__(self, expression, error_message='invalid expression', environment=None):
         self.expression = expression
         self.error_message = error_message
+        self.environment = environment or {}
 
     def __call__(self, value):
-        environment = {'value': value}
-        exec '__ret__=' + self.expression in environment
-        if environment['__ret__']:
+        self.environment.update(value=value)
+        exec '__ret__=' + self.expression in self.environment
+        if self.environment['__ret__']:
             return (value, None)
         return (value, translate(self.error_message))
 
@@ -3145,6 +3146,7 @@ class IS_IPV4(Validator):
 if __name__ == '__main__':
     import doctest
     doctest.testmod(optionflags=doctest.NORMALIZE_WHITESPACE|doctest.ELLIPSIS)
+
 
 
 
