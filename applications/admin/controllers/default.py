@@ -20,7 +20,7 @@ try:
     have_git = True
 except ImportError:                                                                       
     have_git = False
-    GIT_MISSING = 'requires python-git module, but not installed'
+    GIT_MISSING = 'requires python-git module, but not installed or incompatible version'
 
 from gluon.languages import (regex_language, read_possible_languages,
                              read_possible_plurals, lang_sampling,
@@ -206,7 +206,8 @@ def site():
     elif form_create.accepted:
         # create a new application
         appname = cleanpath(form_create.vars.name)
-        if app_create(appname, request):
+        created, error = app_create(appname, request,info=True)
+        if created:
             if MULTI_USER_MODE:
                 db.app.insert(name=appname,owner=auth.user.id)
             log_progress(appname)
@@ -214,14 +215,15 @@ def site():
             redirect(URL('design',args=appname))
         else:
             session.flash = \
-                T('unable to create application "%s" (it may exist already)', 
-                  form_create.vars.name)
+                DIV(T('unable to create application "%s"' % appname),
+                    PRE(error))                      
         redirect(URL(r=request))
 
     elif form_update.accepted:
         if (form_update.vars.url or '').endswith('.git'):
             if not have_git:
                 session.flash = GIT_MISSING
+                redirect(URL(r=request))
             target = os.path.join(apath(r=request),form_update.vars.name)
             try:
                 new_repo = Repo.clone_from(form_update.vars.url,target)

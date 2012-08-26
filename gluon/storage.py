@@ -38,20 +38,29 @@ class Storage(dict):
         >>> print o.a
         None
     """
-    def __getattr__(self, key):
-        return dict.get(self, key, None)
-    def __setattr__(self, key, value):
-        self[key] = value
-    def __delattr__(self, key):
-        del self[key]
-    def __getitem__(self, key):
-        return dict.get(self, key, None)
-    def __repr__(self):
-        return '<Storage %s>' + dict.__repr__(self)
-    def __getstate__(self):
-        return dict(self)
-    def __setstate__(self,values):
-        self.update(values)
+    __slots__=()
+    
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+    __getitem__ = dict.get
+    __getattr__ = dict.get
+    __repr__ = lambda self: '<Storage %s>' % dict.__repr__(self)
+    __getstate__ = dict
+    __setstate__ = dict.update
+    # def __getattr__(self, key):
+    #    return dict.get(self, key, None)
+    # def __setattr__(self, key, value):
+    #    self[key] = value
+    # def __getitem__(self, key):
+    #    return dict.get(self, key, None)
+    # def __delattr__(self, key):
+    #    del self[key]
+    # def __repr__(self):
+    #     return '<Storage %s>' % dict.__repr__(self)
+    # def __getstate__(self):
+    #     return dict(self)
+    # def __setstate__(self,values):
+    #     self.update(values)
 
     def getlist(self,key):
         """
@@ -172,7 +181,7 @@ class Messages(Settings):
 
 class FastStorage(dict):
     """
-    Eventually this should replace class Storage but causes memory leak 
+    Eventually this should replace class Storage but causes memory leak
     because of http://bugs.python.org/issue1469629
 
     >>> s = FastStorage()
@@ -205,7 +214,7 @@ class FastStorage(dict):
     >>> s['a']
     >>> s['b']
     """
-    def __init__(self, *args, **kwargs): 
+    def __init__(self, *args, **kwargs):
         dict.__init__(self, *args, **kwargs)
         self.__dict__ = self
     def __getattr__(self,key):
@@ -263,6 +272,7 @@ class List(list):
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+
 
 
 
