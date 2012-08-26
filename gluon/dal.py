@@ -1792,7 +1792,6 @@ class BaseAdapter(ConnectionPool):
                         new_row['_extra'] = Row()
                     new_row['_extra'][colnames[j]] = \
                         self.parse_value(value, fields[j].type,blob_decode)
-
                     new_column_name = \
                         regex_select_as_parser.search(colnames[j])
                     if not new_column_name is None:
@@ -6286,8 +6285,6 @@ def bar_decode_integer(value):
     return [int(x) for x in value.split('|') if x.strip()]
 
 def bar_decode_string(value):
-    if not hasattr(value,'split') and hasattr(value,'read'):
-        value = value.read()
     return [x.replace('||', '|') for x in string_unpack.split(value[1:-1]) if x.strip()]
 
 
