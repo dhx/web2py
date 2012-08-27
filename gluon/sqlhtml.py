@@ -238,8 +238,10 @@ class ListWidget(StringWidget):
         if field.type=='list:integer': _class = 'integer'
         else: _class = 'string'
         requires = field.requires if isinstance(field.requires, (IS_NOT_EMPTY, IS_LIST_OF)) else None
-        items=[LI(INPUT(_id=_id, _class=_class, _name=_name, value=v, hideerror=True, requires=requires)) \
-                   for v in value or ['']]
+        attributes['_style'] = 'list-style:none'
+        items=[LI(INPUT(_id=_id, _class=_class, _name=_name,
+                        value=v, hideerror=True, requires=requires),
+                  **attributes)  for v in value or ['']]
         script=SCRIPT("""
 // from http://refactormycode.com/codes/694-expanding-input-list-using-jquery
 (function(){
@@ -270,7 +272,8 @@ function rel(ul) {
 })();
 jQuery(document).ready(function(){jQuery('#%s_grow_input').grow_input();});
 """ % _id)
-        attributes['_id']=_id+'_grow_input'
+        attributes['_id'] = _id+'_grow_input'
+        attributes['_style'] = 'list-style:none'
         return TAG[''](UL(*items,**attributes),script)
 
 
@@ -687,18 +690,40 @@ def formstyle_ul(form, fields):
 def formstyle_bootstrap(form, fields):
     ''' bootstrap format form layout '''
     form['_class'] = 'form-horizontal'
-    table = FIELDSET()
+    parent = FIELDSET()
     for id, label, controls, help in fields:
-        if isinstance(controls, (INPUT, SELECT, TEXTAREA)):
+        # wrappers
+        _help = SPAN(help, _class='help-inline')
+        # embed _help into _controls
+        _controls = DIV(controls, _help, _class='controls')
+        # submit unflag by default
+        _submit = False
+
+        if isinstance(controls, INPUT):
             controls['_class'] = 'input-xlarge'
+            if controls['_type'] == 'submit':
+                # flag submit button
+                _submit = True
+                controls['_class'] = 'btn btn-primary'
+
+        if isinstance(controls, SELECT):
+            controls['_class'] = 'input-xlarge'
+
+        if isinstance(controls, TEXTAREA):
+            controls['_class'] = 'input-xlarge'
+
         if isinstance(label, LABEL):
             label['_class'] = 'control-label'
-        # styles
-        _help = DIV(help, _class='help-block')
-        # embed _help into _controls don't wrap label
-        _controls = DIV(controls, _help, _class='controls')
-        table.append(DIV(label, _controls, _class='control-group',_id=id))
-    return table
+
+        if _submit:
+            # submit button has unwrapped label and controls, different class
+            parent.append(DIV(label, controls, _class='form-actions'))
+            # unflag submit (possible side effect)
+            _submit = False
+        else:
+            # unwrapped label
+            parent.append(DIV(label, _controls, _class='control-group'))
+    return parent
 
 class SQLFORM(FORM):
 
@@ -1809,7 +1834,7 @@ class SQLFORM(FORM):
             else:
                 rows = dbset.select(left=left,orderby=orderby,*columns)
 
-            if exportManager.has_key(export_type):
+            if export_type in exportManager:
                 value = exportManager[export_type]
                 clazz = value[0] if hasattr(value, '__getitem__') else value
                 oExp = clazz(rows)
@@ -2045,7 +2070,7 @@ class SQLFORM(FORM):
                     selectable(records)
                     redirect(referrer)
         else:
-            htmltable = DIV(T('No records found'))
+            htmltable = DIV(current.T('No records found'))
 
         if csv and nrows:
             export_links =[]
@@ -2160,12 +2185,12 @@ class SQLFORM(FORM):
                         LI(A(T(db[referee]._plural),
                              _class=trap_class(),
                              _href=url()),
-                           SPAN(divider,_class='divider')))
+                           SPAN(divider,_class='divider'),_class='w2p_grid_breadcrumb_elem'))
                     if kwargs.get('details',True):
                         breadcrumbs.append(
                             LI(A(name,_class=trap_class(),
                                  _href=url(args=['view',referee,id])),
-                               SPAN(divider,_class='divider')))
+                               SPAN(divider,_class='divider'),_class='w2p_grid_breadcrumb_elem'))
                     nargs+=2
                 else:
                     break
@@ -2213,7 +2238,7 @@ class SQLFORM(FORM):
         if isinstance(grid,DIV):
             header = table._plural + (field and ' for '+field.name or '')
             breadcrumbs.append(LI(A(T(header),_class=trap_class(),
-                                 _href=url()),_class='active'))
+                                 _href=url()),_class='active w2p_grid_breadcrumb_elem'))
             grid.insert(0,DIV(UL(*breadcrumbs, **{'_class':breadcrumbs_class}),
                               _class='web2py_breadcrumbs'))
         return grid
@@ -2640,6 +2665,7 @@ class ExporterXML(ExportClass):
             out.write('</row>\n')
         out.write('</rows>')
         return str(out.getvalue())
+
 
 
 

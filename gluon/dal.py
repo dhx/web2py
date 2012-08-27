@@ -39,7 +39,7 @@ Example of usage:
 >>> # from dal import DAL, Field
 
 ### create DAL connection (and create DB if it doesn't exist)
->>> db = DAL(('mysql://a:b@localhost/x', 'sqlite://storage.sqlite'),
+>>> db = DAL(('sqlite://storage.sqlite','mysql://a:b@localhost/x'), 
 ... folder=None)
 
 ### define a table 'person' (create/alter as necessary)
@@ -174,7 +174,7 @@ import platform
 CALLABLETYPES = (types.LambdaType, types.FunctionType,
                  types.BuiltinFunctionType,
                  types.MethodType, types.BuiltinMethodType)
-TABLE_ARGS = ('migrate','primarykey','fake_migrate','format','singular','plural','trigger_name','sequence_name','common_filter','polymodel','table_class')
+TABLE_ARGS = ('migrate','primarykey','fake_migrate','format','singular','plural','trigger_name','sequence_name','common_filter','polymodel','table_class','on_define')
 
 ###################################################################################
 # following checks allow the use of dal without web2py, as a standalone module
@@ -1317,7 +1317,7 @@ class BaseAdapter(ConnectionPool):
                     tablename,fieldname = item.split('.')
                     new_fields.append(self.db[tablename][fieldname])
                 else:
-                    new_fields.append(Expression(self.db,item))
+                    new_fields.append(Expression(self.db,lambda:item))
             else:
                 new_fields.append(item)
         # ## if no fields specified take them all from the requested tables
@@ -1702,6 +1702,16 @@ class BaseAdapter(ConnectionPool):
 
     def parse_datetime(self, value, field_type):
         if not isinstance(value, datetime.datetime):
+            if '+' in value:
+                value,tz = value.split('+')
+                h,m = tz.split(':')
+                dt = datetime.timedelta(seconds=3600*int(h)+60*int(m))
+            elif '-' in value:
+                value,tz = value.split('-')
+                h,m = tz.split(':')
+                dt = -datetime.timedelta(seconds=3600*int(h)+60*int(m))
+            else:
+                dt = None
             date_part, time_part = (
                 str(value).replace('T',' ')+' ').split(' ',1)
             (y, m, d) = map(int,date_part.split('-'))
@@ -1710,6 +1720,8 @@ class BaseAdapter(ConnectionPool):
             time_items = map(int,time_parts)
             (h, mi, s) = time_items
             value = datetime.datetime(y, m, d, h, mi, s)
+            if dt:
+                value = value + dt
         return value
 
     def parse_blob(self, value, field_type):
@@ -1771,36 +1783,37 @@ class BaseAdapter(ConnectionPool):
         db = self.db
         virtualtables = []
         new_rows = []
+        tmps = []
+        for colname in colnames:
+            if not regex_table_field.match(colname):
+                tmps.append(None)
+            else:
+                (tablename, fieldname) = colname.split('.')
+                table = db[tablename]
+                field = table[fieldname]
+                tmps.append((tablename,fieldname,table,field))
         for (i,row) in enumerate(rows):
             new_row = Row()
-            for j,colname in enumerate(colnames):
-                value = row[j]
-                if not regex_table_field.match(colnames[j]):
-                    if not '_extra' in new_row:
-                        new_row['_extra'] = Row()
-                    new_row['_extra'][colnames[j]] = \
-                        self.parse_value(value, fields[j].type,blob_decode)
-                    new_column_name = \
-                        regex_select_as_parser.search(colnames[j])
-                    if not new_column_name is None:
-                        column_name = new_column_name.groups(0)
-                        setattr(new_row,column_name[0],value)
-                else:
-                    (tablename, fieldname) = colname.split('.')
-                    table = db[tablename]
-                    field = table[fieldname]
-                    if not tablename in new_row:
+            for (j,colname) in enumerate(colnames):
+                value = row[j]                
+                tmp = tmps[j]
+                if tmp:
+                    (tablename,fieldname,table,field) = tmp
+                    if tablename in new_row:
+                        colset = new_row[tablename]
+                    else:
                         colset = new_row[tablename] = Row()
                         if tablename not in virtualtables:
                             virtualtables.append(tablename)
-                    else:
-                        colset = new_row[tablename]
-                    value = self.parse_value(value,field.type,blob_decode)
-                    if field.filter_out: value = field.filter_out(value)
+                    value = self.parse_value(value,field.type,
+                                             blob_decode)
+                    if field.filter_out:
+                        value = field.filter_out(value)
                     colset[fieldname] = value
 
                     if field.type == 'id':
-                        # temporary hack to deal with GoogleDatastoreAdapter
+                        # temporary hack to deal with 
+                        # GoogleDatastoreAdapter
                         # references
                         if isinstance(self, GoogleDatastoreAdapter):
                             id = value.key().id_or_name()
@@ -1814,12 +1827,26 @@ class BaseAdapter(ConnectionPool):
                         colset.delete_record = (
                             lambda t = table, i = id:
                             t._db(t._id==i).delete())
-                        for (referee_table, referee_name) in table._referenced_by:
+                        for (referee_table, referee_name) \
+                                in table._referenced_by:
                             s = db[referee_table][referee_name]
                             referee_link = db._referee_name and \
-                                db._referee_name % dict(table=referee_table,field=referee_name)
-                            if referee_link and not referee_link in colset:
+                                db._referee_name % dict(
+                                table=referee_table,field=referee_name)
+                            if referee_link and \
+                                    not referee_link in colset:
                                 colset[referee_link] = Set(db, s == id)
+                else:
+                    if not '_extra' in new_row:
+                        new_row['_extra'] = Row()
+                    new_row['_extra'][colname] = \
+                        self.parse_value(value,
+                                         fields[j].type,blob_decode)
+                    new_column_name = \
+                        regex_select_as_parser.search(colname)
+                    if not new_column_name is None:
+                        column_name = new_column_name.groups(0)
+                        setattr(new_row,column_name[0],value)
             new_rows.append(new_row)
         rowsobj = Rows(db, new_rows, colnames, rawrows=rows)
 
@@ -2729,6 +2756,14 @@ class OracleAdapter(BaseAdapter):
         self.execute('SELECT %s.currval FROM dual;' % sequence_name)
         return int(self.cursor.fetchone()[0])
 
+    def parse_value(self, value, field_type, blob_decode=True):
+        if blob_decode and isinstance(value, cx_Oracle.LOB):
+            try:
+                value = value.read()
+            except cx_Oracle.ProgrammingError:
+                # After a subsequent fetch the LOB value is not valid anymore
+                pass
+        return BaseAdapter.parse_value(self, value, field_type, blob_decode)
 
 class MSSQLAdapter(BaseAdapter):
 
@@ -3122,7 +3157,7 @@ class FireBirdAdapter(BaseAdapter):
     def __init__(self,db,uri,pool_size=0,folder=None,db_codec ='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
                  adapter_args={}):
-        if adapter_args.has_key('driver_name'):
+        if 'driver_name' in adapter_args:
             if adapter_args['driver_name'] == 'kinterbasdb':
                 self.driver = kinterbasdb
             elif adapter_args['driver_name'] == 'firebirdsql':
@@ -3188,7 +3223,7 @@ class FireBirdEmbeddedAdapter(FireBirdAdapter):
                  credential_decoder=IDENTITY, driver_args={},
                  adapter_args={}):
 
-        if adapter_args.has_key('driver_name'):
+        if 'driver_name' in adapter_args:
             if adapter_args['driver_name'] == 'kinterbasdb':
                 self.driver = kinterbasdb
             elif adapter_args['driver_name'] == 'firebirdsql':
@@ -6268,12 +6303,14 @@ def bar_decode_string(value):
     return [x.replace('||', '|') for x in string_unpack.split(value[1:-1]) if x.strip()]
 
 
-class Row(dict):
+class Row(object):
 
     """
     a dictionary that lets you do d['a'] as well as d.a
     this is only used to store a Row
     """
+    def __init__(self,*args,**kwargs):
+        self.__dict__.update(*args,**kwargs)
 
     def __getitem__(self, key):
         key=str(key)
@@ -6285,26 +6322,40 @@ class Row(dict):
                 return dict.__getitem__(self, m.group(1))[m.group(2)]
             except (KeyError,TypeError):
                 key = m.group(2)
-        return dict.__getitem__(self, key)
-
-    def __call__(self,key):
-        return self.__getitem__(key)
+        return object.__getattribute__(self, key)
 
     def __setitem__(self, key, value):
-        dict.__setitem__(self, str(key), value)
+        setattr(self, str(key), value)
 
-    def __getattr__(self, key):
-        return self[key]
+    __call__ = __getitem__
 
-    def __setattr__(self, key, value):
-        self[key] = value
+    def get(self,key,default=None):
+        return self.__dict__.get(key,default)
+
+    def __contains__(self,key):
+        return key in self.__dict__
+
+    def update(self, *args, **kwargs):
+        self.__dict__.update(*args, **kwargs)
+
+    def keys(self):
+        return self.__dict__.keys()
+
+    def items(self):
+        return self.__dict__.items()
+
+    def values(self):
+        return self.__dict__.values()
+    
+    def __iter__(self):
+        return self.__dict__.__iter__()
 
     def __str__(self):
         ### this could be made smarter
-        return '<Row ' + dict.__repr__(self) + '>'
+        return '<Row %s>' % self.__dict__
 
     def __repr__(self):
-        return '<Row ' + dict.__repr__(self) + '>'
+        return '<Row %s>' % self.__dict__
 
     def __int__(self):
         return dict.__getitem__(self,'id')
@@ -6344,7 +6395,6 @@ class Row(dict):
             elif not isinstance(v,tuple(SERIALIZABLE_TYPES)):
                 del d[k]
         return d
-
 
 def Row_unpickler(data):
     return Row(cPickle.loads(data))
@@ -6476,7 +6526,7 @@ def smart_query(fields,text):
     return query
 
 
-class DAL(dict):
+class DAL(object):
 
     """
     an instance of this class represents a database connection
@@ -6677,12 +6727,6 @@ class DAL(dict):
         for backend in self.check_reserved:
             if name.upper() in self.RSK[backend]:
                 raise SyntaxError, 'invalid table/column name "%s" is a "%s" reserved SQL keyword' % (name, backend.upper())
-
-    def __contains__(self, tablename):
-        if self.has_key(tablename):
-            return True
-        else:
-            return False
 
     def parse_as_rest(self,patterns,args,vars,queries=None,nested_select=True):
         """
@@ -6918,7 +6962,7 @@ def index():
         tablename,
         *fields,
         **args
-        ):       
+        ):
         if not isinstance(tablename,str):
             raise SyntaxError, "missing table name"
         elif tablename.startswith('_') or hasattr(self,tablename) or \
@@ -6932,7 +6976,7 @@ def index():
             invalid_args = [key for key in args if not key in TABLE_ARGS]
             if invalid_args:
                 raise SyntaxError, 'invalid table "%s" attributes: %s' \
-                    % (tablename,invalid_args)         
+                    % (tablename,invalid_args)
         if self._lazy_tables and not tablename in self._LAZY_TABLES:
             self._LAZY_TABLES[tablename] = (tablename,fields,args)
             table = None
@@ -6948,7 +6992,7 @@ def index():
         **args
         ):
         if self._common_fields:
-            fields = fields + self._common_fields
+            fields = list(fields) + list(self._common_fields)
 
         table_class = args.get('table_class',Table)
         table = table_class(self, tablename, *fields, **args)
@@ -6971,33 +7015,42 @@ def index():
                 sql_locker.release()
         else:
             table._dbt = None
+        on_define = args.get('on_define',None)
+        if on_define: on_define(table)
         return table
+
+    def __contains__(self, tablename):
+        return tablename in self.tables
+
+    def get(self,key,default):
+        return self.__dict__.get(key,default)
 
     def __iter__(self):
         for tablename in self.tables:
             yield self[tablename]
 
     def __getitem__(self, key):
-        key = str(key)
+        return self.__getattr__(str(key))
+
+    def __getattr__(self, key):
         if not key is '_LAZY_TABLES' and key in self._LAZY_TABLES:
             tablename, fields, args = self._LAZY_TABLES.pop(key)
             return self.lazy_define_table(tablename,*fields,**args)
-        return dict.__getitem__(self, key)
+        return object.__getattribute__(self, key)
 
     def __setitem__(self, key, value):
-        dict.__setitem__(self, str(key), value)
-
-    def __getattr__(self, key):
-        return self[key]
+        object.__setattr__(self, str(key), value)
 
     def __setattr__(self, key, value):
         if key[:1]!='_' and key in self:
             raise SyntaxError, \
                 'Object %s exists and cannot be redefined' % key
-        self[key] = value
+        object.__setattr__(self,key,value)
+
+    __delitem__ = object.__delattr__
 
     def __repr__(self):
-        return '<DAL ' + dict.__repr__(self) + '>'
+        return '<DAL %s>' % self._uri
 
     def smart_query(self,fields,text):
         return Set(self, smart_query(fields,text))
@@ -7020,9 +7073,10 @@ def index():
             thread.instances.remove(self._adapter)
         self._adapter.close()
 
-    def executesql(self, query, placeholders=None, as_dict=False):
+    def executesql(self, query, placeholders=None, as_dict=False,
+                   fields=None, colnames=None):
         """
-        placeholders is optional and will always be None when using DAL.
+        placeholders is optional and will always be None.
         If using raw SQL with placeholders, placeholders may be
         a sequence of values to be substituted in
         or, (if supported by the DB driver), a dictionary with keys
@@ -7039,7 +7093,21 @@ def index():
 
         [{field1: value1, field2: value2}, {field1: value1b, field2: value2b}]
 
-        --bmeredyk
+        Added 2012-08-24 "fields" optional argument. If not None, the
+        results cursor returned by the DB driver will be converted to a
+        DAL Rows object using the db._adapter.parse() method. This requires
+        specifying the "fields" argument as a list of DAL Field objects
+        that match the fields returned from the DB. The Field objects should
+        be part of one or more Table objects defined on the DAL object.
+        The "fields" list can include one or more DAL Table objects in addition
+        to or instead of including Field objects, or it can be just a single
+        table (not in a list). In that case, the Field objects will be
+        extracted from the table(s).
+
+        The field names will be extracted from the Field objects, or optionally,
+        a list of field names can be provided (in tablename.fieldname format)
+        via the "colnames" argument. Note, the fields and colnames must be in
+        the same order as the fields in the results cursor returned from the DB.
         """
         if placeholders:
             self._adapter.execute(query, placeholders)
@@ -7059,11 +7127,22 @@ def index():
             # convert the list for each row into a dictionary so it's
             # easier to work with. row['field_name'] rather than row[0]
             return [dict(zip(fields,row)) for row in data]
-        # see if any results returned from database
-        try:
-            return self._adapter.cursor.fetchall()
-        except:
-            return None
+        data = self._adapter.cursor.fetchall()
+        if fields:
+            if not isinstance(fields, list):
+                fields = [fields]
+            extracted_fields = []
+            for field in fields:
+                if isinstance(field, Table):
+                    extracted_fields.extend([f for f in field])
+                else:
+                    extracted_fields.append(field)
+            if not colnames:
+                colnames = ['%s.%s' % (f.tablename, f.name)
+                            for f in extracted_fields]
+            data = self._adapter.parse(
+                data, fields=extracted_fields, colnames=colnames)
+        return data
 
     def _update_referenced_by(self, other):
         for tablename in self.tables:
@@ -7166,7 +7245,7 @@ def Reference_pickler(data):
 copy_reg.pickle(Reference, Reference_pickler, Reference_unpickler)
 
 
-class Table(dict):
+class Table(object):
 
     """
     an instance of this class represents a database table
@@ -7196,7 +7275,6 @@ class Table(dict):
 
         :raises SyntaxError: when a supplied field is of incorrect type.
         """
-
         self._actual = False # set to True by define_table()
         self._tablename = tablename
         self._sequence_name = args.get('sequence_name',None) or \
@@ -7267,7 +7345,7 @@ class Table(dict):
                     tmp = field.uploadfield = '%s_blob' % field.name
         if isinstance(field.uploadfield,str) and \
                 not [f for f in fields if f.name==field.uploadfield]:
-            fields.append(self._db.Field(field.uploadfield,'blob',default=''))
+            fields.append(Field(field.uploadfield,'blob',default=''))
 
         lower_fieldnames = set()
         reserved = dir(Table) + ['fields']
@@ -7407,7 +7485,7 @@ class Table(dict):
         elif str(key).isdigit() or 'google' in drivers and isinstance(key, Key):
             return self._db(self._id == key).select(limitby=(0,1)).first()
         elif key:
-            return dict.__getitem__(self, str(key))
+            return object.__getattribute__(self, str(key))
 
     def __call__(self, key=DEFAULT, **kwargs):
         for_update = kwargs.get('_for_update',False)
@@ -7456,33 +7534,39 @@ class Table(dict):
             if isinstance(key, dict):
                 raise SyntaxError,\
                     'value must be a dictionary: %s' % value
-            dict.__setitem__(self, str(key), value)
+            object.__setattr__(self, str(key), value)
+
+    __getattr__ = __getitem__
+
+    def __setattr__(self, key, value):
+        if key[:1]!='_' and key in self:
+            raise SyntaxError, 'Object exists and cannot be redefined: %s' % key
+        object.__setattr__(self,key,value)
 
     def __delitem__(self, key):
         if isinstance(key, dict):
             query = self._build_query(key)
             if not self._db(query).delete():
                 raise SyntaxError, 'No such record: %s' % key
-        elif not str(key).isdigit() or not self._db(self._id == key).delete():
+        elif not str(key).isdigit() or \
+                not self._db(self._id == key).delete():
             raise SyntaxError, 'No such record: %s' % key
 
-    def __getattr__(self, key):
-        return self[key]
+    def __contains__(self,key):
+        return hasattr(self,key)
 
-    def __setattr__(self, key, value):
-        if key[:1]!='_' and key in self:
-            raise SyntaxError, 'Object exists and cannot be redefined: %s' % key
-        self[key] = value
+    def items(self):
+        return self.__dict__.items()
 
     def __iter__(self):
         for fieldname in self.fields:
             yield self[fieldname]
 
     def __repr__(self):
-        return '<Table ' + dict.__repr__(self) + '>'
+        return '<Table %s (%s)>' % (self._tablename,','.join(self.fields()))
 
     def __str__(self):
-        if self.get('_ot', None):
+        if hasattr(self,'_ot') and self._ot is not None:
             if 'Oracle' in str(type(self._db._adapter)):     # <<< patch
                 return '%s %s' % (self._ot, self._tablename) # <<< patch
             return '%s AS %s' % (self._ot, self._tablename)
@@ -7495,33 +7579,38 @@ class Table(dict):
         return self._db._adapter.drop(self,mode)
 
     def _listify(self,fields,update=False):
-        new_fields = []
-        new_fields_names = []
+        new_fields = {} # format: new_fields[name] = (field,value)
+        # store all fields passed as input in new_fields
         for name in fields:
             if not name in self.fields:
                 if name != 'id':
-                    raise SyntaxError, 'Field %s does not belong to the table' % name
+                    raise SyntaxError, \
+                        'Field %s does not belong to the table' % name
             else:
                 field = self[name]
                 value = fields[name]
-                if field.filter_in: value = field.filter_in(value)
-                new_fields.append((field,value))
-                new_fields_names.append(name)
+                if field.filter_in:
+                    value = field.filter_in(value)
+                new_fields[name] = (field,value)
+        # check all fields that should be in the self table
         for ofield in self:
-            if not ofield.name in new_fields_names:
-                if not update and not ofield.default is None:
-                    new_fields.append((ofield,ofield.default))
-                elif update and not ofield.update is None:
-                    new_fields.append((ofield,ofield.update))
-        for ofield in self:
+            name = ofield.name
+            # if field is supposed to be computed, compute it!
             if ofield.compute:
                 try:
-                    new_fields.append((ofield,ofield.compute(Row(fields))))
+                    new_fields[name] = (ofield,ofield.compute(Row(fields)))
                 except KeyError:
                     pass
-            if not update and ofield.required and not ofield.name in new_fields_names:
-                raise SyntaxError,'Table: missing required field: %s' % ofield.name
-        return new_fields
+            # if field is required, check its default value
+            elif not name in new_fields:
+                if not update and not ofield.default is None:
+                    new_fields[name] = (ofield,ofield.default)
+                elif update and not ofield.update is None:
+                    new_fields[name] = (ofield,ofield.update)
+            # error if field if required, record to be create and field missing
+            if not update and ofield.required and not name in new_fields:
+                raise SyntaxError, 'Table: missing required field: %s' % name
+        return new_fields.values()
 
     def _attempt_upload(self, fields):
         for field in self:
@@ -8145,6 +8234,9 @@ class Field(Expression):
         self.label = label if label!=None else fieldname.replace('_',' ').title()
         self.requires = requires if requires!=None else []
 
+    def set_attributes(self,*args,**attributes):
+        self.__dict__.update(*args,**attributes)
+
     def clone(self,point_self_references_to=False,**args):
         field = copy.copy(self)
         if point_self_references_to and \
@@ -8333,6 +8425,9 @@ class Query(object):
         self.second = second
         self.ignore_common_filters = ignore_common_filters
 
+    def __repr__(self):
+        return '<Query %s>' % BaseAdapter.expand(self.db._adapter,self)
+
     def __str__(self):
         return self.db._adapter.expand(self)
 
@@ -8388,6 +8483,9 @@ class Set(object):
             query = copy.copy(query)
             query.ignore_common_filters = ignore_common_filters
         self.query = query
+
+    def __repr__(self):
+        return '<Set %s>' % BaseAdapter.expand(self.db._adapter,self.query)
 
     def __call__(self, query, ignore_common_filters=False):
         if isinstance(query,Table):
@@ -8568,6 +8666,9 @@ class Rows(object):
         self.colnames = colnames
         self.compact = compact
         self.response = rawrows
+
+    def __repr__(self):
+        return '<Rows (%s)>' % len(self.records)
 
     def setvirtualfields(self,**keyed_virtualfields):
         """
@@ -8829,11 +8930,36 @@ class Rows(object):
                     row.append(none_exception(value))
             writer.writerow(row)
 
-    def xml(self):
+    def xml(self,strict=False,row_name='row',rows_name='rows'):
         """
         serializes the table using sqlhtml.SQLTABLE (if present)
         """
-
+        alphanumeric = re.compile('[a-zA-Z]\w*')
+        if strict:
+            ncols = len(self.colnames)
+            def f(row,field,indent='  '):
+                if isinstance(row,Row):
+                    spc = indent+'  \n'
+                    items = [f(row[x],x,indent+'  ') for x in row]
+                    return '%s<%s>\n%s\n%s</%s>' % (
+                        indent,
+                        field,
+                        spc.join(item for item in items if item),
+                        indent,
+                        field)
+                elif not callable(row):
+                    if alphanumeric.match(field):
+                        return '%s<%s>%s</%s>' % \
+                            (indent,field,row,field)
+                    else:
+                        return '%s<extra name="%s">%s</extra>' % \
+                            (indent,field,row)
+                else:
+                    return None
+            return '<%s>\n%s\n</%s>' % (
+                rows_name,
+                '\n'.join(f(row,row_name) for row in self),
+                rows_name)
         import sqlhtml
         return sqlhtml.SQLTABLE(self).xml()
 
@@ -8935,6 +9061,17 @@ def test_all():
     >>> me = db(db.person.id==person_id).select()[0] # test select
     >>> me.name
     'Massimo'
+    >>> db.person[2].name
+    'Massimo'
+    >>> db.person(2).name
+    'Massimo'
+    >>> db.person(name='Massimo').name
+    'Massimo'
+    >>> db.person(db.person.name=='Massimo').name
+    'Massimo'
+    >>> row = db.person[2]
+    >>> row.name == row['name'] == row['person.name'] == row('person.name')
+    True
     >>> db(db.person.name=='Massimo').update(name='massimo') # test update
     1
     >>> db(db.person.name=='Marco').select().first().delete_record() # test delete
@@ -9101,6 +9238,7 @@ DAL.Table = Table  # was necessary in gluon/globals.py session.connect
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+
 
 
 

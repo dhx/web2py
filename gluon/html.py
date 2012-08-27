@@ -296,7 +296,8 @@ def URL(
     if other.endswith('/'):
         other += '/'    # add trailing slash to make last trailing empty arg explicit
 
-    if vars.has_key('_signature'): vars.pop('_signature')
+    if '_signature' in vars:
+        vars.pop('_signature')
     list_vars = []
     for (key, vals) in sorted(vars.items()):
         if not isinstance(vals, (list, tuple)):
@@ -387,7 +388,7 @@ def verifyURL(request, hmac_key=None, hash_vars=True, salt=None, user_signature=
 
     """
 
-    if not request.get_vars.has_key('_signature'):
+    if not '_signature' in request.get_vars:
         return False # no signature in the request URL
 
     # check if user_signature requires
@@ -483,6 +484,21 @@ class XmlComponent(object):
         else:
             components += [other]
         return CAT(*components)
+
+    def add_class(self, name):        
+        """ add a class to _class attribute """
+        c = self['_class']
+        classes = (set(c.split()) if c else set())|set(name.split())
+        self['_class'] = ' '.join(classes) if classes else None
+        return self
+
+    def remove_class(self, name):
+        """ remove a class from _class attribute """
+        c = self['_class']
+        classes = (set(c.split()) if c else set())-set(name.split())
+        self['_class'] = ' '.join(classes) if classes else None
+        return self
+
 
 class XML(XmlComponent):
     """
@@ -643,10 +659,10 @@ class DIV(XmlComponent):
         self.attributes = attributes
         self._fixup()
         # converts special attributes in components attributes
-        self._postprocessing()
         self.parent = None
         for c in self.components:
             self._setnode(c)
+        self._postprocessing()
 
     def update(self, **kargs):
         """
@@ -798,7 +814,8 @@ class DIV(XmlComponent):
                 c.latest = self.latest
                 c.session = self.session
                 c.formname = self.formname
-                if hideerror: c['hideerror'] = hideerror
+                if hideerror and not attributes.get('hideerror',False):
+                    c['hideerror'] = hideerror
                 newstatus = c._traverse(status,hideerror) and newstatus
 
         # for input, textarea, select, option
@@ -949,6 +966,48 @@ class DIV(XmlComponent):
         >>> for c in a.elements('input, select, textarea'): c['_disabled'] = 'disabled'
         >>> a.xml()
         '<form action="" enctype="multipart/form-data" method="post"><input disabled="disabled" type="text" /><select disabled="disabled"><option value="0">0</option></select><textarea cols="40" disabled="disabled" rows="10"></textarea></form>'
+
+        Elements that are matched can also be replaced or removed by specifying
+        a "replace" argument (note, a list of the original matching elements
+        is still returned as usual).
+
+        >>> a = DIV(DIV(SPAN('x', _class='abc'), DIV(SPAN('y', _class='abc'), SPAN('z', _class='abc'))))
+        >>> b = a.elements('span.abc', replace=P('x', _class='xyz'))
+        >>> print a
+        <div><div><p class="xyz">x</p><div><p class="xyz">x</p><p class="xyz">x</p></div></div></div>
+
+        "replace" can be a callable, which will be passed the original element and
+        should return a new element to replace it.
+
+        >>> a = DIV(DIV(SPAN('x', _class='abc'), DIV(SPAN('y', _class='abc'), SPAN('z', _class='abc'))))
+        >>> b = a.elements('span.abc', replace=lambda el: P(el[0], _class='xyz'))
+        >>> print a
+        <div><div><p class="xyz">x</p><div><p class="xyz">y</p><p class="xyz">z</p></div></div></div>
+
+        If replace=None, matching elements will be removed completely.
+
+        >>> a = DIV(DIV(SPAN('x', _class='abc'), DIV(SPAN('y', _class='abc'), SPAN('z', _class='abc'))))
+        >>> b = a.elements('span', find='y', replace=None)
+        >>> print a
+        <div><div><span class="abc">x</span><div><span class="abc">z</span></div></div></div>
+
+        If a "find_text" argument is specified, elements will be searched for text
+        components that match find_text, and any matching text components will be
+        replaced (find_text is ignored if "replace" is not also specified).
+        Like the "find" argument, "find_text" can be a string or a compiled regex.
+
+        >>> a = DIV(DIV(SPAN('x', _class='abc'), DIV(SPAN('y', _class='abc'), SPAN('z', _class='abc'))))
+        >>> b = a.elements(find_text=re.compile('x|y|z'), replace='hello')
+        >>> print a
+        <div><div><span class="abc">hello</span><div><span class="abc">hello</span><span class="abc">hello</span></div></div></div>
+
+        If other attributes are specified along with find_text, then only components
+        that match the specified attributes will be searched for find_text.
+
+        >>> a = DIV(DIV(SPAN('x', _class='abc'), DIV(SPAN('y', _class='efg'), SPAN('z', _class='abc'))))
+        >>> b = a.elements('span.efg', find_text=re.compile('x|y|z'), replace='hello')
+        >>> print a
+        <div><div><span class="abc">x</span><div><span class="efg">hello</span><span class="abc">z</span></div></div></div>
         """
         if len(args)==1:
             args = [a.strip() for a in args[0].split(',')]
@@ -977,49 +1036,60 @@ class DIV(XmlComponent):
                     return self.elements(*args,**kargs)
         # make a copy of the components
         matches = []
-        first_only = False
-        if kargs.has_key("first_only"):
-            first_only = kargs["first_only"]
-            del kargs["first_only"]
         # check if the component has an attribute with the same
         # value as provided
         check = True
-        tag = getattr(self,'tag').replace("/","")
+        tag = getattr(self,'tag').replace('/', '')
         if args and tag not in args:
             check = False
         for (key, value) in kargs.items():
-            if isinstance(value,(str,int)):
-                if self[key] != str(value):
+            if key not in ['first_only', 'replace', 'find_text']:
+                if isinstance(value, (str, int)):
+                    if self[key] != str(value):
+                        check = False
+                elif key in self.attributes:
+                    if not value.search(str(self[key])):
+                        check = False
+                else:
                     check = False
-            elif key in self.attributes:
-                if not value.search(str(self[key])):
-                    check = False
-            else:
-                check = False
         if 'find' in kargs:
             find = kargs['find']
+            is_regex = not isinstance(find, (str, int))
             for c in self.components:
-                if isinstance(find,(str,int)):
-                    if isinstance(c,str) and str(find) in c:
-                        check = True
-                else:
-                    if isinstance(c,str) and find.search(c):
-                        check = True
+                if (isinstance(c, str) and ((is_regex and find.search(c)) or
+                   (str(find) in c))):
+                    check = True
         # if found, return the component
         if check:
             matches.append(self)
-            if first_only:
-                return matches
-        # loop the copy
-        for c in self.components:
-            if isinstance(c, XmlComponent):
-                kargs['first_only'] = first_only
-                child_matches = c.elements( *args,  **kargs )
-                if first_only  and len(child_matches) != 0:
-                    return child_matches
-                matches.extend( child_matches )
-        return matches
 
+        first_only = kargs.get('first_only', False)
+        replace = kargs.get('replace', False)
+        find_text = replace is not False and kargs.get('find_text', False)
+        is_regex = not isinstance(find_text, (str, int, bool))
+        find_components = not (check and first_only)
+        def replace_component(i):
+            if replace is None:
+                del self[i]
+            elif callable(replace):
+                self[i] = replace(self[i])
+            else:
+                self[i] = replace
+        # loop the components
+        if find_text or find_components:
+            for i, c in enumerate(self.components):
+                if check and find_text and isinstance(c, str) and \
+                   ((is_regex and find_text.search(c)) or (str(find_text) in c)):
+                    replace_component(i)
+                if find_components and isinstance(c, XmlComponent):
+                    child_matches = c.elements(*args, **kargs)
+                    if len(child_matches):
+                        if not find_text and replace is not False and child_matches[0] is c:
+                            replace_component(i)
+                        if first_only:
+                            return child_matches
+                        matches.extend(child_matches)
+        return matches
 
     def element(self, *args, **kargs):
         """
@@ -1043,9 +1113,8 @@ class DIV(XmlComponent):
         sibs = [s for s in self.parent.components if not s == self]
         matches = []
         first_only = False
-        if kargs.has_key("first_only"):
-            first_only = kargs["first_only"]
-            del kargs["first_only"]
+        if 'first_only' in kargs:
+            first_only = kargs.pop('first_only')
         for c in sibs:
             try:
                 check = True
@@ -2044,7 +2113,7 @@ class FORM(DIV):
 
 
     @staticmethod
-    def confim(text='OK',buttons=None,hidden=None):
+    def confirm(text='OK',buttons=None,hidden=None):
         if not buttons: buttons = {}
         if not hidden: hidden={}
         inputs = [INPUT(_type='button',
@@ -2257,7 +2326,7 @@ def test():
     >>> print form.accepts({'myvar':'34'}, formname=None)
     False
     >>> print form.xml()
-    <form action="" enctype="multipart/form-data" method="post"><input class="invalidinput" name="myvar" type="text" value="34" /><div class="error" id="myvar__error">invalid expression</div></form>
+    <form action="" enctype="multipart/form-data" method="post"><input class="invalidinput" name="myvar" type="text" value="34" /><div class="error_wrapper"><div class="error" id="myvar__error">invalid expression</div></div></form>
     >>> print form.accepts({'myvar':'4'}, formname=None, keepvalues=True)
     True
     >>> print form.xml()
@@ -2271,7 +2340,7 @@ def test():
     >>> print form.accepts({'myvar':'as df'}, formname=None)
     False
     >>> print form.xml()
-    <form action=\"\" enctype=\"multipart/form-data\" method=\"post\"><input class=\"invalidinput\" name=\"myvar\" type=\"text\" value=\"as df\" /><div class=\"error\" id=\"myvar__error\">only alphanumeric!</div></form>
+    <form action="" enctype="multipart/form-data" method="post"><input class="invalidinput" name="myvar" type="text" value="as df" /><div class="error_wrapper"><div class="error" id="myvar__error">only alphanumeric!</div></div></form>
     >>> session={}
     >>> form=FORM(INPUT(value=\"Hello World\", _name=\"var\", requires=IS_MATCH('^\w+$')))
     >>> if form.accepts({}, session,formname=None): print 'passed'
@@ -2431,6 +2500,7 @@ class MARKMIN(XmlComponent):
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+
 
 
 

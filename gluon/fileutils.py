@@ -318,7 +318,7 @@ def get_session(request, other_application='admin'):
         session_id = request.cookies['session_id_' + other_application].value
         osession = storage.load_storage(os.path.join(
                 up(request.folder), other_application, 'sessions', session_id))
-    except:
+    except Exception, e:
         osession = storage.Storage()
     return osession
 
@@ -395,5 +395,6 @@ def abspath(*relpath, **base):
     if gluon:
         return os.path.join(global_settings.gluon_parent, path)
     return os.path.join(global_settings.applications_parent, path)
+
 
 
