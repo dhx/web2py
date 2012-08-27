@@ -296,7 +296,8 @@ def URL(
     if other.endswith('/'):
         other += '/'    # add trailing slash to make last trailing empty arg explicit
 
-    if vars.has_key('_signature'): vars.pop('_signature')
+    if '_signature' in vars:
+        vars.pop('_signature')
     list_vars = []
     for (key, vals) in sorted(vars.items()):
         if not isinstance(vals, (list, tuple)):
@@ -387,7 +388,7 @@ def verifyURL(request, hmac_key=None, hash_vars=True, salt=None, user_signature=
 
     """
 
-    if not request.get_vars.has_key('_signature'):
+    if not '_signature' in request.get_vars:
         return False # no signature in the request URL
 
     # check if user_signature requires
@@ -484,15 +485,17 @@ class XmlComponent(object):
             components += [other]
         return CAT(*components)
 
-    def add_class(self, name):
+    def add_class(self, name):        
         """ add a class to _class attribute """
-        classes = set(self['_class'].split())|set(name.split())
+        c = self['_class']
+        classes = (set(c.split()) if c else set())|set(name.split())
         self['_class'] = ' '.join(classes) if classes else None
         return self
 
     def remove_class(self, name):
         """ remove a class from _class attribute """
-        classes = set(self['_class'].split())-set(name.split())
+        c = self['_class']
+        classes = (set(c.split()) if c else set())-set(name.split())
         self['_class'] = ' '.join(classes) if classes else None
         return self
 
@@ -656,10 +659,10 @@ class DIV(XmlComponent):
         self.attributes = attributes
         self._fixup()
         # converts special attributes in components attributes
-        self._postprocessing()
         self.parent = None
         for c in self.components:
             self._setnode(c)
+        self._postprocessing()
 
     def update(self, **kargs):
         """
@@ -811,7 +814,8 @@ class DIV(XmlComponent):
                 c.latest = self.latest
                 c.session = self.session
                 c.formname = self.formname
-                if hideerror: c['hideerror'] = hideerror
+                if hideerror and not attributes.get('hideerror',False):
+                    c['hideerror'] = hideerror
                 newstatus = c._traverse(status,hideerror) and newstatus
 
         # for input, textarea, select, option
@@ -1109,9 +1113,8 @@ class DIV(XmlComponent):
         sibs = [s for s in self.parent.components if not s == self]
         matches = []
         first_only = False
-        if kargs.has_key("first_only"):
-            first_only = kargs["first_only"]
-            del kargs["first_only"]
+        if 'first_only' in kargs:
+            first_only = kargs.pop('first_only')
         for c in sibs:
             try:
                 check = True
@@ -2323,7 +2326,7 @@ def test():
     >>> print form.accepts({'myvar':'34'}, formname=None)
     False
     >>> print form.xml()
-    <form action="" enctype="multipart/form-data" method="post"><input class="invalidinput" name="myvar" type="text" value="34" /><div class="error" id="myvar__error">invalid expression</div></form>
+    <form action="" enctype="multipart/form-data" method="post"><input class="invalidinput" name="myvar" type="text" value="34" /><div class="error_wrapper"><div class="error" id="myvar__error">invalid expression</div></div></form>
     >>> print form.accepts({'myvar':'4'}, formname=None, keepvalues=True)
     True
     >>> print form.xml()
@@ -2337,7 +2340,7 @@ def test():
     >>> print form.accepts({'myvar':'as df'}, formname=None)
     False
     >>> print form.xml()
-    <form action=\"\" enctype=\"multipart/form-data\" method=\"post\"><input class=\"invalidinput\" name=\"myvar\" type=\"text\" value=\"as df\" /><div class=\"error\" id=\"myvar__error\">only alphanumeric!</div></form>
+    <form action="" enctype="multipart/form-data" method="post"><input class="invalidinput" name="myvar" type="text" value="as df" /><div class="error_wrapper"><div class="error" id="myvar__error">only alphanumeric!</div></div></form>
     >>> session={}
     >>> form=FORM(INPUT(value=\"Hello World\", _name=\"var\", requires=IS_MATCH('^\w+$')))
     >>> if form.accepts({}, session,formname=None): print 'passed'
