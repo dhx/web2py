@@ -31,6 +31,7 @@ from utils import web2py_uuid
 from fileutils import read_file, check_credentials
 from gluon import *
 from gluon.contrib.autolinks import expand_one
+from gluon.dal import Row
 
 import serializers
 
@@ -959,6 +960,7 @@ class Auth(object):
         settings.registration_requires_verification = False
         settings.registration_requires_approval = False
         settings.login_after_registration = False
+        settings.login_after_password_change = True
         settings.alternate_requires_registration = False
         settings.create_user_groups = "user_%(id)s"
         settings.everybody_group_id = None
@@ -1038,8 +1040,9 @@ class Auth(object):
         settings.profile_fields = None
         settings.retrieve_username_next = self.url('index')
         settings.retrieve_password_next = self.url('index')
-        settings.request_reset_password_next = self.url(function, args='login')
-        settings.reset_password_next = self.url(function, args='login')
+        settings.request_reset_password_next = \
+            self.url(function,args='login')
+        settings.reset_password_next = self.url('index')
 
         settings.change_password_next = self.url('index')
         settings.change_password_onvalidation = []
@@ -1396,8 +1399,7 @@ class Auth(object):
         elif isinstance(signature,self.db.Table):
             signature_list = [signature]
         else:
-            signature_list = signature
-        lazy_tables, db._lazy_tables = db._lazy_tables, False
+            signature_list = signature        
         is_not_empty = IS_NOT_EMPTY(error_message=self.messages.is_empty)
         is_crypted = CRYPT(key=settings.hmac_key,
                            min_length=settings.password_min_length)
@@ -1600,7 +1602,6 @@ class Auth(object):
                 actions=actions,
                 maps=maps)
 
-
     def log_event(self, description, vars=None, origin='auth'):
         """
         usage:
@@ -1667,6 +1668,11 @@ class Auth(object):
         return user
 
     def basic(self):
+        """
+        perform basic login.
+        reads current.request.env.http_authorization
+        and returns basic_allowed,basic_accepted,user 
+        """
         if not self.settings.allow_basic_login:
             return (False,False,False)
         basic = current.request.env.http_authorization
@@ -1675,11 +1681,23 @@ class Auth(object):
         (username, password) = base64.b64decode(basic[6:]).split(':')
         return (True, True, self.login_bare(username, password))
 
+    def login_user(self,user):
+        """
+        login the user = db.auth_user(id)
+        """
+        # user=Storage(self.table_user()._filter_fields(user,id=True))
+        current.session.auth = Storage(
+            user = user, 
+            last_visit = current.request.now,
+            expiration = self.settings.expiration,
+            hmac_key = web2py_uuid())
+        self.user = user
+        self.update_groups()
+
     def login_bare(self, username, password):
         """
-        logins user
+        logins user as specified by usernname (or email) and password
         """
-
         request = current.request
         session = current.session
         table_user = self.table_user()
@@ -1694,12 +1712,7 @@ class Auth(object):
         if user and user.get(passfield,False):
             password = table_user[passfield].validate(password)[0]
             if not user.registration_key and password == user[passfield]:
-                user = Storage(table_user._filter_fields(user, id=True))
-                session.auth = Storage(user=user, last_visit=request.now,
-                                       expiration=self.settings.expiration,
-                                       hmac_key = web2py_uuid())
-                self.user = user
-                self.update_groups()
+                self.login_user(user)
                 return user
         else:
             # user not in database try other login methods
@@ -1738,15 +1751,15 @@ class Auth(object):
                              renew=interactivelogin)
             service = session._cas_service
             del session._cas_service
-            if request.vars.has_key('warn') and not interactivelogin:
+            if 'warn' in request.vars and not interactivelogin:
                 response.headers['refresh'] = "5;URL=%s"%service+"?ticket="+ticket
                 return A("Continue to %s"%service,
                     _href=service+"?ticket="+ticket)
             else:
                 redirect(service+"?ticket="+ticket)
-        if self.is_logged_in() and not request.vars.has_key('renew'):
+        if self.is_logged_in() and not 'renew' in request.vars:
             return allow_access()
-        elif not self.is_logged_in() and request.vars.has_key('gateway'):
+        elif not self.is_logged_in() and 'gateway' in request.vars:
             redirect(service)
         def cas_onaccept(form, onaccept=onaccept):
             if not onaccept is DEFAULT: onaccept(form)
@@ -1759,7 +1772,7 @@ class Auth(object):
         db, table = self.db, self.table_cas()
         current.response.headers['Content-Type']='text'
         ticket = request.vars.ticket
-        renew = True if request.vars.has_key('renew') else False
+        renew = 'renew' in request.vars
         row = table(ticket=ticket)
         success = False
         if row:
@@ -1973,24 +1986,17 @@ class Auth(object):
 
         # process authenticated users
         if user:
-            user = Storage(table_user._filter_fields(user, id=True))
-
+            user = Row(table_user._filter_fields(user, id=True))
             # process authenticated users
             # user wants to be logged in for longer
-            session.auth = Storage(
-                user = user,
-                last_visit = request.now,
-                expiration = request.vars.get("remember",False) and \
-                    self.settings.long_expiration or self.settings.expiration,
-                remember = request.vars.has_key("remember"),
-                hmac_key = web2py_uuid()
-                )
-
-            self.user = user
+            self.login_user(user)
+            session.auth.expiration = \
+                request.vars.get('remember',False) and \
+                self.settings.long_expiration or \
+                self.settings.expiration
+            session.auth.remember = 'remember' in request.vars
             self.log_event(log, user)
             session.flash = self.messages.logged_in
-
-        self.update_groups()
 
         # how to continue
         if self.settings.login_form == self:
@@ -2149,13 +2155,10 @@ class Auth(object):
                 if not self.settings.registration_requires_verification:
                     table_user[form.vars.id] = dict(registration_key='')
                 session.flash = self.messages.registration_successful
-                user = self.db(table_user[username] == form.vars[username]).select().first()
-                user = Storage(table_user._filter_fields(user, id=True))
-                session.auth = Storage(user=user, last_visit=request.now,
-                                       expiration=self.settings.expiration,
-                                       hmac_key = web2py_uuid())
-                self.user = user
-                self.update_groups()
+                user = self.db(
+                    table_user[username] == form.vars[username]
+                    ).select().first()                
+                self.login_user(user)
                 session.flash = self.messages.logged_in
             self.log_event(log, form.vars)
             callback(onaccept,form)
@@ -2192,7 +2195,7 @@ class Auth(object):
 
         key = getarg(-1)
         table_user = self.table_user()
-        user = self.db(table_user.registration_key == key).select().first()
+        user = table_user(registration_key=key)
         if not user:
             redirect(self.settings.login_url)
         if self.settings.registration_requires_approval:
@@ -2267,7 +2270,7 @@ class Auth(object):
         if form.accepts(request, session,
                         formname='retrieve_username', dbio=False,
                         onvalidation=onvalidation,hideerror=self.settings.hideerror):
-            user = self.db(table_user.email == form.vars.email).select().first()
+            user = table_user(email=form.vars.email)
             if not user:
                 current.session.flash = \
                     self.messages.invalid_email
@@ -2345,7 +2348,7 @@ class Auth(object):
         if form.accepts(request, session,
                         formname='retrieve_password', dbio=False,
                         onvalidation=onvalidation,hideerror=self.settings.hideerror):
-            user = self.db(table_user.email == form.vars.email).select().first()
+            user = table_user(email=form.vars.email)
             if not user:
                 current.session.flash = \
                     self.messages.invalid_email
@@ -2398,12 +2401,12 @@ class Auth(object):
         session = current.session
 
         if next is DEFAULT:
-            next = self.next or self.settings.reset_password_next
+            next = self.settings.reset_password_next
         try:
             key = request.vars.key or getarg(-1)
             t0 = int(key.split('-')[0])
             if time.time()-t0 > 60*60*24: raise Exception
-            user = self.db(table_user.reset_password_key == key).select().first()
+            user = table_user(reset_password_key=key)
             if not user: raise Exception
         except Exception:
             session.flash = self.messages.invalid_reset_password
@@ -2422,11 +2425,15 @@ class Auth(object):
             formstyle=self.settings.formstyle,
             separator=self.settings.label_separator
         )
-        if form.accepts(request,session,hideerror=self.settings.hideerror):
-            user.update_record(**{passfield:str(form.vars.new_password),
-                                  'registration_key':'',
-                                  'reset_password_key':''})
+        if form.accepts(request,session,
+                        hideerror=self.settings.hideerror):
+            user.update_record(
+                **{passfield:str(form.vars.new_password),
+                   'registration_key':'',
+                   'reset_password_key':''})
             session.flash = self.messages.password_changed
+            if self.settings.login_after_password_change:
+                self.login_user(user)
             redirect(next)
         return form
 
@@ -2481,7 +2488,7 @@ class Auth(object):
                         formname='reset_password', dbio=False,
                         onvalidation=onvalidation,
                         hideerror=self.settings.hideerror):
-            user = self.db(table_user.email == form.vars.email).select().first()
+            user = table_user(email=form.vars.email)
             if not user:
                 session.flash = self.messages.invalid_email
                 redirect(self.url(args=request.args))
@@ -2684,7 +2691,8 @@ class Auth(object):
             self.user = auth.user
             if self.settings.login_onaccept:
                 form = Storage(dict(vars=self.user))
-                self.settings.login_onaccept(form)
+                for callback in self.settings.login_onaccept:
+                    callback(form)
             log = self.messages.impersonate_log
             self.log_event(log,dict(id=current_id, other_id=auth.user.id))
         elif user_id in (0, '0') and self.is_impersonating():
@@ -3714,14 +3722,14 @@ def universal_caller(f, *a, **b):
     # There might be pos_args left, that are sent as named_values. Gather them as well.
     # If a argument already is populated with values we simply replaces them.
     for arg_name in pos_args[len(arg_dict):]:
-        if b.has_key(arg_name):
+        if arg_name in b:
             arg_dict[arg_name] = b[arg_name]
 
     if len(arg_dict) >= len(pos_args):
         # All the positional arguments is found. The function may now be called.
         # However, we need to update the arg_dict with the values from the named arguments as well.
         for arg_name in named_args:
-            if b.has_key(arg_name):
+            if arg_name in b:
                 arg_dict[arg_name] = b[arg_name]
 
         return f(**arg_dict)
