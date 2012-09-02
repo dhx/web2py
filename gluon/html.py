@@ -669,7 +669,7 @@ class DIV(XmlComponent):
         dictionary like updating of the tag attributes
         """
 
-        for (key, value) in kargs.items():
+        for (key, value) in kargs.iteritems():
             self[key] = value
         return self
 
@@ -814,7 +814,8 @@ class DIV(XmlComponent):
                 c.latest = self.latest
                 c.session = self.session
                 c.formname = self.formname
-                if hideerror and not attributes.get('hideerror',False):
+                if hideerror and not \
+                        self.attributes.get('hideerror',False):
                     c['hideerror'] = hideerror
                 newstatus = c._traverse(status,hideerror) and newstatus
 
@@ -1042,7 +1043,7 @@ class DIV(XmlComponent):
         tag = getattr(self,'tag').replace('/', '')
         if args and tag not in args:
             check = False
-        for (key, value) in kargs.items():
+        for (key, value) in kargs.iteritems():
             if key not in ['first_only', 'replace', 'find_text']:
                 if isinstance(value, (str, int)):
                     if self[key] != str(value):
@@ -1121,7 +1122,7 @@ class DIV(XmlComponent):
                 tag = getattr(c,'tag').replace("/","")
                 if args and tag not in args:
                         check = False
-                for (key, value) in kargs.items():
+                for (key, value) in kargs.iteritems():
                     if c[key] != value:
                             check = False
                 if check:
@@ -1685,14 +1686,14 @@ class INPUT(DIV):
         if name is None or name == '':
             return True
         name = str(name)
-
+        request_vars_get = self.request_vars.get
         if self['_type'] != 'checkbox':
             self['old_value'] = self['value'] or self['_value'] or ''
-            value = self.request_vars.get(name, '')
+            value = request_vars_get(name, '')
             self['value'] = value
         else:
             self['old_value'] = self['value'] or False
-            value = self.request_vars.get(name)
+            value = request_vars_get(name)
             if isinstance(value, (tuple, list)):
                 self['value'] = self['_value'] in value
             else:
@@ -1935,14 +1936,15 @@ class FORM(DIV):
         # check formname and formkey
 
         status = True
-        if self.session:
-            formkey = self.session.get('_formkey[%s]' % self.formname, None)
+        request_vars = self.request_vars
+        if session:
+            formkey = session.get('_formkey[%s]' % formname, None)
             # check if user tampering with form and void CSRF
-            if formkey != self.request_vars._formkey:
+            if formkey != request_vars._formkey:
                 status = False
-        if self.formname != self.request_vars._formname:
+        if formname != request_vars._formname:
             status = False
-        if status and self.session:
+        if status and session:
             # check if editing a record that has been modified by the server
             if hasattr(self,'record_hash') and self.record_hash != formkey:
                 status = False
@@ -1986,10 +1988,10 @@ class FORM(DIV):
 
     def hidden_fields(self):
         c = []
+        attr = self.attributes.get('hidden',{})
         if 'hidden' in self.attributes:
-            for (key, value) in self.attributes.get('hidden',{}).items():
-                c.append(INPUT(_type='hidden', _name=key, _value=value))
-
+            c = [INPUT(_type='hidden', _name=key, _value=value)
+                 for (key, value) in attr.iteritems()]
         if hasattr(self, 'formkey') and self.formkey:
             c.append(INPUT(_type='hidden', _name='_formkey',
                      _value=self.formkey))
@@ -2058,7 +2060,7 @@ class FORM(DIV):
                 onsuccess(self)
             if next:
                 if self.vars:
-                    for key,value in self.vars.items():
+                    for key,value in self.vars.iteritems():
                         next = next.replace('[%s]' % key,
                                             urllib.quote(str(value)))
                     if not next.startswith('/'):
@@ -2119,11 +2121,11 @@ class FORM(DIV):
         inputs = [INPUT(_type='button',
                         _value=name,
                         _onclick=FORM.REDIRECT_JS % link) \
-                      for name,link in buttons.items()]
+                      for name,link in buttons.iteritems()]
         inputs += [INPUT(_type='hidden',
                          _name=name,
                          _value=value)
-                   for name,value in hidden.items()]
+                   for name,value in hidden.iteritems()]
         form = FORM(INPUT(_type='submit',_value=text),*inputs)
         form.process()
         return form
@@ -2271,10 +2273,11 @@ class MENU(DIV):
             select = SELECT(**self.attributes)
         for item in data:
             if len(item) <= 4 or item[4] == True:
-                if item[2]:
-                    select.append(OPTION(CAT(prefix, item[0]), _value=item[2], _selected=item[1]))
-                    if len(item)>3 and len(item[3]):
-                        self.serialize_mobile(item[3], select, prefix = CAT(prefix, item[0], '/'))
+                select.append(OPTION(CAT(prefix, item[0]), 
+                                     _value=item[2], _selected=item[1]))
+                if len(item)>3 and len(item[3]):
+                    self.serialize_mobile(
+                        item[3], select, prefix = CAT(prefix, item[0], '/'))
         select['_onchange'] = 'window.location=this.value'
         return select
 

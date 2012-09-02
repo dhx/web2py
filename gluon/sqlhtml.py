@@ -36,6 +36,8 @@ import re
 import cStringIO
 from gluon import current, redirect, A, URL, DIV, H3, UL, LI, SPAN, INPUT
 import inspect
+import settings
+is_gae = settings.global_settings.web2py_runtime_gae
 
 table_field = re.compile('[\w_]+\.[\w_]+')
 widget_class = re.compile('^\w*')
@@ -290,7 +292,7 @@ class MultipleOptionsWidget(OptionsWidget):
             be shown
         """
 
-        attributes.update(dict(_size=size, _multiple=True))
+        attributes.update(_size=size, _multiple=True)
 
         return OptionsWidget.widget(field, value, **attributes)
 
@@ -581,7 +583,7 @@ class AutocompleteWidget(object):
     def callback(self):
         if self.keyword in self.request.vars:
             field = self.fields[0]
-            if settings.global_settings.web2py_runtime_gae:
+            if is_gae:
                 rows = self.db(field.__ge__(self.request.vars[self.keyword])&field.__lt__(self.request.vars[self.keyword]+ u'\ufffd')).select(orderby=self.orderby,limitby=self.limitby,*self.fields)
             else:
                 rows = self.db(field.like(self.request.vars[self.keyword]+'%')).select(orderby=self.orderby,limitby=self.limitby,distinct=self.distinct,*self.fields)
@@ -1040,20 +1042,19 @@ class SQLFORM(FORM):
         # build a link
         if record and linkto:
             db = linkto.split('/')[-1]
-            for (rtable, rfield) in table._referenced_by:
+            for rfld in table._referenced_by:
                 if keyed:
-                    rfld = table._db[rtable][rfield]
                     query = urllib.quote('%s.%s==%s' % (db,rfld,record[rfld.type[10:].split('.')[1]]))
                 else:
-                    query = urllib.quote('%s.%s==%s' % (db,table._db[rtable][rfield],record[self.id_field_name]))
-                lname = olname = '%s.%s' % (rtable, rfield)
+                    query = urllib.quote('%s.%s==%s' % (db,rfld,record[self.id_field_name]))
+                lname = olname = '%s.%s' % (rfld.tablename, rfld.name)
                 if ofields and not olname in ofields:
                     continue
                 if labels and lname in labels:
                     lname = labels[lname]
                 widget = A(lname,
                            _class='reference',
-                           _href='%s/%s?query=%s' % (linkto, rtable, query))
+                           _href='%s/%s?query=%s' % (linkto, rfld.tablename, query))
                 xfields.append((olname.replace('.', '__')+SQLFORM.ID_ROW_SUFFIX,
                                 '',widget,col3.get(olname,'')))
                 self.custom.linkto[olname.replace('.', '__')] = widget
@@ -1655,7 +1656,7 @@ class SQLFORM(FORM):
         if user_signature:
             if (args != request.args and user_signature and \
                     not URL.verify(request,user_signature=user_signature)) or \
-                    (not session.auth.user and \
+                    (not (session.auth and session.auth.user) and \
                          ('edit' in request.args or \
                               'create' in request.args or \
                               'delete' in request.args)):
@@ -1825,14 +1826,15 @@ class SQLFORM(FORM):
                     try:
                         dbset = dbset(SQLFORM.build_query(
                                 fields,request.vars.get('keywords','')))
-                        rows = dbset.select()
+                        rows = dbset.select(cacheable=True)
                     except Exception, e:
                         response.flash = T('Internal Error')
                         rows = []
                 else:
-                    rows = dbset.select()
+                    rows = dbset.select(cacheable=True)
             else:
-                rows = dbset.select(left=left,orderby=orderby,*columns)
+                rows = dbset.select(left=left,orderby=orderby,
+                                    cacheable=True*columns)
 
             if export_type in exportManager:
                 value = exportManager[export_type]
@@ -1891,7 +1893,8 @@ class SQLFORM(FORM):
         try:
             if left or groupby:
                 c = 'count(*)'
-                nrows = dbset.select(c,left=left,groupby=groupby).first()[c]
+                nrows = dbset.select(c,left=left,cacheable=True,
+                                     groupby=groupby).first()[c]
             else:
                 nrows = dbset.count()
         except:
@@ -1975,7 +1978,9 @@ class SQLFORM(FORM):
 
         try:
             table_fields = [f for f in fields if f._tablename in tablenames]
-            rows = dbset.select(left=left,orderby=orderby,groupby=groupby,limitby=limitby,*table_fields)
+            rows = dbset.select(left=left,orderby=orderby,
+                                groupby=groupby,limitby=limitby,
+                                cacheable=True,*table_fields)
         except SyntaxError:
             rows = None
             error = T("Query Not Supported")
@@ -2185,12 +2190,14 @@ class SQLFORM(FORM):
                         LI(A(T(db[referee]._plural),
                              _class=trap_class(),
                              _href=url()),
-                           SPAN(divider,_class='divider'),_class='w2p_grid_breadcrumb_elem'))
+                           SPAN(divider,_class='divider'),
+                           _class='w2p_grid_breadcrumb_elem'))
                     if kwargs.get('details',True):
                         breadcrumbs.append(
                             LI(A(name,_class=trap_class(),
                                  _href=url(args=['view',referee,id])),
-                               SPAN(divider,_class='divider'),_class='w2p_grid_breadcrumb_elem'))
+                               SPAN(divider,_class='divider'),
+                               _class='w2p_grid_breadcrumb_elem'))
                     nargs+=2
                 else:
                     break
@@ -2216,16 +2223,18 @@ class SQLFORM(FORM):
                     del kwargs[key]
         check = {}
         id_field_name = table._id.name
-        for tablename,fieldname in table._referenced_by:
-            if db[tablename][fieldname].readable:
-                check[tablename] = check.get(tablename,[])+[fieldname]
+        for rfield in table._referenced_by:
+            if rfield.readable:
+                check[rfield.tablename] = \
+                    check.get(rfield.tablename,[])+[rfield.name]
         for tablename in sorted(check):
             linked_fieldnames = check[tablename]
             tb = db[tablename]
             multiple_links = len(linked_fieldnames)>1
             for fieldname in linked_fieldnames:
                 if linked_tables is None or tablename in linked_tables:
-                    t = T(tb._plural) if not multiple_links else T(tb._plural+'('+fieldname+')')
+                    t = T(tb._plural) if not multiple_links else \
+                        T(tb._plural+'('+fieldname+')')
                     args0 = tablename+'.'+fieldname
                     links.append(
                         lambda row,t=t,nargs=nargs,args0=args0:\

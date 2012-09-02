@@ -23,9 +23,9 @@ except ImportError:
     GIT_MISSING = 'requires python-git module, but not installed or incompatible version'
 
 from gluon.languages import (regex_language, read_possible_languages,
-                             read_possible_plurals, lang_sampling,
+                             lang_sampling,
                              read_dict, write_dict, read_plural_dict,
-                             write_plural_dict)
+                             write_plural_dict, PLURAL_RULES)
 
 
 if DEMO_MODE and request.function in ['change_password','pack','pack_plugin','upgrade_web2py','uninstall','cleanup','compile_app','remove_compiled_app','delete','delete_plugin','create_file','upload_file','update_languages','reload_routes','git_push','git_pull']:
@@ -51,12 +51,12 @@ def log_progress(app,mode='EDIT',filename=None,progress=0):
     progress_file = os.path.join(apath(app, r=request), 'progress.log')
     now = str(request.now)[:19]
     if not os.path.exists(progress_file):
-        open(progress_file,'w').write('[%s] START\n' % now)
+        safe_open(progress_file,'w').write('[%s] START\n' % now)
     if filename:
-        open(progress_file,'a').write('[%s] %s %s: %s\n' % (now,mode,filename,progress))
+        safe_open(progress_file,'a').write('[%s] %s %s: %s\n' % (now,mode,filename,progress))
 
 def safe_open(a,b):
-    if DEMO_MODE and 'w' in b:
+    if DEMO_MODE and ('w' in b or 'a' in b):
         class tmp:
             def write(self,data): pass
         return tmp()
@@ -140,8 +140,8 @@ def check_version():
         return SPAN('You should upgrade to version %s' % version_number)
     else:
         return sp_button(URL('upgrade_web2py'), T('upgrade now')) \
-          + XML(' <strong class="upgrade_version">%s</strong>' % version_number)
-
+            + XML(' <strong class="upgrade_version">%s.%s.%s</strong>' \
+                      % version_number[:3])
 
 def logout():
     """ Logout handler """
@@ -455,11 +455,13 @@ def delete():
 def enable():
     app = get_app()
     filename = os.path.join(apath(app, r=request),'DISABLED')
-    if os.path.exists(filename):
+    if is_gae:
+        return SPAN(T('Not supported'),_style='color:yellow')
+    elif os.path.exists(filename):
         os.unlink(filename)
         return SPAN(T('Disable'),_style='color:green')
     else:
-        open(filename,'wb').write(time.ctime())
+        safe_open(filename,'wb').write(time.ctime())
         return SPAN(T('Enable'),_style='color:red')
 
 def peek():
@@ -949,8 +951,8 @@ def design():
                                         # get only existed files
     languages = sorted(all_languages)
 
-    plural_rules={}
-    all_plurals=read_possible_plurals()
+    plural_rules = {}
+    all_plurals = PLURAL_RULES
     for langfile,lang in all_languages.iteritems():
         lang=lang.strip()
         match_language = regex_language.match(lang)
@@ -961,7 +963,7 @@ def design():
             plang = lang_sampling(match_language, all_plurals.keys())
             if plang:
                plural=all_plurals[plang]
-               plural_rules[langfile]=(plural[0],plang,plural[1],plural[3])
+               plural_rules[langfile]=(plural[0],plang,plural[4],plural[3])
             else:
                plural_rules[langfile]=(0,lang,'plural_rules-%s.py'%lang,'')
 
