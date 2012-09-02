@@ -30,7 +30,7 @@ import string
 import urllib2
 from thread import allocate_lock
 
-from fileutils import abspath, write_file, parse_version
+from fileutils import abspath, write_file, parse_version, copystream
 from settings import global_settings
 from admin import add_path_first, create_missing_folders, create_missing_app_folders
 from globals import current
@@ -84,7 +84,6 @@ from http import HTTP, redirect
 from globals import Request, Response, Session
 from compileapp import build_environment, run_models_in, \
     run_controller_in, run_view_in
-from fileutils import copystream, parse_version
 from contenttype import contenttype
 from dal import BaseAdapter
 from settings import global_settings
@@ -384,7 +383,7 @@ def wsgibase(environ, responder):
                 # ##################################################
 
                 eget = environ.get
-                if not eget('PATH_INFO',None) and eget('REQUEST_URI',None):
+                if not eget('PATH_INFO') and eget('REQUEST_URI'):
                     # for fcgi, get path_info and 
                     # query_string from request_uri
                     items = environ['REQUEST_URI'].split('?')
@@ -393,9 +392,14 @@ def wsgibase(environ, responder):
                         environ['QUERY_STRING'] = items[1]
                     else:
                         environ['QUERY_STRING'] = ''
-                if not eget('HTTP_HOST',None):
+                elif not eget('REQUEST_URI'):
+                    if eget('QUERY_STRING'):
+                        environ['REQUEST_URI'] = eget('PATH_INFO') + '?' + eget('QUERY_STRING')
+                    else:
+                        environ['REQUEST_URI'] = eget('PATH_INFO')
+                if not eget('HTTP_HOST'):
                     environ['HTTP_HOST'] = \
-                        eget('SERVER_NAME')+':'+eget('SERVER_PORT')
+                        eget('SERVER_NAME') + ':' + eget('SERVER_PORT')
                     
 
                 (static_file, environ) = url_in(request, environ)
@@ -425,14 +429,14 @@ def wsgibase(environ, responder):
                 client = get_client(env)                
                 x_req_with = str(env.http_x_requested_with).lower()
                 
-                request.update(dict(
-                        client = client,
-                        folder = abspath('applications',app) + os.sep,
-                        ajax = x_req_with == 'xmlhttprequest',
-                        cid = env.http_web2py_component_element,
-                        is_local = env.remote_addr in local_hosts,
-                        is_https = env.wsgi_url_scheme \
-                            in ['https', 'HTTPS'] or env.https=='on'))
+                request.update(
+                    client = client,
+                    folder = abspath('applications',app) + os.sep,
+                    ajax = x_req_with == 'xmlhttprequest',
+                    cid = env.http_web2py_component_element,
+                    is_local = env.remote_addr in local_hosts,
+                    is_https = env.wsgi_url_scheme \
+                        in ['https', 'HTTPS'] or env.https=='on')
                 request.uuid = request.compute_uuid() # requires client
 
                 # ##################################################
@@ -526,7 +530,8 @@ def wsgibase(environ, responder):
 
             except HTTP, http_response:
                 if static_file:
-                    return http_response.to(responder)
+                    return http_response.to(responder,env=env)
+                        
 
                 if request.body:
                     request.body.close()
@@ -561,15 +566,15 @@ def wsgibase(environ, responder):
                 # ##################################################
 
                 if request.cid:
-                    rheaders
+                    rheaders = response.headers
                     if response.flash and \
                             not 'web2py-component-flash' in rheaders:
                         rheaders['web2py-component-flash'] = \
                             urllib2.quote(xmlescape(response.flash)\
                                               .replace('\n',''))
                     if response.js and \
-                            not 'web2py-component-command' in readers:
-                        readers['web2py-component-command'] = \
+                            not 'web2py-component-command' in rheaders:
+                        rheaders['web2py-component-command'] = \
                             response.js.replace('\n','')
                 rcookies = response.cookies
                 if session._forget and \
@@ -636,7 +641,7 @@ def wsgibase(environ, responder):
         return wsgibase(new_environ,responder)
     if global_settings.web2py_crontype == 'soft':
         newcron.softcron(global_settings.applications_parent).start()
-    return http_response.to(responder)
+    return http_response.to(responder,env=env)
 
 
 def save_password(password, port):
