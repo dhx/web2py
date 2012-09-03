@@ -227,15 +227,21 @@ thread = threading.local()
 # internal representation of tables with field
 #  <table>.<field>, tables and fields may only be [a-zA-Z0-9_]
 
-regex_type = re.compile('^([\w\_\:]+)')
-regex_dbname = re.compile('^(\w+)(\:\w+)*')
-regex_safe = re.compile('^\w+$')
-regex_table_field = re.compile('^(\w+)\.(\w+)$')
-regex_content = re.compile('(?P<table>[\w\-]+)\.(?P<field>[\w\-]+)\.(?P<uuidkey>[\w\-]+)\.(?P<name>\w+)\.\w+$')
-regex_cleanup_fn = re.compile('[\'"\s;]+')
-string_unpack=re.compile('(?<!\|)\|(?!\|)')
-regex_python_keywords = re.compile('^(and|del|from|not|while|as|elif|global|or|with|assert|else|if|pass|yield|break|except|import|print|class|exec|in|raise|continue|finally|is|return|def|for|lambda|try)$')
-regex_select_as_parser = re.compile("\s+AS\s+(\S+)")
+REGEX_TYPE = re.compile('^([\w\_\:]+)')
+REGEX_DBNAME = re.compile('^(\w+)(\:\w+)*')
+REGEX_W = re.compile('^\w+$')
+REGEX_TABLE_DOT_FIELD = re.compile('^(\w+)\.(\w+)$')
+REGEX_UPLOAD_PATTERN = re.compile('(?P<table>[\w\-]+)\.(?P<field>[\w\-]+)\.(?P<uuidkey>[\w\-]+)\.(?P<name>\w+)\.\w+$')
+REGEX_CLEANUP_FN = re.compile('[\'"\s;]+')
+REGEX_UNPACK = re.compile('(?<!\|)\|(?!\|)')
+REGEX_PYTHON_KEYWORDS = re.compile('^(and|del|from|not|while|as|elif|global|or|with|assert|else|if|pass|yield|break|except|import|print|class|exec|in|raise|continue|finally|is|return|def|for|lambda|try)$')
+REGEX_SELECT_AS_PARSER = re.compile("\s+AS\s+(\S+)")
+REGEX_CONST_STRING = re.compile('(\"[^\"]*?\")|(\'[^\']*?\')')
+REGEX_SEARCH_PATTERN = re.compile('^{[^\.]+\.[^\.]+(\.(lt|gt|le|ge|eq|ne|contains|startswith|year|month|day|hour|minute|second))?(\.not)?}$')
+REGEX_SQUARE_BRACKETS = re.compile('^.+\[.+\]$')
+REGEX_STORE_PATTERN = re.compile('\.(?P<e>\w{1,5})$')
+REGEX_QUOTES = re.compile("'[^']*'")
+REGEX_ALPHANUMERIC = re.compile('^[a-zA-Z]\w*$')
 
 # list of drivers will be built on the fly
 # and lists only what is available
@@ -434,7 +440,7 @@ def AND(a,b):
 def IDENTITY(x): return x
 
 def varquote_aux(name,quotestr='%s'):
-    return name if regex_safe.match(name) else quotestr % name
+    return name if REGEX_W.match(name) else quotestr % name
 
 if 'google' in DRIVERS:
 
@@ -1397,7 +1403,7 @@ class BaseAdapter(ConnectionPool):
             if isinstance(item,SQLALL):
                 new_fields += item._table
             elif isinstance(item,str):
-                if regex_table_field.match(item):
+                if REGEX_TABLE_DOT_FIELD.match(item):
                     tablename,fieldname = item.split('.')
                     append(db[tablename][fieldname])
                 else:
@@ -1419,7 +1425,7 @@ class BaseAdapter(ConnectionPool):
         tablenames = tables(query)
         for field in fields:
             if isinstance(field, basestring) \
-                    and regex_table_field.match(field):
+                    and REGEX_TABLE_DOT_FIELD.match(field):
                 tn,fn = field.split('.')
                 field = self.db[tn][fn]
             for tablename in tables(field):
@@ -1762,7 +1768,7 @@ class BaseAdapter(ConnectionPool):
         elif field_type == 'blob' and not blob_decode:
             return value
         else:
-            key = regex_type.match(field_type).group(0)
+            key = REGEX_TYPE.match(field_type).group(0)
             return self.parsemap[key](value,field_type)
 
     def parse_reference(self, value, field_type):
@@ -1877,7 +1883,7 @@ class BaseAdapter(ConnectionPool):
         new_rows = []
         tmps = []
         for colname in colnames:
-            if not regex_table_field.match(colname):
+            if not REGEX_TABLE_DOT_FIELD.match(colname):
                 tmps.append(None)
             else:
                 (tablename, fieldname) = colname.split('.')
@@ -1933,7 +1939,7 @@ class BaseAdapter(ConnectionPool):
                         self.parse_value(value,
                                          fields[j].type,blob_decode)
                     new_column_name = \
-                        regex_select_as_parser.search(colname)
+                        REGEX_SELECT_AS_PARSER.search(colname)
                     if not new_column_name is None:
                         column_name = new_column_name.groups(0)
                         setattr(new_row,column_name[0],value)
@@ -2283,6 +2289,8 @@ class MySQLAdapter(BaseAdapter):
     def concat_add(self,table):
         return '; ALTER TABLE %s ADD ' % table
 
+    REGEX_URI = re.compile('^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>[^\:/]+)(\:(?P<port>[0-9]+))?/(?P<db>[^?]+)(\?set_encoding=(?P<charset>\w+))?$')
+
     def __init__(self,db,uri,pool_size=0,folder=None,db_codec ='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
                  adapter_args={}):
@@ -2295,7 +2303,7 @@ class MySQLAdapter(BaseAdapter):
         self.db_codec = db_codec
         self.find_or_make_work_folder()
         ruri = uri.split('://',1)[1]
-        m = re.compile('^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>[^\:/]+)(\:(?P<port>[0-9]+))?/(?P<db>[^?]+)(\?set_encoding=(?P<charset>\w+))?$').match(ruri)
+        m = self.REGEX_URI.match(ruri)
         if not m:
             raise SyntaxError, \
                 "Invalid URI string in DAL: %s" % self.uri
@@ -2407,6 +2415,8 @@ class PostgreSQLAdapter(BaseAdapter):
         #              % (table._tablename, table._fieldname, table._sequence_name))
         self.execute(query)
 
+    REGEX_URI = re.compile('^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>[^\:@]+)(\:(?P<port>[0-9]+))?/(?P<db>[^\?]+)(\?sslmode=(?P<sslmode>.+))?$')
+
     def __init__(self,db,uri,pool_size=0,folder=None,db_codec ='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
                  adapter_args={}, srid=4326):
@@ -2420,7 +2430,7 @@ class PostgreSQLAdapter(BaseAdapter):
         self.srid = srid
         self.find_or_make_work_folder()
         ruri = uri.split('://',1)[1]
-        m = re.compile('^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>[^\:@]+)(\:(?P<port>[0-9]+))?/(?P<db>[^\?]+)(\?sslmode=(?P<sslmode>.+))?$').match(ruri)
+        m = self.REGEX_URI.match(ruri)
         if not m:
             raise SyntaxError, "Invalid URI string in DAL"
         user = credential_decoder(m.group('user'))
@@ -2631,6 +2641,8 @@ class NewPostgreSQLAdapter(PostgreSQLAdapter):
 class JDBCPostgreSQLAdapter(PostgreSQLAdapter):
     drivers = ('zxJDBC',)
 
+    REGEX_URI = re.compile('^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>[^\:/]+)(\:(?P<port>[0-9]+))?/(?P<db>.+)$')
+
     def __init__(self,db,uri,pool_size=0,folder=None,db_codec ='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
                  adapter_args={}):
@@ -2643,7 +2655,7 @@ class JDBCPostgreSQLAdapter(PostgreSQLAdapter):
         self.db_codec = db_codec
         self.find_or_make_work_folder()
         ruri = uri.split('://',1)[1]
-        m = re.compile('^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>[^\:/]+)(\:(?P<port>[0-9]+))?/(?P<db>.+)$').match(ruri)
+        m = self.REGEX_URI.match(ruri)
         if not m:
             raise SyntaxError, "Invalid URI string in DAL"
         user = credential_decoder(m.group('user'))
@@ -2778,6 +2790,7 @@ class OracleAdapter(BaseAdapter):
     def after_connection(self):
         self.execute("ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD HH24:MI:SS';")
         self.execute("ALTER SESSION SET NLS_TIMESTAMP_FORMAT = 'YYYY-MM-DD HH24:MI:SS';")
+
     oracle_fix = re.compile("[^']*('[^']*'[^']*)*\:(?P<clob>CLOB\('([^']+|'')*'\))")
 
     def execute(self, command, args=None):
@@ -2911,6 +2924,10 @@ class MSSQLAdapter(BaseAdapter):
                 return '0'
         return None
 
+    REGEX_DSN = re.compile('^(?P<dsn>.+)$')
+    REGEX_URI = re.compile('^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>[^\:/]+)(\:(?P<port>[0-9]+))?/(?P<db>[^\?]+)(\?(?P<urlargs>.*))?$')
+    REGEX_ARGPATTERN = re.compile('(?P<argkey>[^=]+)=(?P<argvalue>[^&]*)')
+
     def __init__(self,db,uri,pool_size=0,folder=None,db_codec ='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
                     adapter_args={}, fake_connect=False, srid=4326):
@@ -2927,7 +2944,7 @@ class MSSQLAdapter(BaseAdapter):
         ruri = uri.split('://',1)[1]
         if '@' not in ruri:
             try:
-                m = re.compile('^(?P<dsn>.+)$').match(ruri)
+                m = self.REGEX_DSN.match(ruri)
                 if not m:
                     raise SyntaxError, \
                         'Parsing uri string(%s) has no result' % self.uri
@@ -2940,7 +2957,7 @@ class MSSQLAdapter(BaseAdapter):
             # was cnxn = 'DSN=%s' % dsn
             cnxn = dsn
         else:
-            m = re.compile('^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>[^\:/]+)(\:(?P<port>[0-9]+))?/(?P<db>[^\?]+)(\?(?P<urlargs>.*))?$').match(ruri)
+            m = self.REGEX_URI.match(ruri)
             if not m:
                 raise SyntaxError, \
                     "Invalid URI string in DAL: %s" % self.uri
@@ -2961,9 +2978,8 @@ class MSSQLAdapter(BaseAdapter):
             # (in the form of arg1=value1&arg2=value2&...)
             # Default values (drivers like FreeTDS insist on uppercase parameter keys)
             argsdict = { 'DRIVER':'{SQL Server}' }
-            urlargs = m.group('urlargs') or ''
-            argpattern = re.compile('(?P<argkey>[^=]+)=(?P<argvalue>[^&]*)')
-            for argmatch in argpattern.finditer(urlargs):
+            urlargs = m.group('urlargs') or ''            
+            for argmatch in self.REGEX_ARGPATTERN.finditer(urlargs):
                 argsdict[str(argmatch.group('argkey')).upper()] = argmatch.group('argvalue')
             urlargs = ';'.join(['%s=%s' % (ak, av) for (ak, av) in argsdict.iteritems()])
             cnxn = 'SERVER=%s;PORT=%s;DATABASE=%s;UID=%s;PWD=%s;%s' \
@@ -3123,7 +3139,7 @@ class SybaseAdapter(MSSQLAdapter):
         ruri = uri.split('://',1)[1]
         if '@' not in ruri:
             try:
-                m = re.compile('^(?P<dsn>.+)$').match(ruri)
+                m = self.REGEX_DSN.match(ruri)
                 if not m:
                     raise SyntaxError, \
                         'Parsing uri string(%s) has no result' % self.uri
@@ -3134,7 +3150,7 @@ class SybaseAdapter(MSSQLAdapter):
                 logger.error('NdGpatch error')
                 raise e
         else:
-            m = re.compile('^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>[^\:/]+)(\:(?P<port>[0-9]+))?/(?P<db>[^\?]+)(\?(?P<urlargs>.*))?$').match(ruri)
+            m = self.REGEX_URI.match(uri)            
             if not m:
                 raise SyntaxError, \
                     "Invalid URI string in DAL: %s" % self.uri
@@ -3226,6 +3242,8 @@ class FireBirdAdapter(BaseAdapter):
         return ['DELETE FROM %s;' % table._tablename,
                 'SET GENERATOR %s TO 0;' % table._sequence_name]
 
+    REGEX_URI = re.compile('^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>[^\:/]+)(\:(?P<port>[0-9]+))?/(?P<db>.+?)(\?set_encoding=(?P<charset>\w+))?$')
+
     def __init__(self,db,uri,pool_size=0,folder=None,db_codec ='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
                  adapter_args={}): 
@@ -3238,7 +3256,7 @@ class FireBirdAdapter(BaseAdapter):
         self.db_codec = db_codec
         self.find_or_make_work_folder()
         ruri = uri.split('://',1)[1]
-        m = re.compile('^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>[^\:/]+)(\:(?P<port>[0-9]+))?/(?P<db>.+?)(\?set_encoding=(?P<charset>\w+))?$').match(ruri)
+        m = self.REGEX_URI.match(ruri)
         if not m:
             raise SyntaxError, "Invalid URI string in DAL: %s" % self.uri
         user = credential_decoder(m.group('user'))
@@ -3283,6 +3301,8 @@ class FireBirdAdapter(BaseAdapter):
 class FireBirdEmbeddedAdapter(FireBirdAdapter):
     drivers = ('kinterbasdb','firebirdsql','fdb','pyodbc')
 
+    REGEX_URI = re.compile('^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<path>[^\?]+)(\?set_encoding=(?P<charset>\w+))?$')
+
     def __init__(self,db,uri,pool_size=0,folder=None,db_codec ='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
                  adapter_args={}):
@@ -3295,7 +3315,7 @@ class FireBirdEmbeddedAdapter(FireBirdAdapter):
         self.db_codec = db_codec
         self.find_or_make_work_folder()
         ruri = uri.split('://',1)[1]
-        m = re.compile('^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<path>[^\?]+)(\?set_encoding=(?P<charset>\w+))?$').match(ruri)
+        m = self.REGEX_URI.match(ruri)
         if not m:
             raise SyntaxError, \
                 "Invalid URI string in DAL: %s" % self.uri
@@ -3389,6 +3409,8 @@ class InformixAdapter(BaseAdapter):
             return "to_date('%s','%%Y-%%m-%%d %%H:%%M:%%S')" % obj
         return None
 
+    REGEX_URI = re.compile('^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>[^\:/]+)(\:(?P<port>[0-9]+))?/(?P<db>.+)$')
+
     def __init__(self,db,uri,pool_size=0,folder=None,db_codec ='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
                  adapter_args={}):
@@ -3401,7 +3423,7 @@ class InformixAdapter(BaseAdapter):
         self.db_codec = db_codec
         self.find_or_make_work_folder()
         ruri = uri.split('://',1)[1]
-        m = re.compile('^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>[^\:/]+)(\:(?P<port>[0-9]+))?/(?P<db>.+)$').match(ruri)
+        m = self.REGEX_URI.match(ruri)
         if not m:
             raise SyntaxError, \
                 "Invalid URI string in DAL: %s" % self.uri
@@ -3768,6 +3790,9 @@ class SAPDBAdapter(BaseAdapter):
                          % (table._tablename, table._id.name, table._sequence_name))
         self.execute(query)
 
+    REGEX_URI = re.compile('^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>[^\:@]+)(\:(?P<port>[0-9]+))?/(?P<db>[^\?]+)(\?sslmode=(?P<sslmode>.+))?$')
+
+
     def __init__(self,db,uri,pool_size=0,folder=None,db_codec ='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
                  adapter_args={}):
@@ -3780,7 +3805,7 @@ class SAPDBAdapter(BaseAdapter):
         self.db_codec = db_codec
         self.find_or_make_work_folder()
         ruri = uri.split('://',1)[1]
-        m = re.compile('^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>[^\:@]+)(\:(?P<port>[0-9]+))?/(?P<db>[^\?]+)(\?sslmode=(?P<sslmode>.+))?$').match(ruri)
+        m = self.REGEX_URI.match(ruri)
         if not m:
             raise SyntaxError, "Invalid URI string in DAL"
         user = credential_decoder(m.group('user'))
@@ -3809,6 +3834,8 @@ class SAPDBAdapter(BaseAdapter):
 class CubridAdapter(MySQLAdapter):
     drivers = ('cubriddb',)
 
+    REGEX_URI = re.compile('^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>[^\:/]+)(\:(?P<port>[0-9]+))?/(?P<db>[^?]+)(\?set_encoding=(?P<charset>\w+))?$')
+
     def __init__(self, db, uri, pool_size=0, folder=None, db_codec='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
                  adapter_args={}):
@@ -3821,7 +3848,7 @@ class CubridAdapter(MySQLAdapter):
         self.db_codec = db_codec
         self.find_or_make_work_folder()
         ruri = uri.split('://',1)[1]
-        m = re.compile('^(?P<user>[^:@]+)(\:(?P<password>[^@]*))?@(?P<host>[^\:/]+)(\:(?P<port>[0-9]+))?/(?P<db>[^?]+)(\?set_encoding=(?P<charset>\w+))?$').match(ruri)
+        m = self.REGEX_URI.match(ruri)
         if not m:
             raise SyntaxError, \
                 "Invalid URI string in DAL: %s" % self.uri
@@ -3940,6 +3967,8 @@ class UseDatabaseStoredFile:
 class GoogleSQLAdapter(UseDatabaseStoredFile,MySQLAdapter):
     uploads_in_blob = True
 
+    REGEX_URI = re.compile('^(?P<instance>.*)/(?P<db>.*)$')
+
     def __init__(self, db, uri='google:sql://realm:domain/database',
                  pool_size=0, folder=None, db_codec='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
@@ -3953,7 +3982,7 @@ class GoogleSQLAdapter(UseDatabaseStoredFile,MySQLAdapter):
         self.folder = folder or pjoin('$HOME',thread.folder.split(
                 os.sep+'applications'+os.sep,1)[1])
         ruri = uri.split("://")[1]
-        m = re.compile('^(?P<instance>.*)/(?P<db>.*)$').match(ruri)
+        m = self.REGEX_URI.match(ruri)
         if not m:
             raise SyntaxError, "Invalid URI string in SQLDB: %s" % self.uri
         instance = credential_decoder(m.group('instance'))
@@ -4149,6 +4178,8 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
     def file_open(self, filename, mode='rb', lock=True): pass
     def file_close(self, fileobj): pass
 
+    REGEX_NAMESPACE = re.compile('.*://(?P<namespace>.+)')
+
     def __init__(self,db,uri,pool_size=0,folder=None,db_codec ='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
                  adapter_args={}):
@@ -4180,7 +4211,7 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
         db['_lastsql'] = ''
         self.db_codec = 'UTF-8'
         self.pool_size = 0
-        match = re.compile('.*://(?P<namespace>.+)').match(uri)
+        match = self.REGEX_NAMESPACE.match(uri)
         if match:
             namespace_manager.set_namespace(match.group('namespace'))
 
@@ -4740,11 +4771,8 @@ def cleanup(text):
     """
     validates that the given text is clean: only contains [0-9a-zA-Z_]
     """
-
-    if re.compile('[^0-9a-zA-Z_]').findall(text):
-        raise SyntaxError, \
-            'only [0-9a-zA-Z_] allowed in table and field names, received %s' \
-            % text
+    if not REGEX_ALPHANUMERIC.match(text):
+        raise SyntaxError, 'invalid table or field name: %s' % text
     return text
 
 class MongoDBAdapter(NoSQLAdapter):
@@ -5480,6 +5508,8 @@ class IMAPAdapter(NoSQLAdapter):
 
     dbengine = 'imap'
 
+    REGEX_URI = re.compile('^(?P<user>[^:]+)(\:(?P<password>[^@]*))?@(?P<host>[^\:@]+)(\:(?P<port>[0-9]+))?$')
+
     def __init__(self,
                  db,
                  uri,
@@ -5527,7 +5557,7 @@ class IMAPAdapter(NoSQLAdapter):
 
         db['_lastsql'] = ''
 
-        m = re.compile('^(?P<user>[^:]+)(\:(?P<password>[^@]*))?@(?P<host>[^\:@]+)(\:(?P<port>[0-9]+))?$').match(uri)
+        m = self.REGEX_URI.match(uri)
         user = m.group('user')
         password = m.group('password')
         host = m.group('host')
@@ -6370,7 +6400,8 @@ def bar_decode_integer(value):
     return [int(x) for x in value.split('|') if x.strip()]
 
 def bar_decode_string(value):
-    return [x.replace('||', '|') for x in string_unpack.split(value[1:-1]) if x.strip()]
+    return [x.replace('||', '|') for x in
+            REGEX_UNPACK.split(value[1:-1]) if x.strip()]
 
 
 class Row(object):
@@ -6385,7 +6416,7 @@ class Row(object):
 
     def __getitem__(self, key):
         key=str(key)
-        m = regex_table_field.match(key)
+        m = REGEX_TABLE_DOT_FIELD.match(key)
         if key in self.get('_extra',{}):
             return self._extra[key]
         elif m:
@@ -6435,7 +6466,7 @@ class Row(object):
         return '<Row %s>' % self.__dict__
 
     def __int__(self):
-        return dict.__getitem__(self,'id')
+        return object.__getattribute__(self,'id')
 
     def __eq__(self,other):
         try:
@@ -6512,11 +6543,10 @@ def smart_query(fields,text):
         n = str(field).lower()
         if not n in field_map:
             field_map[n] = field
-    re_constants = re.compile('(\"[^\"]*?\")|(\'[^\']*?\')')
     constants = {}
     i = 0
     while True:
-        m = re_constants.search(text)
+        m = REGEX_CONST_STRING.search(text)
         if not m: break
         text = text[:m.start()]+('#%i' % i)+text[m.end():]
         constants[str(i)] = m.group()[1:-1]
@@ -6726,7 +6756,7 @@ class DAL(object):
                     try:
                         if is_jdbc and not uri.startswith('jdbc:'):
                             uri = 'jdbc:'+uri
-                        self._dbname = regex_dbname.match(uri).group()
+                        self._dbname = REGEX_DBNAME.match(uri).group()
                         if not self._dbname in ADAPTERS:
                             raise SyntaxError, "Error in URI '%s' or database not supported" % self._dbname
                         # notice that driver args or {} else driver_args
@@ -6839,8 +6869,8 @@ def index():
         """
 
         db = self
-        re1 = re.compile('^{[^\.]+\.[^\.]+(\.(lt|gt|le|ge|eq|ne|contains|startswith|year|month|day|hour|minute|second))?(\.not)?}$')
-        re2 = re.compile('^.+\[.+\]$')
+        re1 = REGEX_SEARCH_PATTERN
+        re2 = REGEX_SQUARE_BRACKETS
 
         def auto_table(table,base='',depth=0):
             patterns = []
@@ -7043,7 +7073,7 @@ def index():
         if not isinstance(tablename,str):
             raise SyntaxError, "missing table name"
         elif tablename.startswith('_') or hasattr(self,tablename) or \
-                regex_python_keywords.match(tablename):
+                REGEX_PYTHON_KEYWORDS.match(tablename):
             raise SyntaxError, 'invalid table name: %s' % tablename
         elif tablename in self.tables:
             raise SyntaxError, 'table already defined: %s' % tablename
@@ -8354,7 +8384,7 @@ class Field(Expression):
         self.second = None
         self.name = fieldname = cleanup(fieldname)
         if not isinstance(fieldname,str) or hasattr(Table,fieldname) or \
-                fieldname[0] == '_' or regex_python_keywords.match(fieldname):
+                fieldname[0] == '_' or REGEX_PYTHON_KEYWORDS.match(fieldname):
             raise SyntaxError, 'Field: invalid field name: %s' % fieldname
         self.type = type if not isinstance(type, Table) else 'reference %s' % type
         self.length = length if not length is None else DEFAULTLENGTH.get(self.type,512)
@@ -8408,8 +8438,8 @@ class Field(Expression):
         elif not filename:
             filename = file.name
         filename = os.path.basename(filename.replace('/', os.sep)\
-                                        .replace('\\', os.sep))
-        m = re.compile('\.(?P<e>\w{1,5})$').search(filename)
+                                        .replace('\\', os.sep))        
+        m = REGEX_STORE_PATTERN.search(filename)
         extension = m and m.group('e') or 'txt'
         uuid_key = web2py_uuid().replace('-', '')[-16:]
         encoded_filename = base64.b16encode(filename).lower()
@@ -8462,7 +8492,7 @@ class Field(Expression):
                 raise http.HTTP(404)
         if self.authorize and not self.authorize(row):
             raise http.HTTP(403)
-        m = regex_content.match(name)
+        m = REGEX_UPLOAD_PATTERN.match(name)
         if not m or not self.isattachment:
             raise TypeError, 'Can\'t retrieve %s' % name
         file_properties = self.retrieve_file_properties(name,path)
@@ -8487,11 +8517,11 @@ class Field(Expression):
         if self.custom_retrieve_file_properties:
             return self.custom_retrieve_file_properties(name, path)
         try:
-            m = regex_content.match(name)
+            m = REGEX_UPLOAD_PATTERN.match(name)
             if not m or not self.isattachment:
                 raise TypeError, 'Can\'t retrieve %s file properties' % name
             filename = base64.b16decode(m.group('name'), True)
-            filename = regex_cleanup_fn.sub('_', filename)
+            filename = REGEX_CLEANUP_FN.sub('_', filename)
         except (TypeError, AttributeError):
             filename = name
         if isinstance(self_uploadfield, str):  # ## if file is in DB
@@ -8601,7 +8631,6 @@ class Query(object):
         return Query(self.db,self.db._adapter.NOT,self)
 
 
-regex_quotes = re.compile("'[^']*'")
 
 
 def xorify(orderby):
@@ -9110,7 +9139,7 @@ class Rows(object):
         for record in self:
             row = []
             for col in colnames:
-                if not regex_table_field.match(col):
+                if not REGEX_TABLE_DOT_FIELD.match(col):
                     row.append(record._extra[col])
                 else:
                     (t, f) = col.split('.')
@@ -9129,8 +9158,7 @@ class Rows(object):
     def xml(self,strict=False,row_name='row',rows_name='rows'):
         """
         serializes the table using sqlhtml.SQLTABLE (if present)
-        """
-        alphanumeric = re.compile('[a-zA-Z]\w*')
+        """        
         if strict:
             ncols = len(self.colnames)
             def f(row,field,indent='  '):
@@ -9144,9 +9172,8 @@ class Rows(object):
                         indent,
                         field)
                 elif not callable(row):
-                    if alphanumeric.match(field):
-                        return '%s<%s>%s</%s>' % \
-                            (indent,field,row,field)
+                    if REGEX_ALPHANUMERIC.match(field):
+                        return '%s<%s>%s</%s>' % (indent,field,row,field)
                     else:
                         return '%s<extra name="%s">%s</extra>' % \
                             (indent,field,row)
@@ -9170,7 +9197,7 @@ class Rows(object):
         def inner_loop(record, col):
             (t, f) = col.split('.')
             res = None
-            if not regex_table_field.match(col):
+            if not REGEX_TABLE_DOT_FIELD.match(col):
                 key = col
                 res = record._extra[col]
             else:

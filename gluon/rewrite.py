@@ -38,6 +38,7 @@ thread = threading.local()  # thread-local storage for routing params
 regex_at = re.compile(r'(?<!\\)\$[a-zA-Z]\w*')
 regex_anything = re.compile(r'(?<!\\)\$anything')
 regex_redirect = re.compile(r'(\d+)->(.*)')
+regex_full_url = re.compile(r'^(?P<scheme>http|https|HTTP|HTTPS)\://(?P<host>[^/]*)(?P<uri>.*)')
 
 def _router_default():
     "return new copy of default base router"
@@ -134,6 +135,27 @@ ROUTER_BASE_KEYS = set(
 #  filter_err: helper for doctest & unittest
 #  regex_filter_out: doctest
 
+def fixup_missing_path_info(environ):
+    eget = environ.get
+    path_info = eget('PATH_INFO')
+    request_uri = eget('REQUEST_URI')
+    if not path_info and request_uri:
+        # for fcgi, get path_info and                           
+        # query_string from request_uri                         
+        items = request_uri.split('?')
+        path_info = environ['PATH_INFO'] = items[0]
+        environ['QUERY_STRING'] = items[1] if len(items) > 1 else ''
+    elif not request_uri:
+        query_string = eget('QUERY_STRING')
+        if query_string:
+            environ['REQUEST_URI'] = '%s?%s' % (path_info,query_string)
+        else:
+            environ['REQUEST_URI'] = path_info
+    if not eget('HTTP_HOST'):
+        environ['HTTP_HOST'] = \
+            '%s:%s' % (eget('SERVER_NAME'),eget('SERVER_PORT'))
+            
+        
 def url_in(request, environ):
     "parse and rewrite incoming URL"
     if routers:
@@ -286,8 +308,8 @@ def load(routes='routes.py', app=None, data=None, rdict=None):
 
     for sym in ('routes_app', 'routes_in', 'routes_out'):
         if sym in symbols:
-            for (k, v) in symbols[sym]:
-                p[sym].append(compile_regex(k, v))
+            for items in symbols[sym]:
+                p[sym].append(compile_regex(*items))
     for sym in ('routes_onerror', 'routes_apps_raw',
                 'error_handler','error_message', 'error_message_ticket',
                 'default_application','default_controller', 'default_function',
@@ -349,7 +371,7 @@ def load(routes='routes.py', app=None, data=None, rdict=None):
     log_rewrite('URL rewrite is on. configuration in %s' % path)
 
 
-def compile_regex(k, v):
+def compile_regex(k, v, env=None):
     """
     Preprocess and compile the regular expressions in routes_app/in/out
     The resulting regex will match a pattern of the form:
@@ -383,7 +405,7 @@ def compile_regex(k, v):
     # same for replacement pattern, but with \g
     for item in regex_at.findall(v):
         v = v.replace(item, r'\g<%s>' % item[1:])
-    return (re.compile(k, re.DOTALL), v)
+    return (re.compile(k, re.DOTALL), v, env or {})
 
 def load_routers(all_apps):
     "load-time post-processing of routers"
@@ -497,8 +519,9 @@ def regex_uri(e, regexes, tag, default=None):
         (e.get('REMOTE_ADDR','localhost'),
          e.get('wsgi.url_scheme', 'http').lower(), host,
          e.get('REQUEST_METHOD', 'get').lower(), path)
-    for (regex, value) in regexes:
+    for (regex, value, custom_env) in regexes:
         if regex.match(key):
+            e.update(custom_env)
             rewritten = regex.sub(value, key)
             log_rewrite('%s: [%s] [%s] -> %s' % (tag, key, value, rewritten))
             return rewritten
@@ -686,7 +709,7 @@ def regex_filter_out(url, e=None):
                   e.get('request_method', 'get').lower(), items[0])
         else:
             items[0] = ':http://localhost:get %s' % items[0]
-        for (regex, value) in thread.routes.routes_out:
+        for (regex, value, tmp) in thread.routes.routes_out:
             if regex.match(items[0]):
                 rewritten = '?'.join([regex.sub(value, items[0])] + items[1:])
                 log_rewrite('routes_out: [%s] -> %s' % (url, rewritten))
@@ -695,11 +718,14 @@ def regex_filter_out(url, e=None):
     return url
 
 
-def filter_url(url, method='get', remote='0.0.0.0', out=False, app=False, lang=None,
-        domain=(None,None), env=False, scheme=None, host=None, port=None):
-    "doctest/unittest interface to regex_filter_in() and regex_filter_out()"
-    regex_url = re.compile(r'^(?P<scheme>http|https|HTTP|HTTPS)\://(?P<host>[^/]*)(?P<uri>.*)')
-    match = regex_url.match(url)
+def filter_url(url, method='get', remote='0.0.0.0', 
+               out=False, app=False, lang=None,
+               domain=(None,None), env=False, scheme=None, 
+               host=None, port=None):
+    """
+    doctest/unittest interface to regex_filter_in() and regex_filter_out()
+    """
+    match = regex_full_url.match(url)
     urlscheme = match.group('scheme').lower()
     urlhost = match.group('host').lower()
     uri = match.group('uri')
