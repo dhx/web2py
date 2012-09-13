@@ -185,6 +185,7 @@ SELECT_ARGS = set(
     ('orderby', 'groupby', 'limitby','required', 'cache', 'left',
      'distinct', 'having', 'join','for_update', 'processor','cacheable'))
 
+
 ogetattr = object.__getattribute__
 osetattr = object.__setattr__
 exists = os.path.exists
@@ -1553,8 +1554,18 @@ class BaseAdapter(ConnectionPool):
 
     def _select_aux(self,sql,fields,attributes):
         args_get = attributes.get
-        self.execute(sql)
-        rows = self.cursor.fetchall()
+        cache = args_get('cache',None)
+        if not cache:
+            self.execute(sql)
+            rows = self.cursor.fetchall()
+        else:
+            (cache_model, time_expire) = cache
+            key = self.uri + '/' + sql + '/rows'
+            if len(key)>200: key = hashlib.md5(key).hexdigest()
+            def _select_aux2():
+                self.execute(sql)
+                return self.cursor.fetchall()
+            rows = cache_model(key,_select_aux2,time_expire)
         if isinstance(rows,tuple):
             rows = list(rows)
         limitby = args_get('limitby', None) or (0,)
@@ -1568,13 +1579,13 @@ class BaseAdapter(ConnectionPool):
         Always returns a Rows object, possibly empty.
         """
         sql = self._select(query, fields, attributes)
-        if attributes.get('cache', None):            
-            args = (sql,fields,attributes)
-            (cache_model, time_expire) = attributes['cache']
+        cache = attributes.get('cache', None)
+        if cache and attributes.get('cacheable',False):            
             del attributes['cache']
-            attributes['cacheable'] = True
+            (cache_model, time_expire) = cache
             key = self.uri + '/' + sql
             if len(key)>200: key = hashlib.md5(key).hexdigest()
+            args = (sql,fields,attributes)
             return cache_model(
                 key, 
                 lambda self=self,args=args:self._select_aux(*args),
@@ -1603,15 +1614,16 @@ class BaseAdapter(ConnectionPool):
         self.execute(self._count(query, distinct))
         return self.cursor.fetchone()[0]
 
-    def tables(self, query):
+    def tables(self, *queries):
         tables = set()
-        if isinstance(query, Field):
-            tables.add(query.tablename)
-        elif isinstance(query, (Expression, Query)):
-            if not query.first is None:
-                tables = tables.union(self.tables(query.first))
-            if not query.second is None:
-                tables = tables.union(self.tables(query.second))
+        for query in queries:
+            if isinstance(query, Field):
+                tables.add(query.tablename)
+            elif isinstance(query, (Expression, Query)):
+                if not query.first is None:
+                    tables = tables.union(self.tables(query.first))
+                if not query.second is None:
+                    tables = tables.union(self.tables(query.second))
         return list(tables)
 
     def commit(self):
@@ -2379,9 +2391,9 @@ class PostgreSQLAdapter(BaseAdapter):
         if self.driver_name == 'psycopg2':
             return psycopg2_adapt(obj).getquoted()
         elif self.driver_name == 'pg8000':
-            return str(obj).replace("%","%%").replace("'","''")
+            return "'%s'" % str(obj).replace("%","%%").replace("'","''")
         else:
-            return str(obj).replace("'","''")
+            return "'%s'" % str(obj).replace("'","''")
 
     def sequence_name(self,table):
         return '%s_id_Seq' % table
@@ -4343,7 +4355,7 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
         if first.type != 'id':
             return [GAEF(first.name,'in',self.represent(second,first.type),lambda a,b:a in b)]
         else:
-            second = [Key.from_path(first._tablename, i) for i in second]
+            second = [Key.from_path(first._tablename, int(i)) for i in second]
             return [GAEF(first.name,'in',second,lambda a,b:a in b)]
 
     def CONTAINS(self,first,second):
@@ -4674,9 +4686,7 @@ class CouchDBAdapter(NoSQLAdapter):
     def _select(self,query,fields,attributes):
         if not isinstance(query,Query):
             raise SyntaxError, "Not Supported"
-        for key in set(attributes.keys())-set(('orderby','groupby','limitby',
-                                               'required','cache','left',
-                                               'distinct', 'having', 'processor')):
+        for key in set(attributes.keys())-SELECT_ARGS:
             raise SyntaxError, 'invalid select attribute: %s' % key
         new_fields=[]
         for item in fields:
@@ -7204,21 +7214,34 @@ def index():
 
         [{field1: value1, field2: value2}, {field1: value1b, field2: value2b}]
 
-        Added 2012-08-24 "fields" optional argument. If not None, the
-        results cursor returned by the DB driver will be converted to a
-        DAL Rows object using the db._adapter.parse() method. This requires
-        specifying the "fields" argument as a list of DAL Field objects
-        that match the fields returned from the DB. The Field objects should
-        be part of one or more Table objects defined on the DAL object.
-        The "fields" list can include one or more DAL Table objects in addition
-        to or instead of including Field objects, or it can be just a single
-        table (not in a list). In that case, the Field objects will be
-        extracted from the table(s).
+        Added 2012-08-24 "fields" and "colnames" optional arguments. If either
+        is provided, the results cursor returned by the DB driver will be
+        converted to a DAL Rows object using the db._adapter.parse() method.
+        
+        The "fields" argument is a list of DAL Field objects that match the
+        fields returned from the DB. The Field objects should be part of one or
+        more Table objects defined on the DAL object. The "fields" list can
+        include one or more DAL Table objects in addition to or instead of
+        including Field objects, or it can be just a single table (not in a
+        list). In that case, the Field objects will be extracted from the
+        table(s).
 
-        The field names will be extracted from the Field objects, or optionally,
-        a list of field names can be provided (in tablename.fieldname format)
-        via the "colnames" argument. Note, the fields and colnames must be in
-        the same order as the fields in the results cursor returned from the DB.
+        Instead of specifying the "fields" argument, the "colnames" argument
+        can be specified as a list of field names in tablename.fieldname format.
+        Again, these should represent tables and fields defined on the DAL
+        object.
+        
+        It is also possible to specify both "fields" and the associated
+        "colnames". In that case, "fields" can also include DAL Expression
+        objects in addition to Field objects. For Field objects in "fields",
+        the associated "colnames" must still be in tablename.fieldname format.
+        For Expression objects in "fields", the associated "colnames" can
+        be any arbitrary labels.
+        
+        Note, the DAL Table objects referred to by "fields" or "colnames" can
+        be dummy tables and do not have to represent any real tables in the
+        database. Also, note that the "fields" and "colnames" must be in the
+        same order as the fields in the results cursor returned from the DB.
         """
         adapter = self._adapter
         if placeholders:
@@ -7239,8 +7262,12 @@ def index():
             # convert the list for each row into a dictionary so it's
             # easier to work with. row['field_name'] rather than row[0]
             return [dict(zip(fields,row)) for row in data]
-        data = adapter.cursor.fetchall()
-        if fields:
+        try:
+            data = adapter.cursor.fetchall()
+        except:
+            return None
+        if fields or colnames:
+            fields = [] if fields is None else fields
             if not isinstance(fields, list):
                 fields = [fields]
             extracted_fields = []
@@ -7451,13 +7478,15 @@ class Table(object):
         fields = list(fields)
 
         if db and db._adapter.uploads_in_blob==True:
+            uploadfields = [f.name for f in fields if f.type=='blob']
             for field in fields:
+                fn = field.uploadfield
                 if isinstance(field, Field) and field.type == 'upload'\
-                        and field.uploadfield is True:
-                    tmp = field.uploadfield = '%s_blob' % field.name
-        if isinstance(field.uploadfield,str) and \
-                not [f for f in fields if f.name==field.uploadfield]:
-            fields.append(Field(field.uploadfield,'blob',default=''))
+                        and fn is True:
+                    fn = field.uploadfield = '%s_blob' % field.name
+                if isinstance(fn,str) and not fn in uploadfields:
+                    fields.append(Field(fn,'blob',default='',
+                                        writable=False,readable=False))
 
         lower_fieldnames = set()
         reserved = dir(Table) + ['fields']
@@ -8176,7 +8205,10 @@ class Expression(object):
         db = self.db
         if isinstance(value,(list, tuple)):
             subqueries = [self.contains(str(v).strip()) for v in value if str(v).strip()]
-            return reduce(all and AND or OR, subqueries)
+            if not subqueries:
+                return self.contains('')
+            else:
+                return reduce(all and AND or OR,subqueries)
         if not self.type in ('string', 'text') and not self.type.startswith('list:'):
             raise SyntaxError, "contains used with incompatible field type"
         return Query(db, db._adapter.CONTAINS, self, value)
@@ -8693,7 +8725,12 @@ class Set(object):
 
     def _select(self, *fields, **attributes):
         adapter = self.db._adapter
-        fields = adapter.expand_all(fields, adapter.tables(self.query))
+        tablenames = adapter.tables(self.query,
+                                    attributes.get('join',None),
+                                    attributes.get('left',None),
+                                    attributes.get('orderby',None),
+                                    attributes.get('groupby',None))
+        fields = adapter.expand_all(fields, tablenames)
         return adapter._select(self.query,fields,attributes)
 
     def _delete(self):
@@ -8725,10 +8762,13 @@ class Set(object):
         return db._adapter.count(self.query,distinct)
 
     def select(self, *fields, **attributes):
-        if self.query is None:# and fields[0]._table._common_filter != None:
-            return self(fields[0]._table).select(*fields,**attributes)
         adapter = self.db._adapter
-        fields = adapter.expand_all(fields, adapter.tables(self.query))
+        tablenames = adapter.tables(self.query,
+                                    attributes.get('join',None),
+                                    attributes.get('left',None),
+                                    attributes.get('orderby',None),
+                                    attributes.get('groupby',None))
+        fields = adapter.expand_all(fields, tablenames)
         return adapter.select(self.query,fields,attributes)
 
     def nested_select(self,*fields,**attributes):

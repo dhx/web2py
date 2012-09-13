@@ -15,9 +15,9 @@ td,th {text-align:left; padding:2px 5px 2px 5px}
 th {vertical-align:middle; border-right:1px solid white}
 td {vertical-align:top}
 form table tr td label {text-align:left}
-p,table,ol,ul {padding:0; margin: 0.5em 0}
+p,table,ol,ul {padding:0; margin: 0.75em 0}
 p {text-align:justify}
-ol, ul {list-style-position:inside}
+ol, ul {list-style-position:outside; margin-left:2em}
 li {margin-bottom:0.5em}
 span,input,select,textarea,button,label,a {display:inline}
 img {border:0}
@@ -38,13 +38,6 @@ input[type=text],input[type=password],select{width:300px; margin-right:5px}
 /** end **/
 
 /* Sticky footer begin */
-
-.wrapper {
-  min-height:100%;
-  height:auto !important;
-  height:100%;
-  margin:0 auto -8em; /* set last value to footer height plus footer vertical padding */
-}
 
 .main {
   padding:20px 0 50px 0;
@@ -102,18 +95,26 @@ div.flash {
     top:48px;
     right:50px;
     min-width:280px;
-    opacity:0.85;
+    opacity:0.95;
     margin:0px 0px 10px 10px;
-    color:#fff;
     vertical-align:middle;
     cursor:pointer;
-    background:#000;
+    color:#fff;
+    background-color:#000;
     border:2px solid #fff;
-    border-radius:5px;
-    -moz-border-radius:5px;
-    -webkit-border-radius:5px;
+    border-radius:8px;
+    -o-border-radius: 8px;
+    -moz-border-radius:8px;
+    -webkit-border-radius:8px;
+    background-image: -webkit-linear-gradient(top,#222,#000);
+    background-image: -o-linear-gradient(top,#222,#000);
+    background-image: linear-gradient(top,#222,#000);
+    background-repeat: repeat-x;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
     z-index:2000;
 }
+div.flash:hover { opacity:0.25; }
 
 div.error_wrapper {display:block}
 div.error {

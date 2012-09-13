@@ -540,7 +540,7 @@ regex_strong=re.compile(r'\*\*(?P<t>[^\s*]+( +[^\s*]+)*)\*\*')
 regex_del=re.compile(r'~~(?P<t>[^\s*]+( +[^\s*]+)*)~~')
 regex_em=re.compile(r"''(?P<t>[^\s']+(?: +[^\s']+)*)''")
 regex_num=re.compile(r"^\s*[+-]?((\d+(\.\d*)?)|\.\d+)([eE][+-]?[0-9]+)?\s*$")
-regex_list=re.compile('^(?:(?:(#{1,6})|(?:(\.+|\++|\-+)(\.)?))\s+)?(.*)$')
+regex_list=re.compile('^(?:(?:(#{1,6})|(?:(\.+|\++|\-+)(\.)?))\s*)?(.*)$')
 regex_bq_headline=re.compile('^(?:(\.+|\++|\-+)(\.)?\s+)?(-{3}-*)$')
 regex_tq=re.compile('^(-{3}-*)(?::(?P<c>[a-zA-Z][_a-zA-Z\-\d]*)(?:\[(?P<p>[a-zA-Z][_a-zA-Z\-\d]*)\])?)?$')
 regex_proto = re.compile(r'(?<!["\w>/=])(?P<p>\w+):(?P<k>\w+://[\w\d\-+=?%&/:.]+)', re.M)
@@ -558,6 +558,29 @@ def markmin_escape(text):
     """ insert \\ before markmin control characters: '`:*~[]{}@$ """
     return regex_markmin_escape.sub(
        lambda m: '\\'+m.group(0).replace('\\','\\\\'), text)
+
+def replace_autolinks(text,autolinks):
+    return regex_auto.sub(lambda m: autolinks(m.group('k')), text)
+
+def replace_at_urls(text,url):
+    # this is experimental @{function/args}
+    # turns into a digitally signed URL
+    def u1(match,url=url):
+        a,c,f,args = match.group('a','c','f','args')
+        return url(a=a or None,c=c or None,f = f or None,
+                   args=args.split('/'), scheme=True, host=True)
+    return regex_URL.sub(u1,text)
+
+def replace_components(text,env):
+    def u2(match, env=env):
+        f = env.get(match.group('a'), match.group(0))
+        if callable(f):
+            try:
+                f = f(match.group('b'))
+            except Exception, e:
+                f = 'ERROR: %s' % e
+            return str(f)
+    return regex_env.sub(u2, text)
 
 def autolinks_simple(url):
     """
@@ -620,7 +643,7 @@ def render(text,
     - class_prefix is a prefix for ALL classes in markmin text. E.g. if class_prefix='my_'
       then for ``test``:cls class will be changed to "my_cls" (default value is '')
     - id_prefix is prefix for ALL ids in markmin text (default value is 'markmin_'). E.g.:
-        -- [[id]] will be converted to <a name="markmin_id"></a>
+        -- [[id]] will be converted to <span class="anchor" id="markmin_id"></span>
         -- [[link #id]] will be converted to <a href="#markmin_id">link</a>
         -- ``test``:cls[id] will be converted to <code class="cls" id="markmin_id">test</code>
 
@@ -751,19 +774,19 @@ def render(text,
     '<p>[[probe]]</p>'
 
     >>> render(r"\\\\[[probe]]")
-    '<p>\\\\<div class="anchor" id="markmin_probe"></div></p>'
+    '<p>\\\\<span class="anchor" id="markmin_probe"></span></p>'
 
     >>> render(r"\\\\\\[[probe]]")
     '<p>\\\\[[probe]]</p>'
 
     >>> render(r"\\\\\\\\[[probe]]")
-    '<p>\\\\\\\\<div class="anchor" id="markmin_probe"></div></p>'
+    '<p>\\\\\\\\<span class="anchor" id="markmin_probe"></span></p>'
 
     >>> render(r"\\\\\\\\\[[probe]]")
     '<p>\\\\\\\\[[probe]]</p>'
 
     >>> render(r"\\\\\\\\\\\[[probe]]")
-    '<p>\\\\\\\\\\\\<div class="anchor" id="markmin_probe"></div></p>'
+    '<p>\\\\\\\\\\\\<span class="anchor" id="markmin_probe"></span></p>'
 
     >>> render("``[[ [\\[[probe\]\\]] URL\\[x\\]]]``:red[dummy_params]")
     '<span style="color: red"><a href="URL[x]" title="[[probe]]">URL[x]</a></span>'
@@ -811,16 +834,16 @@ def render(text,
     '<p><strong>test 1</strong></p>'
 
     >>> render('[[id1 [span **messag** in ''markmin''] ]] ... [[**link** to id [link\\\'s title] #mark1]]')
-    '<p><div class="anchor" id="markmin_id1">span <strong>messag</strong> in markmin</div> ... <a href="#markmin_mark1" title="link\\\'s title"><strong>link</strong> to id</a></p>'
+    '<p><span class="anchor" id="markmin_id1">span <strong>messag</strong> in markmin</span> ... <a href="#markmin_mark1" title="link\\\'s title"><strong>link</strong> to id</a></p>'
 
     >>> render('# Multiline[[NEWLINE]]\\n title\\nParagraph[[NEWLINE]]\\nwith breaks[[NEWLINE]]\\nin it')
     '<h1>Multiline<br /> title</h1><p>Paragraph<br /> with breaks<br /> in it</p>'
 
     >>> render("anchor with name 'NEWLINE': [[NEWLINE [ ] ]]")
-    '<p>anchor with name \\'NEWLINE\\': <div class="anchor" id="markmin_NEWLINE"></div></p>'
+    '<p>anchor with name \\'NEWLINE\\': <span class="anchor" id="markmin_NEWLINE"></span></p>'
 
     >>> render("anchor with name 'NEWLINE': [[NEWLINE [newline] ]]")
-    '<p>anchor with name \\'NEWLINE\\': <div class="anchor" id="markmin_NEWLINE">newline</div></p>'
+    '<p>anchor with name \\'NEWLINE\\': <span class="anchor" id="markmin_NEWLINE">newline</span></p>'
     """
     if autolinks=="default": autolinks = autolinks_simple
     if protolinks=="default": protolinks = protolinks_simple
@@ -829,24 +852,7 @@ def render(text,
     text = regex_backslash.sub(lambda m: m.group(1).translate(ttab_in), text)
 
     if URL is not None:
-        # this is experimental @{function/args}
-        # turns into a digitally signed URL
-        def u1(match,URL=URL):
-            a,c,f,args = match.group('a','c','f','args')                        
-            return URL(a=a or None,c=c or None,f = f or None,
-                       args=args.split('/'), scheme=True, host=True)
-        text = regex_URL.sub(u1,text)
-
-    if environment:
-        def u2(match, environment=environment):
-            f = environment.get(match.group('a'), match.group(0))
-            if callable(f):
-                try:
-                    f = f(match.group('b'))
-                except Exception, e:
-                    f = 'ERROR: %s' % e
-            return str(f)
-        text = regex_env.sub(u2, text)
+        text = replace_at_urls(text,URL)
 
     if latex == 'google':
         text = regex_dd.sub('``\g<latex>``:latex ', text)
@@ -889,7 +895,7 @@ def render(text,
         text = regex_proto.sub(lambda m: protolinks(*m.group('p','k')), text)
 
     if autolinks:
-        text = regex_auto.sub(lambda m: autolinks(m.group('k')), text)
+        text = replace_autolinks(text,autolinks)
 
     #############################################################
     # normalize spaces
@@ -1159,17 +1165,17 @@ def render(text,
                         (lev, mtag, lineno)= parse_list(t2, p, ss, 'ol', lev, mtag, lineno)
                         lineno+=1
                         continue
-                    elif c0 == '-': # unordered list
-                        (lev, mtag, lineno) = parse_list(t2, p, ss, 'ul', lev, mtag, lineno)
-                        lineno+=1
-                        continue
+                    elif c0 == '-': # unordered list, table or blockquote
+                        if p or ss:
+                            (lev, mtag, lineno) = parse_list(t2, p, ss, 'ul', lev, mtag, lineno)
+                            lineno+=1
+                            continue
+                        else:
+                            (s, mtag, lineno) = parse_table_or_blockquote(s, mtag, lineno)
                     elif lev>0: # and c0 == '.' # paragraph in lists
                         (lev, mtag, lineno) = parse_point(t2, ss, lev, mtag, lineno)
                         lineno+=1
                         continue
-                else:
-                    if c0 == '-': # table or blockquote?
-                        (s, mtag, lineno) = parse_table_or_blockquote(s, mtag, lineno)
 
             if lev == 0 and (mtag == 'q' or s == META):
                 # new paragraph
@@ -1254,12 +1260,13 @@ def render(text,
                    % dict(k=k, title=title, target=target, t=t)
         if t == 'NEWLINE' and not a:
             return '<br />'+pp
-        return '<div class="anchor" id="%s">%s</div>' % (escape(id_prefix+t),
-                                                         render(a, {},{},'br', URL,
-                                                                environment, latex, autolinks,
-                                                                protolinks, class_prefix,
-                                                                id_prefix, pretty_print))
-
+        return '<span class="anchor" id="%s">%s</span>' % (
+            escape(id_prefix+t),
+            render(a, {},{},'br', URL,
+                   environment, latex, autolinks,
+                   protolinks, class_prefix,
+                   id_prefix, pretty_print))
+    
     parts = text.split(LINK)
     text = parts[0]
     for i,s in enumerate(links):
@@ -1313,13 +1320,17 @@ def render(text,
             return '<pre><code%s%s>%s</code></pre>%s' % (cls, id, escape(code[1:-1]), pp)
         return '<code%s%s>%s</code>' % (cls, id, escape(code[beg:end]))
     text = regex_expand_meta.sub(expand_meta, text)
-    text = text.translate(ttab_out)
-    return text
 
-def markmin2html(text, extra={}, allowed={}, sep='p', 
+    if environment:
+        text = replace_components(text,environment)
+
+    return text.translate(ttab_out)
+
+
+def markmin2html(text, extra={}, allowed={}, sep='p',
                  autolinks='default', protolinks='default',
-                 class_prefix='', id_prefix='markmin_', pretty_print=False):                 
-    return render(text, extra, allowed, sep, 
+                 class_prefix='', id_prefix='markmin_', pretty_print=False):
+    return render(text, extra, allowed, sep,
                   autolinks=autolinks, protolinks=protolinks,
                   class_prefix=class_prefix, id_prefix=id_prefix,
                   pretty_print=pretty_print)
@@ -1403,3 +1414,4 @@ if __name__ == '__main__':
         print "       file.markmin  [file.css] - process file.markmin + built in file.css (optional)"
         print "       file.markmin  [@path_to/css] - process file.markmin + link path_to/css (optional)"
         run_doctests()
+

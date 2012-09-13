@@ -702,17 +702,17 @@ def formstyle_bootstrap(form, fields):
         _submit = False
 
         if isinstance(controls, INPUT):
-            controls['_class'] = 'input-xlarge'
+            controls.add_class('input-xlarge')
             if controls['_type'] == 'submit':
                 # flag submit button
                 _submit = True
                 controls['_class'] = 'btn btn-primary'
 
         if isinstance(controls, SELECT):
-            controls['_class'] = 'input-xlarge'
+            controls.add_class('input-xlarge')
 
         if isinstance(controls, TEXTAREA):
-            controls['_class'] = 'input-xlarge'
+            controls.add_class('input-xlarge')
 
         if isinstance(label, LABEL):
             label['_class'] = 'control-label'
@@ -874,8 +874,9 @@ class SQLFORM(FORM):
         # if no fields are provided, build it from the provided table
         # will only use writable or readable fields, unless forced to ignore
         if fields is None:
-            fields = [f.name for f in table if (
-                    ignore_rw or f.writable or f.readable) and not f.compute]
+            fields = [f.name for f in table if 
+                      (ignore_rw or f.writable or f.readable) and 
+                      (readonly or not f.compute)]
         self.fields = fields
 
         # make sure we have an id
@@ -1104,20 +1105,21 @@ class SQLFORM(FORM):
         self.components = [table]
 
     def createform(self, xfields):
-        if isinstance(self.formstyle, basestring):
-            if self.formstyle in SQLFORM.formstyles:
-                self.formstyle = SQLFORM.formstyles[self.formstyle]
+        formstyle = self.formstyle
+        if isinstance(formstyle, basestring):
+            if formstyle in SQLFORM.formstyles:
+                formstyle = SQLFORM.formstyles[formstyle]
             else:
                 raise RuntimeError, 'formstyle not found'
 
-        if callable(self.formstyle):
+        if callable(formstyle):
             # backward compatibility, 4 argument function is the old style
-            args, varargs, keywords, defaults = inspect.getargspec(self.formstyle)
+            args, varargs, keywords, defaults = inspect.getargspec(formstyle)
             if defaults and len(args) - len(defaults) == 4 or len(args) == 4:
                 table = TABLE()
                 for id,a,b,c in xfields:
                     raw_b = self.field_parent[id] = b
-                    newrows = self.formstyle(id,a,raw_b,c)
+                    newrows = formstyle(id,a,raw_b,c)
                     if type(newrows).__name__ != "tuple":
                         newrows = [newrows]
                     for newrow in newrows:
@@ -1125,7 +1127,7 @@ class SQLFORM(FORM):
             else:
                 for id,a,b,c in xfields:
                     self.field_parent[id] = b
-                table = self.formstyle(self, xfields)
+                table = formstyle(self, xfields)
         else:
             raise RuntimeError, 'formstyle not supported'
         return table
@@ -1376,8 +1378,8 @@ class SQLFORM(FORM):
                 # this should never happen but seems to happen to some
                 del fields['delete_this_record']
             for field in self.table:
-                if not field.name in fields and field.writable==False \
-                        and field.update is None:
+                if not field.name in fields and field.writable is False \
+                        and field.update is None and field.compute is None:
                     if record_id and self.record:
                         fields[field.name] = self.record[field.name]
                     elif not self.table[field.name].default is None:
@@ -1408,7 +1410,7 @@ class SQLFORM(FORM):
         type(''): ('string', None),
         type(True): ('boolean', None),
         type(1): ('integer', IS_INT_IN_RANGE(-1e12,+1e12)),
-        type(1.0): ('double', IS_INT_IN_RANGE(-1e12,+1e12)),
+        type(1.0): ('double', IS_FLOAT_IN_RANGE()),
         type([]): ('list:string', None),
         type(datetime.date.today()): ('date', IS_DATE()),
         type(datetime.datetime.today()): ('datetime', IS_DATETIME())
@@ -1498,11 +1500,10 @@ class SQLFORM(FORM):
         selectfields = []
         for field in fields:
             name = str(field).replace('.','-')
-            criterion = []
             options = search_options.get(field.type,None)
             if options:
                 label = isinstance(field.label,str) and T(field.label) or field.label
-                selectfields.append((str(field),label))
+                selectfields.append(OPTION(label, _value=str(field)))
                 operators = SELECT(*[T(option) for option in options])
                 if field.type=='boolean':
                     value_input = SELECT(
@@ -1510,30 +1511,39 @@ class SQLFORM(FORM):
                         OPTION(T("False"),_value="F"),
                         _id="w2p_value_"+name)
                 else:
-                    value_input = INPUT(_type='text',_id="w2p_value_"+name,
+                    value_input = INPUT(_type='text',
+                                        _id="w2p_value_"+name,
                                         _class=field.type)
                 new_button = INPUT(
                     _type="button", _value=T('New'),_class="btn",
-                        _onclick="w2p_build_query('new','"+str(field)+"')")
+                    _onclick="w2p_build_query('new','%s')" % field)
                 and_button = INPUT(
                     _type="button", _value=T('And'),_class="btn",
-                    _onclick="w2p_build_query('and','"+str(field)+"')")
+                    _onclick="w2p_build_query('and','%s')" % field)
                 or_button = INPUT(
                     _type="button", _value=T('Or'),_class="btn",
-                    _onclick="w2p_build_query('or','"+str(field)+"')")
+                    _onclick="w2p_build_query('or','%s')" % field)
+                close_button = INPUT(
+                    _type="button", _value=T('Close'),_class="btn",
+                    _onclick="jQuery('#w2p_query_panel').slideUp()")
 
-                criterion.extend([operators,value_input,new_button,and_button,or_button])
-            criteria.append(DIV(criterion, _id='w2p_field_%s' % name,
-                                _class='w2p_query_row hidden'))
+                criteria.append(DIV(
+                        operators,value_input,new_button,
+                        and_button,or_button,close_button,
+                        _id='w2p_field_%s' % name,
+                        _class='w2p_query_row hidden',
+                        _style='display:inline'))
+                                
         criteria.insert(0,SELECT(
                 _id="w2p_query_fields",
                 _onchange="jQuery('.w2p_query_row').hide();jQuery('#w2p_field_'+jQuery('#w2p_query_fields').val().replace('.','-')).show();",
-                *[OPTION(label, _value=fname) for fname,label in selectfields]))
+                _style='float:left',
+                *selectfields))
+
         fadd = SCRIPT("""
-        jQuery('#w2p_query_panel input,#w2p_query_panel select').css(
-               'width','auto').css('float','left');
+        jQuery('#w2p_query_panel input,#w2p_query_panel select').css('width','auto');
         jQuery(function(){web2py_ajax_fields('#w2p_query_panel');});
-        function w2p_build_query(aggregator,a){
+        function w2p_build_query(aggregator,a) {
           var b=a.replace('.','-');
           var option = jQuery('#w2p_field_'+b+' select').val();
           var value = jQuery('#w2p_value_'+b).val().replace('"','\\\\"');
@@ -1541,10 +1551,11 @@ class SQLFORM(FORM):
           var k=jQuery('#web2py_keywords');
           var v=k.val();
           if(aggregator=='new') k.val(s); else k.val((v?(v+' '+ aggregator +' '):'')+s);
-          jQuery('#w2p_query_panel').slideUp();
         }
         """)
-        return CAT(DIV(_id="w2p_query_panel",_class='hidden',*criteria),fadd)
+        return CAT(
+            DIV(_id="w2p_query_panel",_class='hidden',*criteria),fadd)
+                       
 
 
     @staticmethod
@@ -1653,8 +1664,9 @@ class SQLFORM(FORM):
             return URL(**b)
 
         referrer = session.get('_web2py_grid_referrer_'+formname, url())
-        if user_signature:
-            if (args != request.args and user_signature and \
+        if user_signature:            
+            if ('/'.join(str(a) for a in args) != '/'.join(request.args) and \
+                    user_signature and \
                     not URL.verify(request,user_signature=user_signature)) or \
                     (not (session.auth and session.auth.user) and \
                          ('edit' in request.args or \
@@ -1663,8 +1675,9 @@ class SQLFORM(FORM):
                 session.flash = T('not authorized')
                 redirect(referrer)
 
-        def gridbutton(buttonclass='buttonadd',buttontext='Add',
-                       buttonurl=url(args=[]),callback=None,delete=None,trap=True):
+        def gridbutton(buttonclass='buttonadd', buttontext='Add',
+                       buttonurl=url(args=[]), callback=None,
+                       delete=None, trap=True):
             if showbuttontext:
                 if callback:
                     return A(SPAN(_class=ui.get(buttonclass)),
@@ -1854,12 +1867,6 @@ class SQLFORM(FORM):
 
         session['_web2py_grid_referrer_'+formname] = url2(vars=request.vars)
         console = DIV(_class='web2py_console %(header)s %(cornertop)s' % ui)
-        if create:
-            console.append(gridbutton(
-                    buttonclass='buttonadd',
-                    buttontext='Add',
-                    buttonurl=url(args=['new',tablename])))
-
         error = None
         if searchable:
             sfields = reduce(lambda a,b:a+b,
@@ -1868,13 +1875,13 @@ class SQLFORM(FORM):
                 search_widget = search_widget[tablename]
             if search_widget=='default':
                 search_menu = SQLFORM.search_menu(sfields)
-                search_widget = lambda sfield, url: FORM(
+                search_widget = lambda sfield, url: DIV(FORM(
                     INPUT(_name='keywords',_value=request.vars.keywords,
                           _id='web2py_keywords',_onfocus="jQuery('#w2p_query_fields').change();jQuery('#w2p_query_panel').slideDown();"),
                     INPUT(_type='submit',_value=T('Search'),_class="btn"),
                     INPUT(_type='submit',_value=T('Clear'),_class="btn",
                           _onclick="jQuery('#web2py_keywords').val('');"),
-                    search_menu,_method="GET",_action=url)
+                    _method="GET",_action=url),search_menu)
             form = search_widget and search_widget(sfields,url()) or ''
             console.append(form)
             keywords = request.vars.get('keywords','')
@@ -1888,6 +1895,12 @@ class SQLFORM(FORM):
                 error = T('Invalid query')
         else:
             subquery = None
+        if create:
+            console.append(gridbutton(
+                    buttonclass='buttonadd',
+                    buttontext='Add',
+                    buttonurl=url(args=['new',tablename])))
+
         if subquery:
             dbset = dbset(subquery)
         try:
@@ -2404,7 +2417,7 @@ class SQLTABLE(TABLE):
                 _class = 'odd'
 
             if not selectid is None: #new implement
-                if record[self.id_field_name]==selectid:
+                if record.get('id') == selectid:
                     _class += ' rowselected'
 
             for colname in columns:
