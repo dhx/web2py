@@ -794,6 +794,10 @@ def addrow(form, a, b, c, style, _id, position=-1):
                                     DIV(b, _class='w2p_fw'),
                                     DIV(c, _class='w2p_fc'),
                                     _id = _id))
+    elif style == "bootstrap":
+        form[0].insert(position, DIV(LABEL(a,_class='control-label'),
+                                    DIV(b,SPAN(c, _class='inline-help'),_class='controls'),
+                                    _class='control-group',_id = _id))
     else:
         form[0].insert(position, TR(TD(LABEL(a),_class='w2p_fl'),
                                     TD(b,_class='w2p_fw'),
@@ -1191,7 +1195,10 @@ class Auth(object):
                        'reset_password','request_reset_password',
                        'change_password','profile','groups',
                        'impersonate','not_authorized'):
-            return getattr(self,args[0])()
+            if len(request.args) >= 2:
+                return getattr(self,args[0])(request.args[1])
+            else:
+                return getattr(self,args[0])()
         elif args[0]=='cas' and not self.settings.cas_provider:
             if args(1) == self.settings.cas_actions['login']:
                 return self.cas_login(version=2)
@@ -1225,7 +1232,6 @@ class Auth(object):
         else:
             next = '?_next=' + urllib.quote(URL(args=request.args,
                                                 vars=request.get_vars))
-
         href = lambda function: '%s/%s%s' % (action, function,
             next if referrer_actions is DEFAULT or function in referrer_actions else '')
 
@@ -1902,20 +1908,33 @@ class Auth(object):
 
             if self.settings.remember_me_form:
                 ## adds a new input checkbox "remember me for longer"
-                addrow(form,XML("&nbsp;"),
-                       DIV(XML("&nbsp;"),
-                           INPUT(_type='checkbox',
-                                 _class='checkbox',
-                                 _id="auth_user_remember",
-                                 _name="remember",
-                                 ),
-                           XML("&nbsp;&nbsp;"),
+                if self.settings.formstyle != 'bootstrap':
+                    addrow(form,XML("&nbsp;"),
+                               DIV(XML("&nbsp;"),
+                                   INPUT(_type='checkbox',
+                                         _class='checkbox',
+                                         _id="auth_user_remember",
+                                         _name="remember",
+                                        ),
+                                    XML("&nbsp;&nbsp;"),
+                                    LABEL(
+                                          self.messages.label_remember_me,
+                                          _for="auth_user_remember",
+                                        )),"",
+                               self.settings.formstyle,
+                               'auth_user_remember__row')
+                elif self.settings.formstyle == 'bootstrap':
+                    addrow(form,
+                           "",
                            LABEL(
-                            self.messages.label_remember_me,
-                            _for="auth_user_remember",
-                            )),"",
-                       self.settings.formstyle,
-                       'auth_user_remember__row')
+                                 INPUT(_type='checkbox',
+                                       _id="auth_user_remember",
+                                       _name="remember"),
+                                 self.messages.label_remember_me,
+                                 _class="checkbox"),
+                            "",
+                            self.settings.formstyle,
+                            'auth_user_remember__row')
 
             captcha = self.settings.login_captcha or \
                 (self.settings.login_captcha!=False and self.settings.captcha)
@@ -2131,6 +2150,9 @@ class Auth(object):
                             'value==%s' % \
                                 repr(request.vars.get(passfield, None)),
                             error_message=self.messages.mismatched_password))
+
+                    if formstyle == 'bootstrap' :
+                        form.custom.widget.password_two['_class'] = 'input-xlarge'
 
                     addrow(form, self.messages.verify_password + self.settings.label_separator,
                            form.custom.widget.password_two,
@@ -2724,7 +2746,7 @@ class Auth(object):
             self.user = session.auth.user
         if requested_id is DEFAULT and not request.post_vars:
             return SQLFORM.factory(Field('user_id', 'integer'))
-        return self.user
+        return SQLFORM(table_user, user.id, readonly=True)
 
     def update_groups(self):
         if not self.user:
@@ -3180,7 +3202,7 @@ class Auth(object):
     def wiki(self,
              slug=None,
              env=None,
-             render=None,
+             render='markmin',
              manage_permissions=False,
              force_prefix='',
              restrict_search=False,
@@ -4549,45 +4571,45 @@ class Wiki(object):
         perms = self.manage_permissions = manage_permissions
         self.restrict_search = restrict_search
         db = auth.db
-        table_definitions = {
-            'wiki_page':{
-                'args':[
-                    Field('slug',
-                          requires=[IS_SLUG(),
-                                    IS_NOT_IN_DB(db,'wiki_page.slug')],
-                          readable=False,writable=False),
-                    Field('title',unique=True),
-                    Field('body','text',notnull=True),
-                    Field('tags','list:string'),
-                    Field('can_read','list:string',
-                          writable=perms,
-                          readable=perms,
-                          default=[Wiki.everybody]),
-                    Field('can_edit', 'list:string',
-                          writable=perms,readable=perms,
-                          default=[Wiki.everybody]),
+        table_definitions = [
+            ('wiki_page',{
+                    'args':[
+                        Field('slug',
+                              requires=[IS_SLUG(),
+                                        IS_NOT_IN_DB(db,'wiki_page.slug')],
+                              readable=False,writable=False),
+                        Field('title',unique=True),
+                        Field('body','text',notnull=True),
+                        Field('tags','list:string'),
+                        Field('can_read','list:string',
+                              writable=perms,
+                              readable=perms,
+                              default=[Wiki.everybody]),
+                        Field('can_edit', 'list:string',
+                              writable=perms,readable=perms,
+                              default=[Wiki.everybody]),
                     Field('changelog'),
-                    Field('html','text',compute=render,
-                          readable=False, writable=False),
-                    auth.signature],
-                'vars':{'format':'%(title)s'}},
-             'wiki_tag':{
-                'args':[
-                    Field('name'),
-                    Field('wiki_page','reference wiki_page'),
-                    auth.signature],
-                'vars':{'format':'%(name)s'}},
-           'wiki_media':{
-                'args':[
-                    Field('wiki_page','reference wiki_page'),
-                    Field('title',required=True),
-                    Field('file','upload',required=True),
-                    auth.signature],
-                'vars':{'format':'%(title)s'}}
-            }
+                        Field('html','text',compute=render,
+                              readable=False, writable=False),
+                        auth.signature],
+              'vars':{'format':'%(title)s'}}),
+            ('wiki_tag',{
+                    'args':[
+                        Field('name'),
+                        Field('wiki_page','reference wiki_page'),
+                        auth.signature],
+                    'vars':{'format':'%(name)s'}}),
+            ('wiki_media',{
+                    'args':[
+                        Field('wiki_page','reference wiki_page'),
+                        Field('title',required=True),
+                        Field('filename','upload',required=True),
+                        auth.signature],
+                    'vars':{'format':'%(title)s'}})
+            ]
 
         # define only non-existent tables
-        for key, value in table_definitions.iteritems():
+        for key, value in table_definitions:
             if not key in db.tables():
                 db.define_table(key, *value['args'], **value['vars'])
 
@@ -4752,10 +4774,11 @@ class Wiki(object):
         db = auth.db
         page = db.wiki_page(slug=slug)
         if not (page and self.can_edit(page)): return self.not_authorized(page)
-        self.auth.db.wiki_media.id.represent = lambda id,row:\
+        self.auth.db.wiki_media.id.represent = lambda id,row: \
+            id if not row.filename else \
             SPAN('@////%i/%s.%s' % \
                      (id,IS_SLUG.urlify(row.title.split('.')[0]),
-                      row.file.split('.')[-1]))
+                      row.filename.split('.')[-1]))
         self.auth.db.wiki_media.wiki_page.default = page.id
         self.auth.db.wiki_media.wiki_page.writable = False
         content = SQLFORM.grid(
@@ -4800,7 +4823,7 @@ class Wiki(object):
             if self.manage_permissions:
                 page = db.wiki_page(media.wiki_page)
                 if not self.can_read(page): return self.not_authorized(page)
-            request.args = [media.file]
+            request.args = [media.filename]
             return current.response.download(request,db)
         else:
             raise HTTP(404)

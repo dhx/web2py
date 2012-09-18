@@ -239,11 +239,14 @@ class ListWidget(StringWidget):
         _name = field.name
         if field.type=='list:integer': _class = 'integer'
         else: _class = 'string'
-        requires = field.requires if isinstance(field.requires, (IS_NOT_EMPTY, IS_LIST_OF)) else None
+        requires = field.requires if isinstance(
+            field.requires, (IS_NOT_EMPTY, IS_LIST_OF)) else None
         attributes['_style'] = 'list-style:none'
-        items=[LI(INPUT(_id=_id, _class=_class, _name=_name,
-                        value=v, hideerror=True, requires=requires),
-                  **attributes)  for v in value or ['']]
+        nvalue = value or ['']
+        items = [LI(INPUT(_id=_id, _class=_class, _name=_name,
+                          value=v, hideerror=k<len(nvalue)-1, 
+                          requires=requires),
+                    **attributes)  for (k,v) in enumerate(nvalue)]
         script=SCRIPT("""
 // from http://refactormycode.com/codes/694-expanding-input-list-using-jquery
 (function(){
@@ -1664,15 +1667,20 @@ class SQLFORM(FORM):
             return URL(**b)
 
         referrer = session.get('_web2py_grid_referrer_'+formname, url())
-        if user_signature:            
-            if ('/'.join(str(a) for a in args) != '/'.join(request.args) and \
-                    user_signature and \
-                    not URL.verify(request,user_signature=user_signature)) or \
-                    (not (session.auth and session.auth.user) and \
-                         ('edit' in request.args or \
-                              'create' in request.args or \
-                              'delete' in request.args)):
-                session.flash = T('not authorized')
+        # if not user_signature every action is accessible
+        # else forbid access unless
+        # - url is based url
+        # - url has valid signature (vars are not signed, only path_info)
+        # = url does not contain 'create','delete','edit' (readonly)
+        if user_signature:
+            if not(
+                '/'.join(str(a) for a in args) == '/'.join(request.args) or
+                URL.verify(request,user_signature=user_signature,
+                           hash_vars=False) or not (
+                    'create' in request.args or
+                    'delete' in request.args or
+                    'edit' in request.args)):
+                session.flash = T('not authorized')                
                 redirect(referrer)
 
         def gridbutton(buttonclass='buttonadd', buttontext='Add',
@@ -1868,6 +1876,16 @@ class SQLFORM(FORM):
         session['_web2py_grid_referrer_'+formname] = url2(vars=request.vars)
         console = DIV(_class='web2py_console %(header)s %(cornertop)s' % ui)
         error = None
+        if create:
+            add = gridbutton(
+                    buttonclass='buttonadd',
+                    buttontext='Add',
+                    buttonurl=url(args=['new',tablename]))
+            if not searchable:
+                console.append(add)
+        else:
+            add = ''
+
         if searchable:
             sfields = reduce(lambda a,b:a+b,
                              [[f for f in t if f.readable] for t in tables])
@@ -1875,7 +1893,7 @@ class SQLFORM(FORM):
                 search_widget = search_widget[tablename]
             if search_widget=='default':
                 search_menu = SQLFORM.search_menu(sfields)
-                search_widget = lambda sfield, url: DIV(FORM(
+                search_widget = lambda sfield, url: CAT(add,FORM(
                     INPUT(_name='keywords',_value=request.vars.keywords,
                           _id='web2py_keywords',_onfocus="jQuery('#w2p_query_fields').change();jQuery('#w2p_query_panel').slideDown();"),
                     INPUT(_type='submit',_value=T('Search'),_class="btn"),
@@ -1895,11 +1913,6 @@ class SQLFORM(FORM):
                 error = T('Invalid query')
         else:
             subquery = None
-        if create:
-            console.append(gridbutton(
-                    buttonclass='buttonadd',
-                    buttontext='Add',
-                    buttonurl=url(args=['new',tablename])))
 
         if subquery:
             dbset = dbset(subquery)
@@ -2104,11 +2117,12 @@ class SQLFORM(FORM):
         else:
             export_menu = None
 
-        res = DIV(console,
-                  DIV(htmltable,_class="web2py_table"),
-                  DIV(paginator,_class=\
-                          "web2py_paginator %(header)s %(cornerbottom)s" % ui),
+        res = DIV(console,DIV(htmltable,_class="web2py_table"),
                   _class='%s %s' % (_class, ui.get('widget')))
+        if paginator.components:
+            res.append(
+                DIV(paginator,
+                    _class="web2py_paginator %(header)s %(cornerbottom)s"%ui))
         if export_menu: res.append(export_menu)
         res.create_form = create_form
         res.update_form = update_form
@@ -2355,6 +2369,7 @@ class SQLTABLE(TABLE):
         extracolumns=None,
         selectid=None,
         renderstyle=False,
+        cid=None,
         **attributes
         ):
 
@@ -2392,7 +2407,7 @@ class SQLTABLE(TABLE):
                     row.append(TH(coldict['label'],**attrcol))
                 elif orderby:
                     row.append(TH(A(headers.get(c, c),
-                                    _href=th_link+'?orderby=' + c)))
+                                    _href=th_link+'?orderby=' + c, cid=cid)))
                 else:
                     row.append(TH(headers.get(c, c)))
 

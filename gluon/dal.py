@@ -40,7 +40,7 @@ Example of usage:
 >>> # from dal import DAL, Field
 
 ### create DAL connection (and create DB if it doesn't exist)
->>> db = DAL(('sqlite://storage.sqlite','mysql://a:b@localhost/x'), 
+>>> db = DAL(('sqlite://storage.sqlite','mysql://a:b@localhost/x'),
 ... folder=None)
 
 ### define a table 'person' (create/alter as necessary)
@@ -242,7 +242,7 @@ REGEX_SEARCH_PATTERN = re.compile('^{[^\.]+\.[^\.]+(\.(lt|gt|le|ge|eq|ne|contain
 REGEX_SQUARE_BRACKETS = re.compile('^.+\[.+\]$')
 REGEX_STORE_PATTERN = re.compile('\.(?P<e>\w{1,5})$')
 REGEX_QUOTES = re.compile("'[^']*'")
-REGEX_ALPHANUMERIC = re.compile('^[a-zA-Z]\w*$')
+REGEX_ALPHANUMERIC = re.compile('^[0-9a-zA-Z]\w*$')
 
 # list of drivers will be built on the fly
 # and lists only what is available
@@ -330,7 +330,7 @@ if not 'google' in DRIVERS:
         DRIVERS.append('Sybase(Sybase)')
     except ImportError:
         logger.debug('no Sybase driver')
-        
+
     try:
         import kinterbasdb
         DRIVERS.append('Interbase(kinterbasdb)')
@@ -342,7 +342,7 @@ if not 'google' in DRIVERS:
         import fdb
         DRIVERS.append('Firbird(fdb)')
     except ImportError:
-        logger.debug('no Firebird driver fdb')    
+        logger.debug('no Firebird driver fdb')
 #####
     try:
         import firebirdsql
@@ -660,7 +660,7 @@ class BaseAdapter(ConnectionPool):
 
     def find_driver(self,adapter_args,uri=None):
         if hasattr(self,'driver') and self.driver!=None:
-            return 
+            return
         drivers_available = [driver for driver in self.drivers
                              if driver in globals()]
         if uri:
@@ -668,7 +668,7 @@ class BaseAdapter(ConnectionPool):
             request_driver = items[1] if len(items)>1 else None
         else:
             request_driver = None
-        request_driver = request_driver or adapter_args.get('driver')            
+        request_driver = request_driver or adapter_args.get('driver')
         if request_driver:
             if request_driver in drivers_available:
                 self.driver_name = request_driver
@@ -680,7 +680,7 @@ class BaseAdapter(ConnectionPool):
             self.driver = globals().get(self.driver_name)
         else:
             raise RuntimeError, "no driver available %s", self.drivers
-            
+
 
     def __init__(self, db,uri,pool_size=0, folder=None, db_codec='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
@@ -799,7 +799,7 @@ class BaseAdapter(ConnectionPool):
                     else:
                         schema = parms[0]
                     ftype = "SELECT AddGeometryColumn ('%%(schema)s', '%%(tablename)s', '%%(fieldname)s', %%(srid)s, '%s', %%(dimension)s);" % types[geotype]
-                    ftype = ftype % dict(schema=schema, 
+                    ftype = ftype % dict(schema=schema,
                                          tablename=tablename,
                                          fieldname=field_name, srid=srid,
                                          dimension=dimension)
@@ -890,7 +890,7 @@ class BaseAdapter(ConnectionPool):
         else:
             table._dbt = pjoin(
                 dbpath, '%s_%s.table' % (table._db._uri_hash, tablename))
-                    
+
         if table._dbt:
             table._loggername = pjoin(dbpath, 'sql.log')
             logfile = self.file_open(table._loggername, 'a')
@@ -1002,7 +1002,7 @@ class BaseAdapter(ConnectionPool):
                     query = ['ALTER TABLE %s DROP %s;' % (tablename, key)]
                 metadata_change = True
             elif sql_fields[key]['sql'] != sql_fields_old[key]['sql'] \
-                  and not (key in table.fields and 
+                  and not (key in table.fields and
                            isinstance(table[key].type, SQLCustomType)) \
                   and not sql_fields[key]['type'].startswith('reference')\
                   and not sql_fields[key]['type'].startswith('double')\
@@ -1072,6 +1072,9 @@ class BaseAdapter(ConnectionPool):
 
     def EXTRACT(self, first, what):
         return "EXTRACT(%s FROM %s)" % (what, self.expand(first))
+
+    def EPOCH(self, first):
+        return self.EXTRACT(first, 'epoch')
 
     def AGGREGATE(self, first, what):
         return "%s(%s)" % (what, self.expand(first))
@@ -1273,7 +1276,7 @@ class BaseAdapter(ConnectionPool):
             first = expression.first
             second = expression.second
             op = expression.op
-            if not second is None: 
+            if not second is None:
                 return op(first, second)
             elif not first is None:
                 return op(first)
@@ -1454,6 +1457,8 @@ class BaseAdapter(ConnectionPool):
         having = args_get('having', False)
         limitby = args_get('limitby', False)
         for_update = args_get('for_update', False)
+        if not distinct is True and not distinct is False and not groupby:
+            distinct, groupby = False, distinct
         if self.can_select_for_update is False and for_update is True:
             raise SyntaxError, 'invalid select attribute: for_update'
         if distinct is True:
@@ -1580,14 +1585,14 @@ class BaseAdapter(ConnectionPool):
         """
         sql = self._select(query, fields, attributes)
         cache = attributes.get('cache', None)
-        if cache and attributes.get('cacheable',False):            
+        if cache and attributes.get('cacheable',False):
             del attributes['cache']
             (cache_model, time_expire) = cache
             key = self.uri + '/' + sql
             if len(key)>200: key = hashlib.md5(key).hexdigest()
             args = (sql,fields,attributes)
             return cache_model(
-                key, 
+                key,
                 lambda self=self,args=args:self._select_aux(*args),
                 time_expire)
         else:
@@ -1687,9 +1692,9 @@ class BaseAdapter(ConnectionPool):
             elif not isinstance(obj, (list, tuple)):
                 obj = [obj]
             if field_is_type('list:string'):
-                obj = [str(item) for item in obj]
+                obj = map(str,obj)
             else:
-                obj = [int(item) for item in obj]
+                obj = map(int,obj)
         if isinstance(obj, (list, tuple)):
             obj = bar_encode(obj)
         if obj is None:
@@ -1906,7 +1911,7 @@ class BaseAdapter(ConnectionPool):
         for (i,row) in enumerate(rows):
             new_row = Row()
             for (j,colname) in enumerate(colnames):
-                value = row[j]                
+                value = row[j]
                 tmp = tmps[j]
                 if tmp:
                     (tablename,fieldname,table,field,ft) = tmp
@@ -1920,14 +1925,14 @@ class BaseAdapter(ConnectionPool):
                     if field.filter_out:
                         value = field.filter_out(value)
                     colset[fieldname] = value
-                                        
+
                     # for backward compatibility
                     if ft=='id' and fieldname!='id' and \
                             not 'id' in table.fields:
                         colset['id'] = value
 
                     if ft == 'id' and not cacheable:
-                        # temporary hack to deal with 
+                        # temporary hack to deal with
                         # GoogleDatastoreAdapter
                         # references
                         if isinstance(self, GoogleDatastoreAdapter):
@@ -2027,8 +2032,11 @@ class SQLiteAdapter(BaseAdapter):
             'second': (17, 19),
             }
         try:
-            (i, j) = table[lookup]
-            return int(s[i:j])
+            if lookup != 'epoch':
+                (i, j) = table[lookup]
+                return int(s[i:j])
+            else:
+                return time.mktime(datetime.datetime.strptime(s, '%Y-%m-%d %H:%M:%S').timetuple())
         except:
             return None
 
@@ -2279,6 +2287,9 @@ class MySQLAdapter(BaseAdapter):
     def SUBSTRING(self,field,parameters):
         return 'SUBSTRING(%s,%s,%s)' % (self.expand(field),
                                         parameters[0], parameters[1])
+
+    def EPOCH(self, first):
+        return "UNIX_TIMESTAMP(%s)" % self.expand(first)
 
     def _drop(self,table,mode):
         # breaks db integrity but without this mysql does not drop table
@@ -2643,9 +2654,9 @@ class NewPostgreSQLAdapter(PostgreSQLAdapter):
             elif not isinstance(obj, (list, tuple)):
                 obj = [obj]
             if field_is_type('list:string'):
-                obj = [str(item) for item in obj]
+                obj = map(str,obj)
             else:
-                obj = [int(item) for item in obj]
+                obj = map(int,obj)
             return 'ARRAY[%s]' % ','.join(repr(item) for item in obj)
         return BaseAdapter.represent(self, obj, fieldtype)
 
@@ -2990,7 +3001,7 @@ class MSSQLAdapter(BaseAdapter):
             # (in the form of arg1=value1&arg2=value2&...)
             # Default values (drivers like FreeTDS insist on uppercase parameter keys)
             argsdict = { 'DRIVER':'{SQL Server}' }
-            urlargs = m.group('urlargs') or ''            
+            urlargs = m.group('urlargs') or ''
             for argmatch in self.REGEX_ARGPATTERN.finditer(urlargs):
                 argsdict[str(argmatch.group('argkey')).upper()] = argmatch.group('argvalue')
             urlargs = ';'.join(['%s=%s' % (ak, av) for (ak, av) in argsdict.iteritems()])
@@ -3014,6 +3025,9 @@ class MSSQLAdapter(BaseAdapter):
         if maximum is None:
             return rows[minimum:]
         return rows[minimum:maximum]
+
+    def EPOCH(self, first):
+        return "DATEDIFF(second, '1970-01-01 00:00:00', %s)" % self.expand(first)
 
     # GIS functions
 
@@ -3162,7 +3176,7 @@ class SybaseAdapter(MSSQLAdapter):
                 logger.error('NdGpatch error')
                 raise e
         else:
-            m = self.REGEX_URI.match(uri)            
+            m = self.REGEX_URI.match(uri)
             if not m:
                 raise SyntaxError, \
                     "Invalid URI string in DAL: %s" % self.uri
@@ -3234,6 +3248,9 @@ class FireBirdAdapter(BaseAdapter):
     def RANDOM(self):
         return 'RAND()'
 
+    def EPOCH(self, first):
+        return "DATEDIFF(second, '1970-01-01 00:00:00', %s)" % self.expand(first)
+
     def NOT_NULL(self,default,field_type):
         return 'DEFAULT %s NOT NULL' % self.represent(default,field_type)
 
@@ -3258,7 +3275,7 @@ class FireBirdAdapter(BaseAdapter):
 
     def __init__(self,db,uri,pool_size=0,folder=None,db_codec ='UTF-8',
                  credential_decoder=IDENTITY, driver_args={},
-                 adapter_args={}): 
+                 adapter_args={}):
         self.db = db
         self.dbengine = "firebird"
         self.uri = uri
@@ -3289,7 +3306,7 @@ class FireBirdAdapter(BaseAdapter):
                            user = credential_decoder(user),
                            password = credential_decoder(password),
                            charset = charset)
-        
+
         def connect(driver_args=driver_args):
             return self.driver.connect(**driver_args)
         self.pool_connection(connect)
@@ -3349,7 +3366,7 @@ class FireBirdEmbeddedAdapter(FireBirdAdapter):
                            user=credential_decoder(user),
                            password=credential_decoder(password),
                            charset=charset)
-        
+
         def connect(driver_args=driver_args):
             return self.driver.connect(**driver_args)
         self.pool_connection(connect)
@@ -4397,7 +4414,7 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
             tablename = self.get_table(query)
         elif fields:
             tablename = fields[0].tablename
-            query = fields[0].table._id>0
+            query = fields[0].table._id != None
         else:
             raise SyntaxError, "Unable to determine a tablename"
 
@@ -4422,7 +4439,7 @@ class GoogleDatastoreAdapter(NoSQLAdapter):
                 else:
                     projection.append(f.name)
 
-        # projection's can't include 'id'. 
+        # projection's can't include 'id'.
         # it will be added to the result later
         query_projection = [
             p for p in projection if \
@@ -4918,7 +4935,7 @@ class MongoDBAdapter(NoSQLAdapter):
             print "in expand and this is a query"
             # any query using 'id':=
             #   set name as _id (as per pymongo/mongodb primary key)
-            # convert second arg to an objectid field 
+            # convert second arg to an objectid field
             # (if its not already)
             # if second arg is 0 convert to objectid
             if isinstance(expression.first,Field) and \
@@ -4928,9 +4945,9 @@ class MongoDBAdapter(NoSQLAdapter):
                         not isinstance(expression.second,ObjectId):
                     if isinstance(expression.second,int):
                         try:
-                            # Because the reference field is by default 
-                            # an integer and therefore this must be an 
-                            # integer to be able to work with other 
+                            # Because the reference field is by default
+                            # an integer and therefore this must be an
+                            # integer to be able to work with other
                             # databases
                             expression.second = ObjectId(("%X" % expression.second))
                         except:
@@ -5218,27 +5235,27 @@ class MongoDBAdapter(NoSQLAdapter):
         return result
 
     def ADD(self, first, second):
-        raise NotImplementedError, "This must yet be replaced with javescript in order to accomplish this. Sorry"
+        raise NotImplementedError, "This must yet be replaced with javascript in order to accomplish this. Sorry"
         return '%s + %s' % (self.expand(first), self.expand(second, first.type))
 
     def SUB(self, first, second):
-        raise NotImplementedError, "This must yet be replaced with javescript in order to accomplish this. Sorry"
+        raise NotImplementedError, "This must yet be replaced with javascript in order to accomplish this. Sorry"
         return '(%s - %s)' % (self.expand(first), self.expand(second, first.type))
 
     def MUL(self, first, second):
-        raise NotImplementedError, "This must yet be replaced with javescript in order to accomplish this. Sorry"
+        raise NotImplementedError, "This must yet be replaced with javascript in order to accomplish this. Sorry"
         return '(%s * %s)' % (self.expand(first), self.expand(second, first.type))
 
     def DIV(self, first, second):
-        raise NotImplementedError, "This must yet be replaced with javescript in order to accomplish this. Sorry"
+        raise NotImplementedError, "This must yet be replaced with javascript in order to accomplish this. Sorry"
         return '(%s / %s)' % (self.expand(first), self.expand(second, first.type))
 
     def MOD(self, first, second):
-        raise NotImplementedError, "This must yet be replaced with javescript in order to accomplish this. Sorry"
+        raise NotImplementedError, "This must yet be replaced with javascript in order to accomplish this. Sorry"
         return '(%s %% %s)' % (self.expand(first), self.expand(second, first.type))
 
     def AS(self, first, second):
-        raise NotImplementedError, "This must yet be replaced with javescript in order to accomplish this. Sorry"
+        raise NotImplementedError, "This must yet be replaced with javascript in order to accomplish this. Sorry"
         return '%s AS %s' % (self.expand(first), second)
 
     #We could implement an option that simulates a full featured SQL database. But I think the option should be set explicit or implemented as another library.
@@ -5350,31 +5367,31 @@ class MongoDBAdapter(NoSQLAdapter):
 
     #TODO javascript has math
     def ADD(self, first, second):
-        raise NotImplementedError, "This must yet be replaced with javescript in order to accomplish this. Sorry"
+        raise NotImplementedError, "This must yet be replaced with javascript in order to accomplish this. Sorry"
         return '%s + %s' % (self.expand(first), self.expand(second, first.type))
 
     #TODO javascript has math
     def SUB(self, first, second):
-        raise NotImplementedError, "This must yet be replaced with javescript in order to accomplish this. Sorry"
+        raise NotImplementedError, "This must yet be replaced with javascript in order to accomplish this. Sorry"
         return '(%s - %s)' % (self.expand(first), self.expand(second, first.type))
 
     #TODO javascript has math
     def MUL(self, first, second):
-        raise NotImplementedError, "This must yet be replaced with javescript in order to accomplish this. Sorry"
+        raise NotImplementedError, "This must yet be replaced with javascript in order to accomplish this. Sorry"
         return '(%s * %s)' % (self.expand(first), self.expand(second, first.type))
         #TODO javascript has math
 
     def DIV(self, first, second):
-        raise NotImplementedError, "This must yet be replaced with javescript in order to accomplish this. Sorry"
+        raise NotImplementedError, "This must yet be replaced with javascript in order to accomplish this. Sorry"
         return '(%s / %s)' % (self.expand(first), self.expand(second, first.type))
     #TODO javascript has math
     def MOD(self, first, second):
-        raise NotImplementedError, "This must yet be replaced with javescript in order to accomplish this. Sorry"
+        raise NotImplementedError, "This must yet be replaced with javascript in order to accomplish this. Sorry"
         return '(%s %% %s)' % (self.expand(first), self.expand(second, first.type))
 
     #TODO javascript can do this
     def AS(self, first, second):
-        raise NotImplementedError, "This must yet be replaced with javescript in order to accomplish this. Sorry"
+        raise NotImplementedError, "This must yet be replaced with javascript in order to accomplish this. Sorry"
         return '%s AS %s' % (self.expand(first), second)
 
     #We could implement an option that simulates a full featured SQL database. But I think the option should be set explicit or implemented as another library.
@@ -5498,8 +5515,8 @@ class IMAPAdapter(NoSQLAdapter):
     # mapped names (which native
     # mailbox has what table name)
 
-    db.mailboxes <dict> # tablename, server native name
-    db.mailbox_names <dict> # server native name, tablename
+    db.mailboxes <list> # DAL instance mailbox tablenames
+    db.mailbox_names <dict> # tablename, server native name pairs
 
     """
 
@@ -5690,7 +5707,7 @@ class IMAPAdapter(NoSQLAdapter):
             year = int(date_list[2])
             month = months.index(date_list[1])
             day = int(date_list[0])
-            hms = [int(value) for value in date_list[3].split(":")]
+            hms = map(int, date_list[3].split(":"))
             return datetime.datetime(year, month, day,
                                      hms[0], hms[1], hms[2]) + add
         elif isinstance(date, (datetime.datetime, datetime.date)):
@@ -5802,8 +5819,10 @@ class IMAPAdapter(NoSQLAdapter):
                             Field("email", "string", writable=False, readable=False),
                             Field("attachments", "list:string", writable=False, readable=False),
                             )
-
-        return self.connection.mailbox_names
+        # Set the db instance mailbox collections
+        self.db.mailbox_names = self.connection.mailbox_names
+        self.db.mailboxes = self.connection.mailbox_names.keys()
+        return self.db.mailbox_names
 
     def create_table(self, *args, **kwargs):
         # not implemented
@@ -6216,7 +6235,11 @@ class IMAPAdapter(NoSQLAdapter):
             raise Exception("Operation not supported")
         return result
 
-    def NE(self, first, second):
+    def NE(self, first, second=None):
+        if (second is None) and isinstance(first, Field):
+            # All records special table query
+            if first.type == "id":
+                return self.GE(first, 1)
         result = self.NOT(self.EQ(first, second))
         result =  result.replace("NOT NOT", "").strip()
         return result
@@ -6367,11 +6390,9 @@ def sqlhtml_validators(field):
             refs = None
             db, id = r._db, r._id
             if isinstance(db._adapter, GoogleDatastoreAdapter):
-                for i in xrange(0, len(ids), 30):
-                    if not refs:
-                        refs = db(id.belongs(ids[i:i+30])).select(id)
-                    else:
-                        refs = refs&db(id.belongs(ids[i:i+30])).select(id)
+                def count(values): return db(id.belongs(values)).select(id)
+                rx = range(0, len(ids), 30)
+                refs = reduce(lambda a,b:a&b, [count(ids[i:i+30]) for i in rx])
             else:
                 refs = db(id.belongs(ids)).select(id)
             return (refs and ', '.join(str(f(r,x.id)) for x in refs) or '')
@@ -6461,7 +6482,7 @@ class Row(object):
 
     def values(self):
         return self.__dict__.values()
-    
+
     def __iter__(self):
         return self.__dict__.__iter__()
 
@@ -6654,7 +6675,7 @@ class DAL(object):
        db.define_table('tablename', Field('fieldname1'),
                                     Field('fieldname2'))
     """
-    
+
     @staticmethod
     def set_folder(folder):
         """
@@ -7139,7 +7160,11 @@ def index():
         return table
 
     def __contains__(self, tablename):
-        return tablename in self.tables
+        try:
+            return tablename in self.tables
+        except AttributeError:
+            # The instance has no .tables attribute yet
+            return False
 
     def get(self,key,default):
         return self.__dict__.get(key,default)
@@ -7177,7 +7202,7 @@ def index():
 
     def __call__(self, query=None, ignore_common_filters=None):
         if isinstance(query,Table):
-            query = query._id>0
+            query = query._id != None
         elif isinstance(query,Field):
             query = query!=None
         return Set(self, query, ignore_common_filters=ignore_common_filters)
@@ -7217,7 +7242,7 @@ def index():
         Added 2012-08-24 "fields" and "colnames" optional arguments. If either
         is provided, the results cursor returned by the DB driver will be
         converted to a DAL Rows object using the db._adapter.parse() method.
-        
+
         The "fields" argument is a list of DAL Field objects that match the
         fields returned from the DB. The Field objects should be part of one or
         more Table objects defined on the DAL object. The "fields" list can
@@ -7230,14 +7255,14 @@ def index():
         can be specified as a list of field names in tablename.fieldname format.
         Again, these should represent tables and fields defined on the DAL
         object.
-        
+
         It is also possible to specify both "fields" and the associated
         "colnames". In that case, "fields" can also include DAL Expression
         objects in addition to Field objects. For Field objects in "fields",
         the associated "colnames" must still be in tablename.fieldname format.
         For Expression objects in "fields", the associated "colnames" can
         be any arbitrary labels.
-        
+
         Note, the DAL Table objects referred to by "fields" or "colnames" can
         be dummy tables and do not have to represent any real tables in the
         database. Also, note that the "fields" and "colnames" must be in the
@@ -7396,7 +7421,7 @@ class Table(object):
         db.users.insert(name='me') # print db.users._insert(...) to see SQL
         db.users.drop()
     """
-    
+
     def __init__(
         self,
         db,
@@ -8081,6 +8106,10 @@ class Expression(object):
         db = self.db
         return Expression(db, db._adapter.EXTRACT, self, 'second', 'integer')
 
+    def epoch(self):
+        db = self.db
+        return Expression(db, db._adapter.EPOCH, self, None, 'integer')
+
     def __getslice__(self, start, stop):
         db = self.db
         if start < 0:
@@ -8221,7 +8250,7 @@ class Expression(object):
 
     def st_asgeojson(self, precision=15, options=0, version=1):
         return Expression(self.db, self.db._adapter.ST_ASGEOJSON, self,
-                          dict(precision=precision, options=options, 
+                          dict(precision=precision, options=options,
                                version=version), 'dict')
 
     def st_astext(self):
@@ -8470,7 +8499,7 @@ class Field(Expression):
         elif not filename:
             filename = file.name
         filename = os.path.basename(filename.replace('/', os.sep)\
-                                        .replace('\\', os.sep))        
+                                        .replace('\\', os.sep))
         m = REGEX_STORE_PATTERN.search(filename)
         extension = m and m.group('e') or 'txt'
         uuid_key = web2py_uuid().replace('-', '')[-16:]
@@ -8708,7 +8737,7 @@ class Set(object):
 
     def __call__(self, query, ignore_common_filters=False):
         if isinstance(query,Table):
-            query = query._id>0
+            query = query._id != None
         elif isinstance(query,str):
             query = Expression(self.db,query)
         elif isinstance(query,Field):
@@ -8758,7 +8787,7 @@ class Set(object):
                 key,
                 (lambda self=self,distinct=distinct: \
                   db._adapter.count(self.query,distinct)),
-                time_expire)                
+                time_expire)
         return db._adapter.count(self.query,distinct)
 
     def select(self, *fields, **attributes):
@@ -8876,7 +8905,7 @@ class RecordUpdater(object):
         self.colset, self.table, self.id = colset, table, id
 
     def __call__(self, **fields):
-        colset, table, id = self.colset, self.table, self.id 
+        colset, table, id = self.colset, self.table, self.id
         newfields = fields or dict(colset)
         for fieldname in newfields.keys():
             if not fieldname in table.fields or table[fieldname].type=='id':
@@ -9198,7 +9227,7 @@ class Rows(object):
     def xml(self,strict=False,row_name='row',rows_name='rows'):
         """
         serializes the table using sqlhtml.SQLTABLE (if present)
-        """        
+        """
         if strict:
             ncols = len(self.colnames)
             def f(row,field,indent='  '):
