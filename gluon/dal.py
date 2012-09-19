@@ -4035,8 +4035,8 @@ class GoogleSQLAdapter(UseDatabaseStoredFile,MySQLAdapter):
         self.execute("SET FOREIGN_KEY_CHECKS=1;")
         self.execute("SET sql_mode='NO_BACKSLASH_ESCAPES';")
 
-    def execute(self,a):
-        return self.log_execute(a.decode('utf8'))
+    def execute(self, command, *a, **b):
+        return self.log_execute(command.decode('utf8'), *a, **b)
 
 class NoSQLAdapter(BaseAdapter):
     can_select_for_update = False
@@ -5512,13 +5512,15 @@ class IMAPAdapter(NoSQLAdapter):
     # directly with set.update(deleted=True)
 
 
-    # This objects give access
+    # This object give access
     # to the adapter auto mailbox
     # mapped names (which native
     # mailbox has what table name)
 
-    db.mailboxes <list> # DAL instance mailbox tablenames
-    db.mailbox_names <dict> # tablename, server native name pairs
+    db.mailboxes <dict> # tablename, server native name pairs
+
+    # To retrieve a table native mailbox name use:
+    db.<table>.mailbox
 
     """
 
@@ -5821,10 +5823,15 @@ class IMAPAdapter(NoSQLAdapter):
                             Field("email", "string", writable=False, readable=False),
                             Field("attachments", "list:string", writable=False, readable=False),
                             )
+
+            # Set a special _mailbox attribute for storing
+            # native mailbox names
+            self.db[mailbox_name].mailbox = \
+                self.connection.mailbox_names[mailbox_name]
+
         # Set the db instance mailbox collections
-        self.db.mailbox_names = self.connection.mailbox_names
-        self.db.mailboxes = self.connection.mailbox_names.keys()
-        return self.db.mailbox_names
+        self.db.mailboxes = self.connection.mailbox_names
+        return self.db.mailboxes
 
     def create_table(self, *args, **kwargs):
         # not implemented
