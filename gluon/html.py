@@ -32,6 +32,11 @@ regex_crlf = re.compile('\r|\n')
 
 join = ''.join
 
+# name2codepoint is incomplete respect to xhtml (and xml): 'apos' is missing.
+entitydefs = dict(map(lambda (k,v): (k, unichr(v).encode('utf-8')), name2codepoint.iteritems()))
+entitydefs.setdefault('apos', u"'".encode('utf-8'))
+
+
 __all__ = [
     'A',
     'B',
@@ -243,7 +248,7 @@ def URL(
         elif a and c and not f: (c,f,a)=(a,c,f)
         from globals import current
         if hasattr(current,'request'):
-            r = current.request    
+            r = current.request
 
     if r:
         application = r.application
@@ -487,7 +492,7 @@ class XmlComponent(object):
             components += [other]
         return CAT(*components)
 
-    def add_class(self, name):        
+    def add_class(self, name):
         """ add a class to _class attribute """
         c = self['_class']
         classes = (set(c.split()) if c else set())|set(name.split())
@@ -1938,6 +1943,7 @@ class FORM(DIV):
         # check formname and formkey
 
         status = True
+        changed = False
         request_vars = self.request_vars
         if session:
             formkey = session.get('_formkey[%s]' % formname, None)
@@ -1950,18 +1956,23 @@ class FORM(DIV):
             # check if editing a record that has been modified by the server
             if hasattr(self,'record_hash') and self.record_hash != formkey:
                 status = False
-                self.record_changed = True
+                self.record_changed = changed = True
         status = self._traverse(status,hideerror)
         status = self.assert_status(status, request_vars)
         if onvalidation:
             if isinstance(onvalidation, dict):
                 onsuccess = onvalidation.get('onsuccess', None)
                 onfailure = onvalidation.get('onfailure', None)
+                onchange = onvalidation.get('onchange', None)
                 if onsuccess and status:
                     onsuccess(self)
                 if onfailure and request_vars and not status:
                     onfailure(self)
                     status = len(self.errors) == 0
+                if changed:
+                    if onchange and self.record_changed and \
+                        self.detect_record_change:
+                        onchange(self)
             elif status:
                 if isinstance(onvalidation, (list, tuple)):
                     [f(self) for f in onvalidation]
@@ -2030,8 +2041,13 @@ class FORM(DIV):
         onfailure = 'flash' - will show message_onfailure in response.flash
                     None - will do nothing
                     can be a function (lambda form: pass)
+        onchange = 'flash' - will show message_onchange in response.flash
+                    None - will do nothing
+                    can be a function (lambda form: pass)
+
         message_onsuccess
         message_onfailure
+        message_onchange
         next      = where to redirect in case of success
         any other kwargs will be passed for form.accepts(...)
         """
@@ -2042,13 +2058,17 @@ class FORM(DIV):
 
         onsuccess = kwargs.get('onsuccess','flash')
         onfailure = kwargs.get('onfailure','flash')
+        onchange = kwargs.get('onchange', 'flash')
         message_onsuccess = kwargs.get('message_onsuccess',
                                        current.T("Success!"))
         message_onfailure = kwargs.get('message_onfailure',
                                        current.T("Errors in form, please check it out."))
+        message_onchange = kwargs.get('message_onchange',
+                                       current.T("Form consecutive submissions not allowed. " + 
+                                                 "Try re-submitting or refreshing the form page."))
         next = kwargs.get('next',None)
         for key in ('message_onsuccess','message_onfailure','onsuccess',
-                    'onfailure','next'):
+                    'onfailure','next', 'message_onchange', 'onchange'):
             if key in kwargs:
                 del kwargs[key]
 
@@ -2075,6 +2095,13 @@ class FORM(DIV):
             elif callable(onfailure):
                 onfailure(self)
             return False
+        elif hasattr(self, "record_changed"):
+            if self.record_changed and self.detect_record_change:
+                if onchange == 'flash':
+                    current.response.flash = message_onchange
+                elif callable(onchange):
+                    onchange(self)
+                return False
 
     def process(self, **kwargs):
         """
@@ -2278,7 +2305,7 @@ class MENU(DIV):
             select = SELECT(**self.attributes)
         for item in data:
             if len(item) <= 4 or item[4] == True:
-                select.append(OPTION(CAT(prefix, item[0]), 
+                select.append(OPTION(CAT(prefix, item[0]),
                                      _value=item[2], _selected=item[1]))
                 if len(item)>3 and len(item[3]):
                     self.serialize_mobile(
@@ -2404,7 +2431,7 @@ class web2pyHTMLParser(HTMLParser):
         else:
             self.parent.append(unichr(int(name)).encode('utf8'))
     def handle_entityref(self,name):
-        self.parent.append(unichr(name2codepoint[name]).encode('utf8'))
+        self.parent.append(entitydefs[name])
     def handle_endtag(self, tagname):
         # this deals with unbalanced tags
         if tagname==self.last:
@@ -2508,10 +2535,3 @@ class MARKMIN(XmlComponent):
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
-
-
-
-
-
-
-
