@@ -1825,16 +1825,19 @@ class SQLFORM(FORM):
             table = db[request.args[-2]]
             record = table(request.args[-1]) or redirect(URL('error'))
             sqlformargs.update(editargs)
-            update_form = SQLFORM(table, record, upload=upload, ignore_rw=ignore_rw,
-                                formstyle=formstyle, deletable=deletable,
-                                _class='web2py_form',
-                                submit_button=T('Submit'),
-                                delete_label=T('Check to delete'),
-                                **sqlformargs)
-            update_form.process(formname=formname,
-                              onvalidation=onvalidation,
-                              onsuccess=onupdate,
-                              next=referrer)
+            update_form = SQLFORM(
+                table,
+                record, upload=upload, ignore_rw=ignore_rw,
+                formstyle=formstyle, deletable=deletable,
+                _class='web2py_form',
+                submit_button=T('Submit'),
+                delete_label=T('Check to delete'),
+                **sqlformargs)
+            update_form.process(
+                formname=formname,
+                onvalidation=onvalidation,
+                onsuccess=onupdate,
+                next=referrer)
             res = DIV(buttons(view=details, record=record),
                       update_form, formfooter, _class=_class)
             res.create_form = create_form
@@ -1888,7 +1891,7 @@ class SQLFORM(FORM):
                     rows = dbset.select(cacheable=True)
             else:
                 rows = dbset.select(left=left,orderby=orderby,
-                                    cacheable=True*columns)
+                                    cacheable=True,*columns)
 
             if export_type in exportManager:
                 value = exportManager[export_type]
@@ -2039,7 +2042,7 @@ class SQLFORM(FORM):
             table_fields = [f for f in fields if f._tablename in tablenames]
             rows = dbset.select(left=left,orderby=orderby,
                                 groupby=groupby,limitby=limitby,
-                                cacheable=True,*table_fields)
+                                *table_fields)
         except SyntaxError:
             rows = None
             error = T("Query Not Supported")
