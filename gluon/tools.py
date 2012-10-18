@@ -1080,7 +1080,7 @@ class Auth(object):
                 auth.last_visit = request.now
         else:
             self.user = None
-            session.auth = None
+            if session.auth: del session.auth
         # ## what happens after login?
 
         self.next = current.request.vars._next
@@ -1627,6 +1627,7 @@ class Auth(object):
                 urlbase = settings.cas_provider,
                 actions=actions,
                 maps=maps)
+        return self
 
     def log_event(self, description, vars=None, origin='auth'):
         """
@@ -2745,10 +2746,12 @@ class Auth(object):
                     callback(form)
             log = self.messages.impersonate_log
             self.log_event(log,dict(id=current_id, other_id=auth.user.id))
-        elif user_id in (0, '0') and self.is_impersonating():
-            session.clear()
-            session.update(cPickle.loads(auth.impersonator))
-            self.user = session.auth.user
+        elif user_id in (0, '0'):
+            if self.is_impersonating():
+                session.clear()
+                session.update(cPickle.loads(auth.impersonator))
+                self.user = session.auth.user
+            return None
         if requested_id is DEFAULT and not request.post_vars:
             return SQLFORM.factory(Field('user_id', 'integer'))
         return SQLFORM(table_user, user.id, readonly=True)
@@ -4576,6 +4579,7 @@ class Wiki(object):
         self.env['component'] = Wiki.component
         if render == 'markmin': render=self.markmin_render
         elif render == 'html': render=self.html_render
+        self.render = render
         self.auth = auth
         if self.auth.user:
             self.force_prefix = force_prefix % self.auth.user
@@ -4602,7 +4606,7 @@ class Wiki(object):
                         Field('can_edit', 'list:string',
                               writable=perms,readable=perms,
                               default=[Wiki.everybody]),
-                    Field('changelog'),
+                        Field('changelog'),
                         Field('html','text',compute=render,
                               readable=False, writable=False),
                         auth.signature],
@@ -4624,8 +4628,17 @@ class Wiki(object):
 
         # define only non-existent tables
         for key, value in table_definitions:
+            args = []
             if not key in db.tables():
-                db.define_table(key, *value['args'], **value['vars'])
+                # look for wiki_ extra fields in auth.settings
+                extra_fields = auth.settings.extra_fields
+                if extra_fields:
+                    if key in extra_fields:
+                        if extra_fields[key]:
+                            for field in extra_fields[key]:
+                                args.append(field)
+                args += value['args']
+                db.define_table(key, *args, **value['vars'])
 
         def update_tags_insert(page,id,db=db):
             for tag in page.tags or []:
@@ -4702,6 +4715,8 @@ class Wiki(object):
                                )
         elif zero=='_cloud':
             return self.cloud()
+        elif zero == '_preview':
+            return self.preview(self.render)
 
     def first_paragraph(self,page):
         if not self.can_read(page):
@@ -4782,7 +4797,30 @@ class Wiki(object):
         elif form.accepted:
             current.session.flash = 'page created'
             redirect(URL(args=slug))
-        return dict(content=form)
+        script = """
+        $(function() {
+            if (!$('#wiki_page_body').length) return;
+            var pagecontent = $('#wiki_page_body');
+            pagecontent.css('font-family', 'Monaco,Menlo,Consolas,"Courier New",monospace');
+            var prevbutton = $('<button class="btn nopreview">Preview</button>');
+            var preview = $('<div id="preview"></div>').hide();
+            var table = $('form');
+            prevbutton.insertBefore(table);
+            preview.insertBefore(table);
+            prevbutton.on('click', function(e) {
+                e.preventDefault();
+                if (prevbutton.hasClass('nopreview')) {
+                    prevbutton.addClass('preview').removeClass('nopreview').html('Edit Source');
+                    web2py_ajax_page('post', '%(url)s', {body : $('#wiki_page_body').val()}, 'preview');
+                    table.fadeOut('medium', function() {preview.fadeIn()});
+                } else {
+                    prevbutton.addClass('nopreview').removeClass('preview').html('Preview');
+                    preview.fadeOut('medium', function() {table.fadeIn()});
+                }
+            })
+        })
+        """ % dict(url=URL(args=('_preview')))
+        return dict(content=TAG[''](form, SCRIPT(script)))
 
     def editmedia(self,slug):
         auth = self.auth
@@ -4977,6 +5015,9 @@ class Wiki(object):
                                      vars=dict(q=item.wiki_tag.name))))
             items.append(' ')
         return dict(content = DIV(_class='w2p_cloud',*items))
+    def preview(self, render):
+        request = current.request
+        return render(request.post_vars)
 
 if __name__ == '__main__':
     import doctest

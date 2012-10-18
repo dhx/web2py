@@ -21,6 +21,15 @@ import os
 import re
 import logging
 import socket
+import cPickle
+import base64
+import zlib
+
+try:
+    from Crypto.Cipher import AES
+except ImportError:
+    from contrib import aes as AES
+
 try:
     from contrib.pbkdf2 import pbkdf2_hex
     HAVE_PBKDF2 = True
@@ -94,6 +103,40 @@ DIGEST_ALG_BY_SIZE = {
     512/4: 'sha512',
     }
 
+def pad(s,n=32,padchar='.'):
+    return s + (32 - len(s) % 32) * padchar
+
+def secure_dumps(data,encryption_key,hash_key=None,compression_level=None):
+    if not hash_key:
+        hash_key = hashlib.sha1(encryption_key).hexdigest()
+    dump = cPickle.dumps(data)
+    if compression_level:
+        dump = zlib.compress(dump, compression_level)
+    key = pad(encryption_key[:32])
+    cipher = AES.new(key,IV=key[:16])
+    encrypted_data = base64.urlsafe_b64encode(cipher.encrypt(pad(dump)))
+    signature = hmac.new(hash_key,encrypted_data).hexdigest()
+    return signature+':'+encrypted_data
+
+def secure_loads(data,encryption_key,hash_key=None, compression_level=None):
+    if not ':' in data:
+        return None
+    if not hash_key:
+        hash_key = hashlib.sha1(encryption_key).hexdigest()
+    signature, encrypted_data = data.split(':',1)
+    actual_signature = hmac.new(hash_key,encrypted_data).hexdigest()
+    if signature!=actual_signature:
+        return None
+    key = pad(encryption_key[:32])
+    cipher = AES.new(key,IV=key[:16])
+    try:
+        data = cipher.decrypt(base64.urlsafe_b64decode(encrypted_data))
+        data = data.rstrip(' ')
+        if compression_level:
+            data = zlib.decompress(data)
+        return cPickle.loads(data)
+    except (TypeError,cPickle.UnpicklingError):
+        return None
 
 ### compute constant CTOKENS
 def initialize_urandom():
@@ -161,8 +204,7 @@ def web2py_uuid(ctokens=UNPACKED_CTOKENS):
     It works like uuid.uuid4 except that tries to use os.urandom() if possible
     and it XORs the output with the tokens uniquely associated with this machine.
     """
-    rand_longs = struct.unpack('=QQ', string.join(
-            (chr(random.randrange(256)) for i in xrange(16)),''))
+    rand_longs = (random.getrandbits(64),random.getrandbits(64))
     if HAVE_URANDOM:
         urand_longs = struct.unpack('=QQ', fast_urandom16())
         byte_s = struct.pack('=QQ',
@@ -191,6 +233,8 @@ def is_valid_ip_address(address):
     elif address.lower() in ('unkown',''):
         return False
     elif address.count('.')==3: # assume IPv4
+        if address.startswith('::ffff:'):
+            address = address[7:]
         if hasattr(socket,'inet_aton'): # try validate using the OS
             try:
                 addr = socket.inet_aton(address)

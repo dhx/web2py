@@ -416,6 +416,7 @@ class translator(object):
         self.folder = request.folder
         self.langpath = pjoin(self.folder, 'languages')
         self.http_accept_language = request.env.http_accept_language
+        self.is_writable = not is_gae
         # filled in self.force():
         #------------------------
         # self.cache
@@ -537,7 +538,7 @@ class translator(object):
                     form = self.construct_plural_form(word, id)
                     forms[id-1] = form
                     self.plural_dict[word] = forms
-                    if self.plural_file and not is_gae:
+                    if self.is_writable and self.plural_file:
                         write_plural_dict(self.plural_file,
                                           self.plural_dict)
                     return form
@@ -723,7 +724,7 @@ class translator(object):
         # guess translation same as original
         self.t[key] = mt = self.default_t.get(key, message)
         # update language file for latter translation
-        if self.language_file != self.default_language_file and not is_gae:
+        if self.is_writable and self.language_file != self.default_language_file:
             write_dict(self.language_file, self.t)
         return regex_backslash.sub(
             lambda m: m.group(1).translate(ttab_in), mt)
