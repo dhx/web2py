@@ -51,6 +51,7 @@ def getcfs(key, filename, filter=None):
     cfs[key] = (t, data)
     cfs_lock.release()
     return data
+<<<<<<< HEAD
 
 
 
@@ -58,3 +59,5 @@ def getcfs(key, filename, filter=None):
 
 
 
+=======
+>>>>>>> upstream/master

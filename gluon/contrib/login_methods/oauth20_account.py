@@ -17,6 +17,7 @@ import urllib2
 from urllib import urlencode
 from gluon import current, redirect, HTTP
 
+
 class OAuthAccount(object):
     """
     Login will be done via   OAuth Framework, instead of web2py's
@@ -84,7 +85,8 @@ class OAuthAccount(object):
                                username = user['id'])
 
 
-               auth.settings.actions_disabled=['register','change_password','request_reset_password','profile']
+               auth.settings.actions_disabled=['register',
+                   'change_password','request_reset_password','profile']
                auth.settings.login_form=FaceBookAccount()
 
 Any optional arg in the constructor will be passed asis to remote
@@ -99,8 +101,9 @@ server for requests.  It can be used for the optional"scope" parameters for Face
         """
 
         r = current.request
-        http_host=r.env.http_x_forwarded_for
-        if not http_host: http_host=r.env.http_host
+        http_host = r.env.http_x_forwarded_for
+        if not http_host:
+            http_host = r.env.http_host
 
         url_scheme = r.env.wsgi_url_scheme
         if next:
@@ -119,15 +122,14 @@ server for requests.  It can be used for the optional"scope" parameters for Face
         """
         # Create an OpenerDirector with support
         # for Basic HTTP Authentication...
-
-        auth_handler = urllib2.HTTPBasicAuthHandler()
-        auth_handler.add_password(None,
-                                  uri,
-                                  self.client_id,
-                                  self.client_secret)
-        opener = urllib2.build_opener(auth_handler)
+        password_mgr = urllib2.HTTPPasswordMgrWithDefaultRealm()
+        password_mgr.add_password(realm=None,
+                                  uri=uri,
+                                  user=self.client_id,
+                                  passwd=self.client_secret)
+        handler = urllib2.HTTPBasicAuthHandler(password_mgr)
+        opener = urllib2.build_opener(handler)
         return opener
-
 
     def accessToken(self):
         """
@@ -137,7 +139,7 @@ server for requests.  It can be used for the optional"scope" parameters for Face
         Otherwise the token is fetched from the auth server.
 
         """
-        if current.session.token and current.session.token.has_key('expires'):
+        if current.session.token and 'expires' in current.session.token:
             expires = current.session.token['expires']
             # reuse token until expiration
             if expires == 0 or expires > time.time():
@@ -159,19 +161,23 @@ server for requests.  It can be used for the optional"scope" parameters for Face
                 print tmp
                 raise Exception(tmp)
             finally:
-                del current.session.code # throw it away
+                del current.session.code  # throw it away
 
             if open_url:
                 try:
                     data = open_url.read()
                     tokendata = cgi.parse_qs(data)
                     current.session.token = \
-                        dict([(k,v[-1]) for k,v in tokendata.items()])
+                        dict([(k, v[-1]) for k, v in tokendata.items()])
                     # set expiration absolute time try to avoid broken
                     # implementations where "expires_in" becomes "expires"
-                    if current.session.token.has_key('expires_in'):
+                    if 'expires_in' in current.session.token:
                         exps = 'expires_in'
+<<<<<<< HEAD
                     elif current.session.token.has_key('expires'):
+=======
+                    elif 'expires' in current.session.token:
+>>>>>>> upstream/master
                         exps = 'expires'
                     else:
                         exps = None
@@ -217,11 +223,12 @@ server for requests.  It can be used for the optional"scope" parameters for Face
         Override this method by sublcassing the class.
 
         """
-        if not current.session.token: return None
-        return dict(first_name = 'Pinco',
-                    last_name = 'Pallino',
-                    username = 'pincopallino')
-        raise NotImplementedError, "Must override get_user()"
+        if not current.session.token:
+            return None
+        return dict(first_name='Pinco',
+                    last_name='Pallino',
+                    username='pincopallino')
+        raise NotImplementedError("Must override get_user()")
 
         # Following code is never executed.  It can be used as example
         # for overriding in subclasses.
@@ -239,10 +246,9 @@ server for requests.  It can be used for the optional"scope" parameters for Face
             self.graph = None
 
         if user:
-            return dict(first_name = user['first_name'],
-                        last_name = user['last_name'],
-                        username = user['id'])
-
+            return dict(first_name=user['first_name'],
+                        last_name=user['last_name'],
+                        username=user['id'])
 
     def __oauth_login(self, next):
         """
@@ -258,13 +264,13 @@ server for requests.  It can be used for the optional"scope" parameters for Face
 
         if not self.accessToken():
             if not current.request.vars.code:
-                current.session.redirect_uri=self.__redirect_uri(next)
+                current.session.redirect_uri = self.__redirect_uri(next)
                 data = dict(redirect_uri=current.session.redirect_uri,
-                                  response_type='code',
-                                  client_id=self.client_id)
+                            response_type='code',
+                            client_id=self.client_id)
                 if self.args:
                     data.update(self.args)
-                auth_request_url = self.auth_url + "?" +urlencode(data)
+                auth_request_url = self.auth_url + "?" + urlencode(data)
                 raise HTTP(307,
                            "You are not authenticated: you are being redirected to the <a href='" + auth_request_url + "'> authentication server</a>",
                            Location=auth_request_url)
@@ -273,5 +279,8 @@ server for requests.  It can be used for the optional"scope" parameters for Face
                 self.accessToken()
                 return current.session.code
         return None
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> upstream/master

@@ -49,7 +49,7 @@ defined_status = {
     503: 'SERVICE UNAVAILABLE',
     504: 'GATEWAY TIMEOUT',
     505: 'HTTP VERSION NOT SUPPORTED',
-    }
+}
 
 # If web2py is executed with python2.4 we need
 # to use Exception instead of BaseException
@@ -60,6 +60,10 @@ except NameError:
     BaseException = Exception
 
 regex_status = re.compile('^\d{3} \w+$')
+<<<<<<< HEAD
+=======
+
+>>>>>>> upstream/master
 
 class HTTP(BaseException):
 
@@ -69,14 +73,19 @@ class HTTP(BaseException):
         body='',
         cookies=None,
         **headers
-        ):
+    ):
         self.status = status
         self.body = body
         self.headers = headers
         self.cookies2headers(cookies)
 
+<<<<<<< HEAD
     def cookies2headers(self,cookies):
         if cookies and len(cookies)>0:
+=======
+    def cookies2headers(self, cookies):
+        if cookies and len(cookies) > 0:
+>>>>>>> upstream/master
             self.headers['Set-Cookie'] = [
                 str(cookie)[11:] for cookie in cookies.values()]
 
@@ -90,15 +99,25 @@ class HTTP(BaseException):
             status = str(status)
             if not regex_status.match(status):
                 status = '500 %s' % (defined_status[500])
+<<<<<<< HEAD
         headers.setdefault('Content-Type','text/html; charset=UTF-8')
+=======
+        headers.setdefault('Content-Type', 'text/html; charset=UTF-8')
+>>>>>>> upstream/master
         body = self.body
         if status[:1] == '4':
             if not body:
                 body = status
             if isinstance(body, str):
+<<<<<<< HEAD
                 if len(body)<512 and \
                         headers['Content-Type'].startswith('text/html'):
                     body += '<!-- %s //-->' % ('x'*512) ### trick IE
+=======
+                if len(body) < 512 and \
+                        headers['Content-Type'].startswith('text/html'):
+                    body += '<!-- %s //-->' % ('x' * 512)  # trick IE
+>>>>>>> upstream/master
                 headers['Content-Length'] = len(body)
         rheaders = []
         for k, v in headers.iteritems():
@@ -107,9 +126,15 @@ class HTTP(BaseException):
             elif not v is None:
                 rheaders.append((k, str(v)))
         responder(status, rheaders)
+<<<<<<< HEAD
         if env.get('request_method','')=='HEAD':
             return ['']
         elif isinstance(body,str):
+=======
+        if env.get('request_method', '') == 'HEAD':
+            return ['']
+        elif isinstance(body, str):
+>>>>>>> upstream/master
             return [body]
         elif hasattr(body, '__iter__'):
             return body
@@ -139,7 +164,11 @@ class HTTP(BaseException):
         return self.message
 
 
+<<<<<<< HEAD
 def redirect(location, how=303, client_side=False):
+=======
+def redirect(location='', how=303, client_side=False):
+>>>>>>> upstream/master
     if location:
         from gluon import current
         loc = location.replace('\r', '%0D').replace('\n', '%0A')
@@ -149,6 +178,7 @@ def redirect(location, how=303, client_side=False):
             raise HTTP(how,
                        'You are being redirected <a href="%s">here</a>' % loc,
                        Location=loc)
+<<<<<<< HEAD
 
 
 
@@ -156,3 +186,9 @@ def redirect(location, how=303, client_side=False):
 
 
 
+=======
+    else:
+        from gluon import current
+        if client_side and current.request.ajax:
+            raise HTTP(200, **{'web2py-component-command': 'window.location.reload(true)'})
+>>>>>>> upstream/master

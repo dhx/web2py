@@ -106,6 +106,7 @@ function doClickSave() {
 		    } else {
 			jQuery("input[name='saved_on']").attr('style','background-color:#99FF99');
 			jQuery(".flash").delay(1000).fadeOut('slow');
+<<<<<<< HEAD
 		    }
 		    // console.info(jQuery("input[name='file_hash']").val());
 		    var output = '<b>exposes:</b> ';
@@ -115,6 +116,17 @@ function doClickSave() {
 		    if(output!='<b>exposes:</b> ') {
 			jQuery("#exposed").html( output.substring(0, output.length-1));
 		    }
+=======
+		    }
+		    // console.info(jQuery("input[name='file_hash']").val());
+		    var output = '<b>exposes:</b> ';
+		    for ( var i in json.functions) {
+			output += ' <a href="/' + json.application + '/' + json.controller + '/' + json.functions[i] + '">' + json.functions[i] + '</a>,';
+		    }
+		    if(output!='<b>exposes:</b> ') {
+			jQuery("#exposed").html( output.substring(0, output.length-1));
+		    }
+>>>>>>> upstream/master
 		}
 	    } catch(e) { on_error();}
 		},
@@ -148,8 +160,17 @@ function getSelectionRange() {
     return sel;
 }
 
+<<<<<<< HEAD
 function doToggleBreakpoint(filename, url) {
     var sel = getSelectionRange();
+=======
+function doToggleBreakpoint(filename, url, sel) {
+    if (sel==null) {
+        // use cursor position to determine the breakpoint line
+        // (gutter already tell us the selected line)
+        sel = getSelectionRange();
+    }
+>>>>>>> upstream/master
     var dataForPost = prepareMultiPartPOST(new Array(
 	prepareDataForSave('filename', filename),
 	prepareDataForSave('sel_start', sel["start"]),
@@ -170,15 +191,36 @@ function doToggleBreakpoint(filename, url) {
 	  success: function(json,text,xhr){
 	     // show flash message (if any)
 	     var flash=xhr.getResponseHeader('web2py-component-flash');
+<<<<<<< HEAD
 	     if (flash) jQuery('.flash').html(decodeURIComponent(flash)).slideDown();
+=======
+	     if (flash) {
+				jQuery('.flash').html(decodeURIComponent(flash))
+				.append('<a href="#" class="close">&times;</a>')
+				.slideDown();
+		}
+>>>>>>> upstream/master
 	     else jQuery('.flash').hide();
 	     try {
 		 if (json.error) {
 		     window.location.href=json.redirect;
 		 } else {
+<<<<<<< HEAD
 		     // mark the breakpoint if ok=True
 		     // remove mark if ok=False
 		     // do nothing if ok = null  
+=======
+             if (json.ok==true && window.mirror) {
+    		     // mark the breakpoint if ok=True
+ 		         editor.setMarker(json.lineno-1, 
+ 		                         "<span style='color: red'>●</span> %N%")
+ 		     } else if (json.ok==false && window.mirror) {
+    		     // remove mark if ok=False
+ 		         editor.setMarker(json.lineno-1, "%N%")
+ 		     } else {
+    		     // do nothing if ok = null  
+    		 }
+>>>>>>> upstream/master
 		     // alert(json.ok + json.lineno);
 		 }
 	     } catch(e) { on_error(); }
@@ -188,6 +230,43 @@ function doToggleBreakpoint(filename, url) {
 	return false;
 }
 
+// on load, update all breakpoints markers:
+function doListBreakpoints(filename, url) {
+    var dataForPost = prepareMultiPartPOST(new Array(
+	    prepareDataForSave('filename', filename)
+        ));
+     jQuery.ajax({
+	  type: "POST",
+	  contentType: 'multipart/form-data;boundary="'+dataForPost[1]+'"',
+	  url: url,
+	  dataType: "json",
+	  data: dataForPost[0],
+	  timeout: 5000,
+      beforeSend: function(xhr) {
+	  xhr.setRequestHeader('web2py-component-location',
+			       document.location);
+	  xhr.setRequestHeader('web2py-component-element',
+			       'doListBreakpoints');},
+	  success: function(json,text,xhr){
+	     try {
+		     if (json.error) {
+		         window.location.href=json.redirect;
+		     } else {
+                 if (window.mirror) {
+                     for (i in json.breakpoints) {
+                         lineno = json.breakpoints[i];
+            		     // mark the breakpoint if ok=True
+         		         editor.setMarker(lineno-1, 
+         		                         "<span style='color: red'>●</span> %N%");
+         		     }
+        		 }
+		     }
+	     } catch(e) { on_error(); }
+      },
+      error: function(json) { on_error(); }
+	});
+	return false;
+}
 
 function keepalive(url) {
 	jQuery.ajax({

@@ -23,6 +23,10 @@ Typical usage:
 """
 
 from __future__ import with_statement
+<<<<<<< HEAD
+=======
+from gluon import current
+>>>>>>> upstream/master
 from gluon.storage import Storage
 from optparse import OptionParser
 import cPickle
@@ -93,12 +97,19 @@ class SessionSetDb(SessionSet):
     def get(self):
         """Return list of SessionDb instances for existing sessions."""
         sessions = []
+<<<<<<< HEAD
         tablename = 'web2py_session'
         from gluon import current
         (record_id_name, table, record_id, unique_key) = \
             current.response._dbtable_and_field
         for row in table._db(table.id > 0).select():
             sessions.append(SessionDb(row))
+=======
+        table = current.response.session_db_table
+        if table:
+            for row in table._db(table.id > 0).select():
+                sessions.append(SessionDb(row))
+>>>>>>> upstream/master
         return sessions
 
 
@@ -121,9 +132,13 @@ class SessionDb(object):
         self.row = row
 
     def delete(self):
+<<<<<<< HEAD
         from gluon import current
         (record_id_name, table, record_id, unique_key) = \
             current.response._dbtable_and_field
+=======
+        table = current.response.session_db_table
+>>>>>>> upstream/master
         self.row.delete_record()
         table._db.commit()
 
@@ -162,7 +177,7 @@ class SessionFile(object):
 
     def last_visit_default(self):
         return datetime.datetime.fromtimestamp(
-                os.stat(self.filename)[stat.ST_MTIME])
+            os.stat(self.filename)[stat.ST_MTIME])
 
     def __str__(self):
         return self.filename
@@ -175,7 +190,7 @@ def total_seconds(delta):
     Args:
         delta: datetime.timedelta instance.
     """
-    return (delta.microseconds + (delta.seconds + (delta.days * 24 * 3600)) * \
+    return (delta.microseconds + (delta.seconds + (delta.days * 24 * 3600)) *
             10 ** 6) / 10 ** 6
 
 
@@ -186,25 +201,25 @@ def main():
     parser = OptionParser(usage=usage)
 
     parser.add_option('-f', '--force',
-        action='store_true', dest='force', default=False,
-        help=('Ignore session expiration. '
-            'Force expiry based on -x option or auth.settings.expiration.')
-        )
+                      action='store_true', dest='force', default=False,
+                      help=('Ignore session expiration. '
+                            'Force expiry based on -x option or auth.settings.expiration.')
+                      )
     parser.add_option('-o', '--once',
-        action='store_true', dest='once', default=False,
-        help='Delete sessions, then exit.',
-        )
+                      action='store_true', dest='once', default=False,
+                      help='Delete sessions, then exit.',
+                      )
     parser.add_option('-s', '--sleep',
-        dest='sleep', default=SLEEP_MINUTES * 60, type="int",
-        help='Number of seconds to sleep between executions. Default 300.',
-        )
+                      dest='sleep', default=SLEEP_MINUTES * 60, type="int",
+                      help='Number of seconds to sleep between executions. Default 300.',
+                      )
     parser.add_option('-v', '--verbose',
-        default=0, action='count',
-        help="print verbose output, a second -v increases verbosity")
+                      default=0, action='count',
+                      help="print verbose output, a second -v increases verbosity")
     parser.add_option('-x', '--expiration',
-        dest='expiration', default=None, type="int",
-        help='Expiration value for sessions without expiration (in seconds)',
-        )
+                      dest='expiration', default=None, type="int",
+                      help='Expiration value for sessions without expiration (in seconds)',
+                      )
 
     (options, unused_args) = parser.parse_args()
 

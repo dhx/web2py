@@ -5,6 +5,10 @@ try:
 except:
     tkMessageBox = None
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> upstream/master
 class MessageBoxHandler(logging.Handler):
     def __init__(self):
         logging.Handler.__init__(self)
@@ -13,5 +17,8 @@ class MessageBoxHandler(logging.Handler):
         if tkMessageBox:
             msg = self.format(record)
             tkMessageBox.showinfo('info1', msg)
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> upstream/master

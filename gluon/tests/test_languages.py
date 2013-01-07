@@ -49,11 +49,12 @@ try:
 
         def test_reads_and_writes(self):
             readwriters = 10
-            pool = multiprocessing.Pool(processes = readwriters)
+            pool = multiprocessing.Pool(processes=readwriters)
             results = pool.map(read_write, [[self.filename, 10]] * readwriters)
             for result in results:
                 self.assertTrue(result)
 
+<<<<<<< HEAD
 
     class TestTranslations(unittest.TestCase):
 
@@ -66,12 +67,27 @@ try:
             self.request.env = Storage()
             self.request.env.http_accept_language = 'en'
 
+=======
+    class TestTranslations(unittest.TestCase):
+
+        def setUp(self):
+            if os.path.isdir('gluon'):
+                self.langpath = 'applications/welcome/languages'
+            else:
+                self.langpath = os.path.realpath(
+                    '../../applications/welcome/languages')
+            self.http_accept_language = 'en'
+>>>>>>> upstream/master
 
         def tearDown(self):
             pass
 
         def test_plain(self):
+<<<<<<< HEAD
             T = languages.translator(self.request)
+=======
+            T = languages.translator(self.langpath, self.http_accept_language)
+>>>>>>> upstream/master
             self.assertEqual(str(T('Hello World')),
                              'Hello World')
             self.assertEqual(str(T('Hello World## comment')),

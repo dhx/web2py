@@ -64,7 +64,11 @@ def new(key, mode=MODE_CBC, IV=None):
         return ECBMode(AES(key))
     elif mode == MODE_CBC:
         if IV is None:
+<<<<<<< HEAD
             raise ValueError, "CBC mode needs an IV value!"
+=======
+            raise ValueError("CBC mode needs an IV value!")
+>>>>>>> upstream/master
 
         return CBCMode(AES(key), IV)
     else:
@@ -91,7 +95,11 @@ class AES(object):
         elif self.key_size == 32:
             self.rounds = 14
         else:
+<<<<<<< HEAD
             raise ValueError, "Key length must be 16, 24 or 32 bytes"
+=======
+            raise ValueError("Key length must be 16, 24 or 32 bytes")
+>>>>>>> upstream/master
 
         self.expand_key()
 
@@ -313,7 +321,11 @@ class ECBMode(object):
         """Perform ECB mode with the given function"""
 
         if len(data) % self.block_size != 0:
+<<<<<<< HEAD
             raise ValueError, "Plaintext length must be multiple of 16"
+=======
+            raise ValueError("Plaintext length must be multiple of 16")
+>>>>>>> upstream/master
 
         block_size = self.block_size
         data = array('B', data)
@@ -357,7 +369,11 @@ class CBCMode(object):
 
         block_size = self.block_size
         if len(data) % block_size != 0:
+<<<<<<< HEAD
             raise ValueError, "Plaintext length must be multiple of 16"
+=======
+            raise ValueError("Plaintext length must be multiple of 16")
+>>>>>>> upstream/master
 
         data = array('B', data)
         IV = self.IV
@@ -381,7 +397,11 @@ class CBCMode(object):
 
         block_size = self.block_size
         if len(data) % block_size != 0:
+<<<<<<< HEAD
             raise ValueError, "Ciphertext length must be multiple of 16"
+=======
+            raise ValueError("Ciphertext length must be multiple of 16")
+>>>>>>> upstream/master
 
         data = array('B', data)
         IV = self.IV
@@ -500,5 +520,8 @@ aes_Rcon = array('B',
     'c697356ad4b37dfaefc5913972e4d3bd'
     '61c29f254a943366cc831d3a74e8cb'.decode('hex')
 )
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> upstream/master

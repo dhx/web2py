@@ -7,6 +7,10 @@
 import os
 import gzip
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> upstream/master
 def zip_static(filelist=[]):
     tsave = 0
     for fi in filelist:
@@ -24,17 +28,30 @@ def zip_static(filelist=[]):
             if zatime == atime and zmtime == mtime:
                 print 'skipping %s, already gzipped to the latest version' % os.path.basename(fi)
                 continue
+<<<<<<< HEAD
         print 'gzipping %s to %s' % (os.path.basename(fi), os.path.basename(gfi))
+=======
+        print 'gzipping %s to %s' % (
+            os.path.basename(fi), os.path.basename(gfi))
+>>>>>>> upstream/master
         f_in = open(fi, 'rb')
         f_out = gzip.open(gfi, 'wb')
         f_out.writelines(f_in)
         f_out.close()
         f_in.close()
+<<<<<<< HEAD
         os.utime(gfi, (atime,mtime))
         saved = fstats.st_size - os.stat(gfi).st_size
         tsave+= saved
 
     print 'saved %s KB' % (int(tsave)/1000.0)
+=======
+        os.utime(gfi, (atime, mtime))
+        saved = fstats.st_size - os.stat(gfi).st_size
+        tsave += saved
+
+    print 'saved %s KB' % (int(tsave) / 1000.0)
+>>>>>>> upstream/master
 
 if __name__ == '__main__':
     ALLOWED_EXTS = ['.css', '.js']

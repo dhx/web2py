@@ -46,13 +46,21 @@ class CacheAbstract(object):
     Main function is now to provide referenced api documentation.
 
     Use CacheInRam or CacheOnDisk instead which are derived from this class.
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> upstream/master
     Attentions, Michele says:
 
     There are signatures inside gdbm files that are used directly
     by the python gdbm adapter that often are lagging behind in the
     detection code in python part.
+<<<<<<< HEAD
     On every occasion that a gdbm store is probed by the python adapter, 
+=======
+    On every occasion that a gdbm store is probed by the python adapter,
+>>>>>>> upstream/master
     the probe fails, because gdbm file version is newer.
     Using gdbm directly from C would work, because there is backward
     compatibility, but not from python!
@@ -73,7 +81,7 @@ class CacheAbstract(object):
         raise NotImplementedError
 
     def __call__(self, key, f,
-                time_expire = DEFAULT_TIME_EXPIRE):
+                 time_expire=DEFAULT_TIME_EXPIRE):
         """
         Tries retrieve the value corresponding to `key` from the cache of the
         object exists and if it did not expire, else it called the function `f`
@@ -130,6 +138,7 @@ class CacheAbstract(object):
             if r.match(str(key)):
                 del storage[key]
 
+
 class CacheInRam(CacheAbstract):
     """
     Ram based caching
@@ -145,10 +154,20 @@ class CacheInRam(CacheAbstract):
     def __init__(self, request=None):
         self.initialized = False
         self.request = request
+<<<<<<< HEAD
 
     def initialize(self):
         if self.initialized: return
         else: self.initialized = True
+=======
+        self.storage = {}
+
+    def initialize(self):
+        if self.initialized:
+            return
+        else:
+            self.initialized = True
+>>>>>>> upstream/master
         self.locker.acquire()
         request = self.request
         if request:
@@ -172,13 +191,18 @@ class CacheInRam(CacheAbstract):
             self._clear(storage, regex)
 
         if not CacheAbstract.cache_stats_name in storage.keys():
+<<<<<<< HEAD
             storage[CacheAbstract.cache_stats_name] = {'hit_total': 0,'misses': 0}
+=======
+            storage[CacheAbstract.cache_stats_name] = {
+                'hit_total': 0, 'misses': 0}
+>>>>>>> upstream/master
 
         self.locker.release()
 
     def __call__(self, key, f,
-                 time_expire = DEFAULT_TIME_EXPIRE,
-                 destroyer = None):
+                 time_expire=DEFAULT_TIME_EXPIRE,
+                 destroyer=None):
         """
         Attention! cache.ram does not copy the cached object. It just stores a reference to it.
         Turns out the deepcopying the object has some problems:
@@ -258,7 +282,11 @@ class CacheOnDisk(CacheAbstract):
         on self.locker first. Replaces the close method of the
         returned shelf instance with one that releases the lock upon
         closing."""
+<<<<<<< HEAD
         
+=======
+
+>>>>>>> upstream/master
         storage = None
         locker = None
         locked = False
@@ -269,14 +297,24 @@ class CacheOnDisk(CacheAbstract):
             try:
                 storage = shelve.open(self.shelve_name)
             except:
+<<<<<<< HEAD
                 logger.error('corrupted cache file %s, will try rebuild it' \
                                  % (self.shelve_name))
+=======
+                logger.error('corrupted cache file %s, will try rebuild it'
+                             % (self.shelve_name))
+>>>>>>> upstream/master
                 storage = None
             if not storage and os.path.exists(self.shelve_name):
                 os.unlink(self.shelve_name)
                 storage = shelve.open(self.shelve_name)
             if not CacheAbstract.cache_stats_name in storage.keys():
+<<<<<<< HEAD
                 storage[CacheAbstract.cache_stats_name] = {'hit_total':0, 'misses': 0}
+=======
+                storage[CacheAbstract.cache_stats_name] = {
+                    'hit_total': 0, 'misses': 0}
+>>>>>>> upstream/master
             storage.sync()
         except Exception, e:
             if storage:
@@ -286,7 +324,12 @@ class CacheOnDisk(CacheAbstract):
                 portalocker.unlock(locker)
                 locker.close()
             locked = False
+<<<<<<< HEAD
             raise RuntimeError, 'unable to create/re-create cache file %s' % self.shelve_name
+=======
+            raise RuntimeError(
+                'unable to create/re-create cache file %s' % self.shelve_name)
+>>>>>>> upstream/master
         self.locker = locker
         self.locked = locked
         self.storage = storage
@@ -296,10 +339,20 @@ class CacheOnDisk(CacheAbstract):
         self.initialized = False
         self.request = request
         self.folder = folder
+<<<<<<< HEAD
  
     def initialize(self):
         if self.initialized: return
         else: self.initialized = True
+=======
+        self.storage = {}
+
+    def initialize(self):
+        if self.initialized:
+            return
+        else:
+            self.initialized = True
+>>>>>>> upstream/master
         folder = self.folder
         request = self.request
 
@@ -312,8 +365,13 @@ class CacheOnDisk(CacheAbstract):
 
         ### we need this because of a possible bug in shelve that may
         ### or may not lock
+<<<<<<< HEAD
         self.locker_name = os.path.join(folder,'cache.lock')
         self.shelve_name = os.path.join(folder,'cache.shelve')
+=======
+        self.locker_name = os.path.join(folder, 'cache.lock')
+        self.shelve_name = os.path.join(folder, 'cache.shelve')
+>>>>>>> upstream/master
 
     def clear(self, regex=None):
         self.initialize()
@@ -328,7 +386,11 @@ class CacheOnDisk(CacheAbstract):
             self._close_shelve_and_unlock()
 
     def __call__(self, key, f,
+<<<<<<< HEAD
                 time_expire = DEFAULT_TIME_EXPIRE):
+=======
+                 time_expire=DEFAULT_TIME_EXPIRE):
+>>>>>>> upstream/master
         self.initialize()
         dt = time_expire
         storage = self._open_shelve_and_lock()
@@ -346,7 +408,11 @@ class CacheOnDisk(CacheAbstract):
             else:
                 value = f()
                 storage[key] = (now, value)
+<<<<<<< HEAD
                 storage[CacheAbstract.cache_stats_name]['misses']+=1
+=======
+                storage[CacheAbstract.cache_stats_name]['misses'] += 1
+>>>>>>> upstream/master
                 storage.sync()
         finally:
             self._close_shelve_and_unlock()
@@ -388,6 +454,30 @@ class CacheAction(object):
                            self.time_expire)
 
 
+class CacheAction(object):
+    def __init__(self, func, key, time_expire, cache, cache_model):
+        self.__name__ = func.__name__
+        self.__doc__ = func.__doc__
+        self.func = func
+        self.key = key
+        self.time_expire = time_expire
+        self.cache = cache
+        self.cache_model = cache_model
+
+    def __call__(self, *a, **b):
+        if not self.key:
+            key2 = self.__name__ + ':' + repr(a) + ':' + repr(b)
+        else:
+            key2 = self.key.replace('%(name)s', self.__name__)\
+                .replace('%(args)s', str(a)).replace('%(vars)s', str(b))
+        cache_model = self.cache_model
+        if not cache_model or isinstance(cache_model, str):
+            cache_model = getattr(self.cache, cache_model or 'ram')
+        return cache_model(key2,
+                           lambda a=a, b=b: self.func(*a, **b),
+                           self.time_expire)
+
+
 class Cache(object):
     """
     Sets up generic caching, creating an instance of both CacheInRam and
@@ -424,9 +514,9 @@ class Cache(object):
                 logger.warning('no cache.disk (AttributeError)')
 
     def __call__(self,
-                 key = None,
-                 time_expire = DEFAULT_TIME_EXPIRE,
-                 cache_model = None):
+                 key=None,
+                 time_expire=DEFAULT_TIME_EXPIRE,
+                 cache_model=None):
         """
         Decorator function that can be used to cache any function/method.
 
@@ -459,8 +549,13 @@ class Cache(object):
         `request.env.path_info` as key.
         """
 
+<<<<<<< HEAD
         def tmp(func,cache=self,cache_model=cache_model):
             return CacheAction(func,key,time_expire,self,cache_model)
+=======
+        def tmp(func, cache=self, cache_model=cache_model):
+            return CacheAction(func, key, time_expire, self, cache_model)
+>>>>>>> upstream/master
         return tmp
 
     @staticmethod
@@ -468,10 +563,16 @@ class Cache(object):
         """
         allow replacing cache.ram with cache.with_prefix(cache.ram,'prefix')
         it will add prefix to all the cache keys used.
+<<<<<<< HEAD
         """        
         return lambda key, f, time_expire=DEFAULT_TIME_EXPIRE, prefix=prefix:\
             cache_model(prefix + key, f, time_expire)
 
+=======
+        """
+        return lambda key, f, time_expire=DEFAULT_TIME_EXPIRE, prefix=prefix:\
+            cache_model(prefix + key, f, time_expire)
+>>>>>>> upstream/master
 
 def lazy_cache(key=None,time_expire=None,cache_model='ram'):
     """
@@ -490,5 +591,20 @@ def lazy_cache(key=None,time_expire=None,cache_model='ram'):
         return g
     return decorator
 
+def lazy_cache(key=None, time_expire=None, cache_model='ram'):
+    """
+    can be used to cache any function including in modules,
+    as long as the cached function is only called within a web2py request
+    if a key is not provided, one is generated from the function name
+    the time_expire defaults to None (no cache expiration)
+    if cache_model is "ram" then the model is current.cache.ram, etc.
+    """
+    def decorator(f, key=key, time_expire=time_expire, cache_model=cache_model):
+        key = key or repr(f)
 
-
+        def g(*c, **d):
+            from gluon import current
+            return current.cache(key, time_expire, cache_model)(f)(*c, **d)
+        g.__name__ = f.__name__
+        return g
+    return decorator

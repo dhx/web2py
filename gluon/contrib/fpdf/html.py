@@ -26,8 +26,14 @@ def hex2dec(color = "#000000"):
 class HTML2FPDF(HTMLParser):
     "Render basic HTML to FPDF"
 
+<<<<<<< HEAD:gluon/contrib/fpdf/html.py
     def __init__(self, pdf):
         HTMLParser.__init__(self)
+=======
+    def __init__(self, pdf, image_map = None):
+        HTMLParser.__init__(self)
+        self.image_map = image_map or (lambda src: src)
+>>>>>>> upstream/master:gluon/contrib/fpdf/html.py
         self.style = {}
         self.pre = False
         self.href = ''
@@ -389,9 +395,15 @@ class HTML2FPDF(HTMLParser):
         self.pdf.ln(3)
 
 class HTMLMixin(object):
+<<<<<<< HEAD:gluon/contrib/fpdf/html.py
     def write_html(self, text):
         "Parse HTML and convert it to PDF"
         h2p = HTML2FPDF(self)
+=======
+    def write_html(self, text, image_map=None):
+        "Parse HTML and convert it to PDF"
+        h2p = HTML2FPDF(self, image_map)
+>>>>>>> upstream/master:gluon/contrib/fpdf/html.py
         h2p.feed(text)
 
 

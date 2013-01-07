@@ -7,18 +7,29 @@ function delkey(id) {
   return false;
 }
 function hideShowTranslated(){
+<<<<<<< HEAD
 	jQuery(".translated").closest("p").toggle();
+=======
+	jQuery(".translated").closest("div.row-fluid").toggle();
+>>>>>>> upstream/master
 }
 </script>
 
 {{block sectionclass}}edit_language{{end}}
-
+<!-- begin "edit_language" block -->
 <h2>{{=T('Editing Language file')}} "{{=filename}}"</h2>
+<<<<<<< HEAD
 <a class="button" href="#" onclick="hideShowTranslated(this);">
 <span>{{=T('Hide/Show Translated strings')}}</span>
 </a>
+=======
+<div class="controls">
+<a class="button btn" href="#" onclick="hideShowTranslated(this);">
+<span>{{=T('Hide/Show Translated strings')}}</span>
+</a>
+</div>
+>>>>>>> upstream/master
 <div class="languageform">
   {{=form}}
 </div>
-
-
+<!-- end "edit_language" block -->

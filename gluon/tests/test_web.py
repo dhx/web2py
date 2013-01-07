@@ -13,6 +13,10 @@ else:
 import unittest
 from contrib.webclient import WebClient
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> upstream/master
 class TestWeb(unittest.TestCase):
     def testWebClient(self):
         client = WebClient('http://127.0.0.1:8000/welcome/default/')
@@ -20,6 +24,7 @@ class TestWeb(unittest.TestCase):
         client.get('index')
 
         # register
+<<<<<<< HEAD
         data = dict(first_name = 'Homer',
                     last_name = 'Simpson',
                     email = 'homer@web2py.com',
@@ -27,6 +32,15 @@ class TestWeb(unittest.TestCase):
                     password_two = 'test',
                     _formname = 'register')
         client.post('user/register',data = data)
+=======
+        data = dict(first_name='Homer',
+                    last_name='Simpson',
+                    email='homer@web2py.com',
+                    password='test',
+                    password_two='test',
+                    _formname='register')
+        client.post('user/register', data=data)
+>>>>>>> upstream/master
 
         # logout
         client.get('user/logout')
@@ -34,6 +48,7 @@ class TestWeb(unittest.TestCase):
         # login again
         data = dict(email='homer@web2py.com',
                     password='test',
+<<<<<<< HEAD
                     _formname = 'login')
         client.post('user/login',data = data)
 
@@ -49,6 +64,25 @@ class TestWeb(unittest.TestCase):
 class TestStaticCacheControl(unittest.TestCase):
     def testWebClient(self):
         s=WebClient('http://127.0.0.1:8000/welcome/')
+=======
+                    _formname='login')
+        client.post('user/login', data=data)
+
+        # check registration and login were successful
+        client.get('index')
+        print client.text
+        self.assertTrue('Welcome Homer' in client.text)
+
+        client = WebClient('http://127.0.0.1:8000/admin/default/')
+        client.post('index', data=dict(password='hello'))
+        client.get('site')
+        client.get('design/welcome')
+
+
+class TestStaticCacheControl(unittest.TestCase):
+    def testWebClient(self):
+        s = WebClient('http://127.0.0.1:8000/welcome/')
+>>>>>>> upstream/master
         s.get('static/js/web2py.js')
         assert('expires' not in s.headers)
         assert(not s.headers['cache-control'].startswith('max-age'))
@@ -60,4 +94,7 @@ class TestStaticCacheControl(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+<<<<<<< HEAD
 
+=======
+>>>>>>> upstream/master

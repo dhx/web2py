@@ -9,4 +9,7 @@ from fpdf import *
 
 # import warnings
 # warnings.warn("pyfpdf package name is deprecated, please use fpdf instead")
+<<<<<<< HEAD
 
+=======
+>>>>>>> upstream/master

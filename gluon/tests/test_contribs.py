@@ -22,13 +22,22 @@ class TestContribs(unittest.TestCase):
     def test_fpdf(self):
         """ Basic PDF test and sanity checks """
 
+<<<<<<< HEAD
         self.assertEqual(fpdf.FPDF_VERSION, pyfpdf.FPDF_VERSION, 'version mistmatch')
+=======
+        self.assertEqual(
+            fpdf.FPDF_VERSION, pyfpdf.FPDF_VERSION, 'version mistmatch')
+>>>>>>> upstream/master
         self.assertEqual(fpdf.FPDF, pyfpdf.FPDF, 'class mistmatch')
 
         pdf = fpdf.FPDF()
         pdf.add_page()
         pdf.compress = False
+<<<<<<< HEAD
         pdf.set_font('Arial', '',14)
+=======
+        pdf.set_font('Arial', '', 14)
+>>>>>>> upstream/master
         pdf.ln(10)
         pdf.write(5, 'hello world')
         pdf_out = pdf.output('', 'S')
@@ -39,4 +48,7 @@ class TestContribs(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+<<<<<<< HEAD
 
+=======
+>>>>>>> upstream/master

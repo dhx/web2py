@@ -34,7 +34,7 @@ from mod_python import apache
 
 path = os.path.dirname(os.path.abspath(__file__))
 os.chdir(path)
-sys.path = [path]+[p for p in sys.path if not p==path]
+sys.path = [path] + [p for p in sys.path if not p == path]
 
 import gluon.main
 
@@ -222,8 +222,11 @@ def handler(req):
 
     Handler(req).run(gluon.main.wsgibase)
     return apache.OK
+<<<<<<< HEAD
 
 
 
 
 
+=======
+>>>>>>> upstream/master

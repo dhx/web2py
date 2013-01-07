@@ -89,8 +89,13 @@
 #         domains = None,
 #         map_hyphen = False,
 #         acfe_match = r'\w+$',                 # legal app/ctlr/fcn/ext
+<<<<<<< HEAD
 #         file_match = r'([-+=@$%\w]+[./]?)+$', # legal static subpath
 #         args_match = r'([\w@ -]+[=.]?)+$',    # legal arg in args
+=======
+#         file_match = r'([-+=@$%\w]|(?<=[-+=@$%\w])[./])*$',   # legal static subpath
+#         args_match = r'([\w@ -]|(?<=[\w@ -])[.=])*$',         # legal arg in args
+>>>>>>> upstream/master
 #     )
 #
 #  See rewrite.map_url_in() and rewrite.map_url_out() for implementation details.
@@ -102,8 +107,8 @@
 routers = dict(
 
     # base router
-    BASE = dict(
-        default_application = 'welcome',
+    BASE=dict(
+        default_application='welcome',
     ),
 )
 
@@ -144,6 +149,7 @@ logging = 'debug'
 
 # error_message = '<html><body><h1>%s</h1></body></html>'
 # error_message_ticket = '<html><body><h1>Internal error</h1>Ticket issued: <a href="/admin/default/ticket/%(ticket)s" target="_blank">%(ticket)s</a></body></html>'
+
 
 def __routes_doctest():
     '''
@@ -209,8 +215,11 @@ def __routes_doctest():
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+<<<<<<< HEAD
 
 
 
 
 
+=======
+>>>>>>> upstream/master
