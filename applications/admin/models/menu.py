@@ -14,11 +14,7 @@ if request.vars.app or request.args:
     response.menu.append((T('Edit'), _c == 'default' and _f == 'design',
                          URL(_a, 'default', 'design', args=_t)))
     response.menu.append((T('About'), _c == 'default' and _f == 'about',
-<<<<<<< HEAD
-                         URL(_a,'default','about',args=_t,)))
-=======
                          URL(_a, 'default', 'about', args=_t,)))
->>>>>>> upstream/master
     response.menu.append((T('Errors'), _c == 'default' and _f == 'errors',
                          URL(_a, 'default', 'errors', args=_t)))
     response.menu.append((T('Versioning'),

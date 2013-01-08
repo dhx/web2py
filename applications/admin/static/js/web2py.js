@@ -50,8 +50,6 @@ function web2py_event_handlers() {
       window.location = redirect;
     };
   });
-<<<<<<< HEAD
-=======
   doc.ajaxError(function(e, xhr, settings, exception) {
     doc.off('click', '.flash')
       switch(xhr.status){
@@ -59,17 +57,12 @@ function web2py_event_handlers() {
           $('.flash').html(ajax_error_500).slideDown(); 
       }
   });
->>>>>>> upstream/master
 };
 
 jQuery(function() {
    var flash = jQuery('.flash');
    flash.hide();
-<<<<<<< HEAD
-   if(flash.html()) flash.append('<span style="float:right;">&times;</span>').slideDown();
-=======
    if(flash.html()) flash.append('<span id="closeflash">&times;</span>').slideDown();
->>>>>>> upstream/master
    web2py_ajax_init(document);
    web2py_event_handlers();
 });
@@ -116,29 +109,20 @@ function web2py_ajax_page(method, action, data, target) {
       web2py_ajax_init('#'+target);
       if(command)
           eval(decodeURIComponent(command));
-<<<<<<< HEAD
-      if(flash)
-          jQuery('.flash').html(decodeURIComponent(flash)).slideDown();
-=======
       if(flash) {
           jQuery('.flash')
                 .html(decodeURIComponent(flash))
                 .append('<span id="closeflash">&times;</span>')
                 .slideDown();
         }
->>>>>>> upstream/master
     }
   });
 }
 
 function web2py_component(action, target, timeout, times){
   jQuery(function(){
-<<<<<<< HEAD
-    var element = jQuery("#" + target).get(0);
-=======
     var jelement = jQuery("#" + target);
     var element = jelement.get(0);
->>>>>>> upstream/master
     var statement = "jQuery('#" + target + "').get(0).reload();";
     element.reload = function (){
         // Continue if times is Infinity or

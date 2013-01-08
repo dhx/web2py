@@ -25,26 +25,16 @@ import newcron
 import getpass
 import main
 
-<<<<<<< HEAD
-from fileutils import w2p_pack, read_file, write_file
-from settings import global_settings
-from shell import run, test
-=======
 from fileutils import w2p_pack, read_file, write_file, create_welcome_w2p
 from settings import global_settings
 from shell import run, test
 from utils import is_valid_ip_address, is_loopback_ip_address
->>>>>>> upstream/master
 
 try:
     import Tkinter
     import tkMessageBox
     import contrib.taskbar_widget
-<<<<<<< HEAD
-    from winservice import web2py_windows_service_handler
-=======
     from winservice import register_service_handler, Web2pyService
->>>>>>> upstream/master
     have_winservice = True
 except:
     have_winservice = False
@@ -56,12 +46,8 @@ except NameError:
     BaseException = Exception
 
 ProgramName = 'web2py Web Framework'
-<<<<<<< HEAD
-ProgramAuthor = 'Created by Massimo Di Pierro, Copyright 2007-' + str(datetime.datetime.now().year)
-=======
 ProgramAuthor = 'Created by Massimo Di Pierro, Copyright 2007-' + str(
     datetime.datetime.now().year)
->>>>>>> upstream/master
 ProgramVersion = read_file('VERSION').strip()
 
 ProgramInfo = '''%s
@@ -75,10 +61,7 @@ if not sys.version[:3] in ['2.4', '2.5', '2.6', '2.7']:
 
 logger = logging.getLogger("web2py")
 
-<<<<<<< HEAD
-=======
 
->>>>>>> upstream/master
 def run_system_tests():
     major_version = sys.version_info[0]
     minor_version = sys.version_info[1]
@@ -98,10 +81,7 @@ def run_system_tests():
         ret = 256
     sys.exit(ret and 1)
 
-<<<<<<< HEAD
-=======
 
->>>>>>> upstream/master
 class IO(object):
     """   """
 
@@ -148,18 +128,6 @@ def start_browser(url, startup=False):
         print 'warning: unable to detect your browser'
 
 
-<<<<<<< HEAD
-def start_browser(proto, ip, port):
-    """ Starts the default browser """
-    print 'please visit:'
-    url = '%s://%s:%s' % (proto, ip, port)
-    print '\t', url
-    print 'starting browser...'
-    try_start_browser(url)
-
-
-=======
->>>>>>> upstream/master
 def presentation(root):
     """ Draw the splash screen """
 
@@ -277,19 +245,6 @@ class web2pyDialog(object):
                                                  sticky=sticky)
         self.ips = {}
         self.selected_ip = Tkinter.StringVar()
-<<<<<<< HEAD
-        row=0
-        ips = [('127.0.0.1','Local')] + \
-            [(ip,'Public') for ip in options.ips] + \
-            [('0.0.0.0','Public')]
-        for ip,legend in ips:
-            self.ips[ip] = Tkinter.Radiobutton(
-                self.root,text='%s (%s)' % (legend,ip),
-                variable=self.selected_ip, value=ip)
-            self.ips[ip].grid(row=row, column=1, sticky=sticky)
-            if row==0: self.ips[ip].select()
-            row+=1
-=======
         row = 0
         ips = [('127.0.0.1', 'Local (IPv4)')] + \
             ([('::1', 'Local (IPv6)')] if socket.has_ipv6 else []) + \
@@ -303,7 +258,6 @@ class web2pyDialog(object):
             if row == 0:
                 self.ips[ip].select()
             row += 1
->>>>>>> upstream/master
         shift = row
         # Port
         Tkinter.Label(self.root,
@@ -319,42 +273,26 @@ class web2pyDialog(object):
         # Password
         Tkinter.Label(self.root,
                       text='Choose Password:',
-<<<<<<< HEAD
-                      justify=Tkinter.LEFT).grid(row=shift+1,
-=======
                       justify=Tkinter.LEFT).grid(row=shift + 1,
->>>>>>> upstream/master
                                                  column=0,
                                                  sticky=sticky)
 
         self.password = Tkinter.Entry(self.root, show='*')
         self.password.bind('<Return>', lambda e: self.start())
         self.password.focus_force()
-<<<<<<< HEAD
-        self.password.grid(row=shift+1, column=1, sticky=sticky)
-=======
         self.password.grid(row=shift + 1, column=1, sticky=sticky)
->>>>>>> upstream/master
 
         # Prepare the canvas
         self.canvas = Tkinter.Canvas(self.root,
                                      width=300,
                                      height=100,
                                      bg='black')
-<<<<<<< HEAD
-        self.canvas.grid(row=shift+2, column=0, columnspan=2)
-=======
         self.canvas.grid(row=shift + 2, column=0, columnspan=2)
->>>>>>> upstream/master
         self.canvas.after(1000, self.update_canvas)
 
         # Prepare the frame
         frame = Tkinter.Frame(self.root)
-<<<<<<< HEAD
-        frame.grid(row=shift+3, column=0, columnspan=2)
-=======
         frame.grid(row=shift + 3, column=0, columnspan=2)
->>>>>>> upstream/master
 
         # Start button
         self.button_start = Tkinter.Button(frame,
@@ -387,20 +325,12 @@ class web2pyDialog(object):
         apps = []
         available_apps = [arq for arq in os.listdir('applications/')]
         available_apps = [arq for arq in available_apps
-<<<<<<< HEAD
-            if os.path.exists('applications/%s/models/scheduler.py' % arq)]
-=======
                           if os.path.exists('applications/%s/models/scheduler.py' % arq)]
->>>>>>> upstream/master
         if start:
             #the widget takes care of starting the scheduler
             if self.options.scheduler and self.options.with_scheduler:
                 apps = [app.strip() for app in self.options.scheduler.split(',')
-<<<<<<< HEAD
-                            if app in available_apps]
-=======
                         if app in available_apps]
->>>>>>> upstream/master
         for app in apps:
             self.try_start_scheduler(app)
 
@@ -410,19 +340,11 @@ class web2pyDialog(object):
             if arq not in self.scheduler_processes:
                 item = lambda u = arq: self.try_start_scheduler(u)
                 self.schedmenu.add_command(label="start %s" % arq,
-<<<<<<< HEAD
-                                            command=item)
-            if arq in self.scheduler_processes:
-                item = lambda u = arq: self.try_stop_scheduler(u)
-                self.schedmenu.add_command(label="stop %s" % arq,
-                                            command=item)
-=======
                                            command=item)
             if arq in self.scheduler_processes:
                 item = lambda u = arq: self.try_stop_scheduler(u)
                 self.schedmenu.add_command(label="stop %s" % arq,
                                            command=item)
->>>>>>> upstream/master
 
     def start_schedulers(self, app):
         try:
@@ -432,21 +354,13 @@ class web2pyDialog(object):
             return
         code = "from gluon import current;current._scheduler.loop()"
         print 'starting scheduler from widget for "%s"...' % app
-<<<<<<< HEAD
-        args = (app,True,True,None,False,code)
-=======
         args = (app, True, True, None, False, code)
->>>>>>> upstream/master
         logging.getLogger().setLevel(self.options.debuglevel)
         p = Process(target=run, args=args)
         self.scheduler_processes[app] = p
         self.update_schedulers()
-<<<<<<< HEAD
-        print "Currently running %s scheduler processes" % (len(self.scheduler_processes))
-=======
         print "Currently running %s scheduler processes" % (
             len(self.scheduler_processes))
->>>>>>> upstream/master
         p.start()
         print "Processes started"
 
@@ -463,10 +377,6 @@ class web2pyDialog(object):
             t = threading.Thread(target=self.start_schedulers, args=(app,))
             t.start()
 
-<<<<<<< HEAD
-
-=======
->>>>>>> upstream/master
     def checkTaskBar(self):
         """ Check taskbar status """
 
@@ -506,16 +416,9 @@ class web2pyDialog(object):
                           if os.path.exists('applications/%s/__init__.py' % arq)]
         self.pagesmenu.delete(0, len(available_apps))
         for arq in available_apps:
-<<<<<<< HEAD
-            url = self.url + '/' + arq
-            start_browser = lambda u = url: try_start_browser(u)
-            self.pagesmenu.add_command(label=url,
-                                       command=start_browser)
-=======
             url = self.url + arq
             self.pagesmenu.add_command(label=url,
                                        command=lambda u=url: start_browser(u))
->>>>>>> upstream/master
 
     def quit(self, justHide=False):
         """ Finish the program execution """
@@ -569,11 +472,7 @@ class web2pyDialog(object):
         else:
             proto = 'http'
 
-<<<<<<< HEAD
-        self.url = '%s://%s:%s' % (proto, ip, port)
-=======
         self.url = get_url(ip, proto=proto, port=port)
->>>>>>> upstream/master
         self.connect_pages()
         self.button_start.configure(state='disabled')
 
@@ -610,13 +509,9 @@ class web2pyDialog(object):
         self.button_stop.configure(state='normal')
 
         if not options.taskbar:
-<<<<<<< HEAD
-            thread.start_new_thread(start_browser, (proto, ip, port))
-=======
             thread.start_new_thread(start_browser,
                                     (get_url(ip, proto=proto, port=port),),
                                     dict(startup=True))
->>>>>>> upstream/master
 
         self.password.configure(state='readonly')
         [ip.configure(state='disabled') for ip in self.ips.values()]
@@ -881,19 +776,11 @@ def console():
                       default='',
                       help=msg)
 
-<<<<<<< HEAD
-    msg = 'run scheduled tasks for the specified apps: expects a list of '
-    msg += 'app names as -K app1,app2,app3 '
-    msg += 'or a list of app:groups as -K app1:group1:group2,app2:group1 '
-    msg += 'to override specific group_names. (only strings, no spaces '
-    msg += 'allowed. Requires a scheduler defined in the models'
-=======
     msg = ('run scheduled tasks for the specified apps: expects a list of '
            'app names as -K app1,app2,app3 '
            'or a list of app:groups as -K app1:group1:group2,app2:group1 '
            'to override specific group_names. (only strings, no spaces '
            'allowed. Requires a scheduler defined in the models')
->>>>>>> upstream/master
     parser.add_option('-K',
                       '--scheduler',
                       dest='scheduler',
@@ -908,13 +795,8 @@ def console():
                       dest='with_scheduler',
                       help=msg)
 
-<<<<<<< HEAD
-    msg = 'run doctests in web2py environment; ' +\
-        'TEST_PATH like a/c/f (c,f optional)'
-=======
     msg = ('run doctests in web2py environment; '
            'TEST_PATH like a/c/f (c,f optional)')
->>>>>>> upstream/master
     parser.add_option('-T',
                       '--test',
                       dest='test',
@@ -1008,10 +890,6 @@ def console():
                       default=None,
                       help=msg)
 
-<<<<<<< HEAD
-
-=======
->>>>>>> upstream/master
     msg = 'runs web2py tests'
     parser.add_option('--run_system_tests',
                       action='store_true',
@@ -1019,12 +897,6 @@ def console():
                       default=False,
                       help=msg)
 
-<<<<<<< HEAD
-    if '-A' in sys.argv: k = sys.argv.index('-A')
-    elif '--args' in sys.argv: k = sys.argv.index('--args')
-    else: k=len(sys.argv)
-    sys.argv, other_args = sys.argv[:k], sys.argv[k+1:]
-=======
     if '-A' in sys.argv:
         k = sys.argv.index('-A')
     elif '--args' in sys.argv:
@@ -1032,22 +904,15 @@ def console():
     else:
         k = len(sys.argv)
     sys.argv, other_args = sys.argv[:k], sys.argv[k + 1:]
->>>>>>> upstream/master
     (options, args) = parser.parse_args()
     options.args = [options.run] + other_args
     global_settings.cmd_options = options
     global_settings.cmd_args = args
 
     try:
-<<<<<<< HEAD
-        options.ips = [
-            ip for ip in socket.gethostbyname_ex(socket.getfqdn())[2]
-            if ip!='127.0.0.1']
-=======
         options.ips = list(set([
             ip[4][0] for ip in socket.getaddrinfo(socket.getfqdn(), 0)
             if not is_loopback_ip_address(ip[4][0])]))
->>>>>>> upstream/master
     except socket.gaierror:
         options.ips = []
 
@@ -1066,10 +931,6 @@ def console():
 
     if options.cronjob:
         global_settings.cronjob = True  # tell the world
-<<<<<<< HEAD
-        options.run = False   # don't start cron jobs
-=======
->>>>>>> upstream/master
         options.plain = True    # cronjobs use a plain shell
         options.nobanner = True
         options.nogui = True
@@ -1105,17 +966,6 @@ def console():
             options.scheduler = ','.join([app[0] for app in scheduler])
             options.scheduler_groups = scheduler
 
-    #  accepts --scheduler in the form
-    #  "app:group1,group2,app2:group1"
-    scheduler = []
-    options.scheduler_groups = None
-    if isinstance(options.scheduler, str):
-        if ':' in options.scheduler:
-            for opt in options.scheduler.split(','):
-                scheduler.append(opt.split(':'))
-            options.scheduler = ','.join([app[0] for app in scheduler])
-            options.scheduler_groups = scheduler
-
     if options.numthreads is not None and options.minthreads is None:
         options.minthreads = options.numthreads  # legacy
 
@@ -1128,14 +978,6 @@ def console():
 
     return (options, args)
 
-<<<<<<< HEAD
-def check_existent_app(options,appname):
-    if os.path.isdir(os.path.join(options.folder, 'applications', appname)):
-        return True
-
-def get_code_for_scheduler(app, options):
-    if len(app) == 1 or app[1] == None:
-=======
 
 def check_existent_app(options, appname):
     if os.path.isdir(os.path.join(options.folder, 'applications', appname)):
@@ -1144,7 +986,6 @@ def check_existent_app(options, appname):
 
 def get_code_for_scheduler(app, options):
     if len(app) == 1 or app[1] is None:
->>>>>>> upstream/master
         code = "from gluon import current;current._scheduler.loop()"
     else:
         code = "from gluon import current;current._scheduler.group_names = ['%s'];"
@@ -1156,10 +997,7 @@ def get_code_for_scheduler(app, options):
         return None, None
     return app_, code
 
-<<<<<<< HEAD
-=======
 
->>>>>>> upstream/master
 def start_schedulers(options):
     try:
         from multiprocessing import Process
@@ -1177,22 +1015,14 @@ def start_schedulers(options):
         if not app_:
             return
         print 'starting single-scheduler for "%s"...' % app_
-<<<<<<< HEAD
-        run(app_,True,True,None,False,code)
-=======
         run(app_, True, True, None, False, code)
->>>>>>> upstream/master
         return
     for app in apps:
         app_, code = get_code_for_scheduler(app, options)
         if not app_:
             continue
         print 'starting scheduler for "%s"...' % app_
-<<<<<<< HEAD
-        args = (app_,True,True,None,False,code)
-=======
         args = (app_, True, True, None, False, code)
->>>>>>> upstream/master
         p = Process(target=run, args=args)
         processes.append(p)
         print "Currently running %s scheduler processes" % (len(processes))
@@ -1225,10 +1055,6 @@ def start(cron=True):
     from dal import DRIVERS
     if not options.nobanner:
         print 'Database drivers available: %s' % ', '.join(DRIVERS)
-<<<<<<< HEAD
-
-=======
->>>>>>> upstream/master
 
     # ## if -L load options from options.config file
     if options.config:
@@ -1244,13 +1070,6 @@ def start(cron=True):
         for key in dir(options2):
             if hasattr(options, key):
                 setattr(options, key, getattr(options2, key))
-
-    if False and not os.path.exists('logging.conf') and \
-            os.path.exists('logging.example.conf'):
-        import shutil
-        sys.stdout.write("Copying logging.conf.example to logging.conf ... ")
-        shutil.copyfile('logging.example.conf', 'logging.conf')
-        sys.stdout.write("OK\n")
 
     if False and not os.path.exists('logging.conf') and \
             os.path.exists('logging.example.conf'):
@@ -1278,12 +1097,8 @@ def start(cron=True):
         logger.debug('Starting extcron...')
         global_settings.web2py_crontype = 'external'
         if options.scheduler:   # -K
-<<<<<<< HEAD
-            apps = [app.strip() for app in options.scheduler.split(',') if check_existent_app(options, app.strip())]
-=======
             apps = [app.strip() for app in options.scheduler.split(
                 ',') if check_existent_app(options, app.strip())]
->>>>>>> upstream/master
         else:
             apps = None
         extcron = newcron.extcron(options.folder, apps=apps)
@@ -1298,35 +1113,15 @@ def start(cron=True):
         except KeyboardInterrupt:
             pass
         return
-<<<<<<< HEAD
-
-
-    # ## if -H cron is enabled in this *process*
-    # ## if --softcron use softcron
-    # ## use hardcron in all other cases
-    if cron and options.runcron and options.softcron:
-        print 'Using softcron (but this is not very efficient)'
-        global_settings.web2py_crontype = 'soft'
-    elif cron and options.runcron:
-        logger.debug('Starting hardcron...')
-        global_settings.web2py_crontype = 'hard'
-        newcron.hardcron(options.folder).start()
-=======
->>>>>>> upstream/master
 
     # ## if -W install/start/stop web2py as service
     if options.winservice:
         if os.name == 'nt':
             if have_winservice:
-<<<<<<< HEAD
-                web2py_windows_service_handler(['', options.winservice],
-                                               options.config)
-=======
                 register_service_handler(
                     argv=['', options.winservice],
                     opt_file=options.config,
                     cls=Web2pyService)
->>>>>>> upstream/master
             else:
                 print 'Error: Missing python module winservice'
                 sys.exit(1)
@@ -1431,13 +1226,6 @@ end tell
 
     url = get_url(ip, proto=proto, port=port)
 
-    # Check for non default value for ssl inputs
-    if (len(options.ssl_certificate) > 0) or (len(options.ssl_private_key) > 0):
-        proto = 'https'
-    else:
-        proto = 'http'
-    url = '%s://%s:%s' % (proto, ip, port)
-
     if not options.nobanner:
         print 'please visit:'
         print '\t', url
@@ -1471,15 +1259,3 @@ end tell
         except:
             pass
     logging.shutdown()
-<<<<<<< HEAD
-
-
-
-
-
-
-
-
-
-=======
->>>>>>> upstream/master

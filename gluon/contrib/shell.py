@@ -263,20 +263,7 @@ def run(history, statement, env={}):
         sys.modules['__main__'] = old_main
     return output.getvalue()
 
-<<<<<<< HEAD
-if __name__=='__main__':
-    history=History()
-    while True: print run(history, raw_input('>>> ')).rstrip()
-
-
-
-
-
-
-
-=======
 if __name__ == '__main__':
     history = History()
     while True:
         print run(history, raw_input('>>> ')).rstrip()
->>>>>>> upstream/master

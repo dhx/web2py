@@ -564,18 +564,10 @@ def replace_autolinks(text,autolinks):
 
 def replace_at_urls(text,url):
     # this is experimental @{function/args}
-<<<<<<< HEAD
-    # turns into a digitally signed URL
-    def u1(match,url=url):
-        a,c,f,args = match.group('a','c','f','args')
-        return url(a=a or None,c=c or None,f = f or None,
-                   args=args.split('/'), scheme=True, host=True)
-=======
     def u1(match,url=url):
         a,c,f,args = match.group('a','c','f','args')
         return url(a=a or None,c=c or None,f = f or None,
                    args=(args or '').split('/'), scheme=True, host=True)
->>>>>>> upstream/master
     return regex_URL.sub(u1,text)
 
 def replace_components(text,env):
@@ -1269,14 +1261,9 @@ def render(text,
         t = t or ''
         a = escape(a) if a else ''
         if k:
-<<<<<<< HEAD
-            if k.startswith('#'):
-                k = '#'+id_prefix+k[1:]
-=======
             if '#' in k and not ':' in k.split('#')[0]: 
                 # wikipage, not external url
                 k=k.replace('#','#'+id_prefix)
->>>>>>> upstream/master
             k = escape(k)
             title = ' title="%s"' % a.replace(META, DISABLED_META) if a else ''
             target = ' target="_blank"' if p == 'popup' else ''

@@ -153,27 +153,7 @@ class Web2pyService(Service):
         time.sleep(1)
 
 
-<<<<<<< HEAD
-def web2py_windows_service_handler(argv=None, opt_file='options'):
-    path = os.path.dirname(__file__)
-    web2py_path = up(path)
-    if web2py_path.endswith('.zip'): # in case bianry distro 'library.zip'
-        web2py_path = os.path.dirname(web2py_path)
-    os.chdir(web2py_path)
-    classstring = os.path.normpath(
-        os.path.join(web2py_path,'gluon.winservice.Web2pyService'))
-    if opt_file:
-        Web2pyService._exe_args_ = opt_file
-        win32serviceutil.HandleCommandLine(Web2pyService,
-                serviceClassString=classstring, argv=['', 'install'])
-    win32serviceutil.HandleCommandLine(Web2pyService,
-            serviceClassString=classstring, argv=argv)
-
-if __name__ == '__main__':
-    web2py_windows_service_handler()
-=======
 class Web2pyCronService(Web2pyService):
->>>>>>> upstream/master
 
     _svc_name_ = 'web2py_cron'
     _svc_display_name_ = 'web2py Cron Service'
@@ -226,11 +206,6 @@ def register_service_handler(argv=None, opt_file='options', cls=Web2pyService):
     win32serviceutil.HandleCommandLine(
         cls, serviceClassString=classstring, argv=argv)
 
-<<<<<<< HEAD
-
-
-=======
 if __name__ == '__main__':
     register_service_handler(cls=Web2pyService)
     register_service_handler(cls=Web2pyCronService)
->>>>>>> upstream/master

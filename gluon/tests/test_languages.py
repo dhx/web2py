@@ -54,20 +54,6 @@ try:
             for result in results:
                 self.assertTrue(result)
 
-<<<<<<< HEAD
-
-    class TestTranslations(unittest.TestCase):
-
-        def setUp(self):
-            self.request = Storage()
-            if os.path.isdir('gluon'):
-                self.request.folder = 'applications/welcome'
-            else:
-                self.request.folder = os.path.realpath('../../applications/welcome')
-            self.request.env = Storage()
-            self.request.env.http_accept_language = 'en'
-
-=======
     class TestTranslations(unittest.TestCase):
 
         def setUp(self):
@@ -77,17 +63,12 @@ try:
                 self.langpath = os.path.realpath(
                     '../../applications/welcome/languages')
             self.http_accept_language = 'en'
->>>>>>> upstream/master
 
         def tearDown(self):
             pass
 
         def test_plain(self):
-<<<<<<< HEAD
-            T = languages.translator(self.request)
-=======
             T = languages.translator(self.langpath, self.http_accept_language)
->>>>>>> upstream/master
             self.assertEqual(str(T('Hello World')),
                              'Hello World')
             self.assertEqual(str(T('Hello World## comment')),
@@ -115,4 +96,3 @@ except ImportError:
 
 if __name__ == '__main__':
     unittest.main()
-

@@ -133,26 +133,16 @@ class Servers:
         app.run()
 
     @staticmethod
-<<<<<<< HEAD
-    def gunicorn(app,address, **options):
-=======
     def gunicorn(app, address, **options):
->>>>>>> upstream/master
         from gunicorn.app.base import Application
         config = {'bind': "%s:%d" % address}
         config.update(options)
         sys.argv = ['anyserver.py']
-<<<<<<< HEAD
-        class GunicornApplication(Application):
-            def init(self, parser, opts, args):
-                return config
-=======
 
         class GunicornApplication(Application):
             def init(self, parser, opts, args):
                 return config
 
->>>>>>> upstream/master
             def load(self):
                 return app
         g = GunicornApplication()
@@ -173,6 +163,22 @@ class Servers:
                                   "tcp://127.0.0.1:9996")
         mongrel2_handler(app, conn, debug=False)
 
+    @staticmethod
+    def motor(app, address, **options):
+        #https://github.com/rpedroso/motor
+        import motor
+        app = motor.WSGIContainer(app)
+        http_server = motor.HTTPServer(app)
+        http_server.listen(address=address[0], port=address[1])
+        #http_server.start(2)
+        motor.IOLoop.instance().start()
+
+    @staticmethod
+    def pulsar(app, address, **options):
+        from pulsar.apps import wsgi
+        sys.argv = ['anyserver.py']
+        s = wsgi.WSGIServer(callable=app, bind="%s:%d" % address)
+        s.start()
 
 def run(servername, ip, port, softcron=True, logging=False, profiler=None):
     if logging:
@@ -332,18 +338,6 @@ def main():
                       dest='workers',
                       help='number of workers number')
     (options, args) = parser.parse_args()
-<<<<<<< HEAD
-    print 'starting %s on %s:%s...' % (options.server,options.ip,options.port)
-    run(options.server,options.ip,options.port,logging=options.logging,profiler=options.profiler)
-
-if __name__=='__main__':
-    main()
-
-
-
-
-
-=======
     print 'starting %s on %s:%s...' % (
         options.server, options.ip, options.port)
     run(options.server, options.ip, options.port,
@@ -351,4 +345,3 @@ if __name__=='__main__':
 
 if __name__ == '__main__':
     main()
->>>>>>> upstream/master

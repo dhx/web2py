@@ -73,5 +73,3 @@ if __name__ == '__main__':
     setUpModule()       # pre-python-2.7
     unittest.main()
     tearDownModule()
-
-

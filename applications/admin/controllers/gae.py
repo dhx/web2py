@@ -42,20 +42,12 @@ def deploy():
     apps = sorted(
         file for file in os.listdir(apath(r=request)) if regex.match(file))
     form = SQLFORM.factory(
-<<<<<<< HEAD
-        Field('appcfg',default=GAE_APPCFG,label=T('Path to appcfg.py'),
-              requires=EXISTS(error_message=T('file not found'))),
-        Field('google_application_id',requires=IS_MATCH('[\w\-]+'),label=T('Google Application Id')),
-        Field('applications','list:string',
-              requires=IS_IN_SET(apps,multiple=True),
-=======
         Field('appcfg', default=GAE_APPCFG, label=T('Path to appcfg.py'),
               requires=EXISTS(error_message=T('file not found'))),
         Field('google_application_id', requires=IS_MATCH(
             '[\w\-]+'), label=T('Google Application Id')),
         Field('applications', 'list:string',
               requires=IS_IN_SET(apps, multiple=True),
->>>>>>> upstream/master
               label=T('web2py apps to deploy')),
         Field('email', requires=IS_EMAIL(), label=T('GAE Email')),
         Field('password', 'password', requires=IS_NOT_EMPTY(), label=T('GAE Password')))

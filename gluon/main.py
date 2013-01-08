@@ -51,11 +51,7 @@ from globals import current
 #  The two are identical unless web2py_path is changed via the web2py.py -f folder option
 #  main.web2py_path is the same as applications_parent (for backward compatibility)
 
-<<<<<<< HEAD
-web2py_path = global_settings.applications_parent # backward compatibility
-=======
 web2py_path = global_settings.applications_parent  # backward compatibility
->>>>>>> upstream/master
 
 create_missing_folders()
 
@@ -105,23 +101,14 @@ requests = 0    # gc timer
 # pattern used to validate client address
 regex_client = re.compile('[\w\-:]+(\.[\w\-]+)*\.?')  # ## to account for IPV6
 
-<<<<<<< HEAD
-try:
-=======
 #try:
 if 1:
->>>>>>> upstream/master
     version_info = open(pjoin(global_settings.gluon_parent, 'VERSION'), 'r')
     raw_version_string = version_info.read().strip()
     version_info.close()
     global_settings.web2py_version = parse_version(raw_version_string)
-<<<<<<< HEAD
-except:
-    raise RuntimeError, "Cannot determine web2py version"
-=======
 #except:
 #    raise RuntimeError("Cannot determine web2py version")
->>>>>>> upstream/master
 
 web2py_version = global_settings.web2py_version
 
@@ -133,12 +120,8 @@ except:
 
 load()
 
-<<<<<<< HEAD
-HTTPS_SCHEMES = set(('https','HTTPS'))
-=======
 HTTPS_SCHEMES = set(('https', 'HTTPS'))
 
->>>>>>> upstream/master
 
 def get_client(env):
     """
@@ -154,13 +137,6 @@ def get_client(env):
         g = regex_client.search(env.get('remote_addr', ''))
         if g:
             client = g.group()
-<<<<<<< HEAD
-        else:
-            client = '127.0.0.1'
-    if not is_valid_ip_address(client):
-        raise HTTP(400,"Bad Request (request.client=%s)" % client)
-    return client
-=======
         elif env.http_host.startswith('['):  # IPv6
             client = '::1'
         else:
@@ -169,7 +145,6 @@ def get_client(env):
         raise HTTP(400, "Bad Request (request.client=%s)" % client)
     return client
 
->>>>>>> upstream/master
 
 def copystream_progress(request, chunk_size=10 ** 5):
     """
@@ -184,28 +159,11 @@ def copystream_progress(request, chunk_size=10 ** 5):
     try:
         size = int(env.content_length)
     except ValueError:
-<<<<<<< HEAD
-        raise HTTP(400,"Invalid Content-Length header")
-=======
         raise HTTP(400, "Invalid Content-Length header")
->>>>>>> upstream/master
     dest = tempfile.TemporaryFile()
     if not 'X-Progress-ID' in request.vars:
         copystream(source, dest, size, chunk_size)
         return dest
-<<<<<<< HEAD
-    cache_key = 'X-Progress-ID:'+request.vars['X-Progress-ID']
-    cache_ram = CacheInRam(request)  # same as cache.ram because meta_storage
-    cache_ram(cache_key+':length', lambda: size, 0)
-    cache_ram(cache_key+':uploaded', lambda: 0, 0)
-    while size > 0:
-        if size < chunk_size:
-            data = source.read(size)
-            cache_ram.increment(cache_key+':uploaded', size)
-        else:
-            data = source.read(chunk_size)
-            cache_ram.increment(cache_key+':uploaded', chunk_size)
-=======
     cache_key = 'X-Progress-ID:' + request.vars['X-Progress-ID']
     cache_ram = CacheInRam(request)  # same as cache.ram because meta_storage
     cache_ram(cache_key + ':length', lambda: size, 0)
@@ -217,7 +175,6 @@ def copystream_progress(request, chunk_size=10 ** 5):
         else:
             data = source.read(chunk_size)
             cache_ram.increment(cache_key + ':uploaded', chunk_size)
->>>>>>> upstream/master
         length = len(data)
         if length > size:
             (data, length) = (data[:size], size)
@@ -228,13 +185,8 @@ def copystream_progress(request, chunk_size=10 ** 5):
         if length < chunk_size:
             break
     dest.seek(0)
-<<<<<<< HEAD
-    cache_ram(cache_key+':length', None)
-    cache_ram(cache_key+':uploaded', None)
-=======
     cache_ram(cache_key + ':length', None)
     cache_ram(cache_key + ':uploaded', None)
->>>>>>> upstream/master
     return dest
 
 
@@ -287,15 +239,6 @@ def serve_controller(request, response, session):
     # ##################################################
 
     default_headers = [
-<<<<<<< HEAD
-        ('Content-Type', contenttype('.'+request.extension)),
-        ('Cache-Control','no-store, no-cache, must-revalidate, post-check=0, pre-check=0'),
-        ('Expires', time.strftime('%a, %d %b %Y %H:%M:%S GMT', 
-                                  time.gmtime())),
-        ('Pragma', 'no-cache')]
-    for key,value in default_headers:
-        response.headers.setdefault(key,value)
-=======
         ('Content-Type', contenttype('.' + request.extension)),
         ('Cache-Control',
          'no-store, no-cache, must-revalidate, post-check=0, pre-check=0'),
@@ -304,7 +247,6 @@ def serve_controller(request, response, session):
         ('Pragma', 'no-cache')]
     for key, value in default_headers:
         response.headers.setdefault(key, value)
->>>>>>> upstream/master
 
     raise HTTP(response.status, page, **response.headers)
 
@@ -375,15 +317,9 @@ def parse_get_post_vars(request, environ):
     try:
         request.body = body = copystream_progress(request)
     except IOError:
-<<<<<<< HEAD
-        raise HTTP(400,"Bad Request - HTTP body is incomplete")
-    if (body and env.request_method in ('POST', 'PUT', 'BOTH')):
-        dpost = cgi.FieldStorage(fp=body,environ=environ,keep_blank_values=1)
-=======
         raise HTTP(400, "Bad Request - HTTP body is incomplete")
     if (body and env.request_method in ('POST', 'PUT', 'BOTH')):
         dpost = cgi.FieldStorage(fp=body, environ=environ, keep_blank_values=1)
->>>>>>> upstream/master
         # The same detection used by FieldStorage to detect multipart POSTs
         is_multipart = dpost.type[:10] == 'multipart/'
         body.seek(0)
@@ -396,12 +332,8 @@ def parse_get_post_vars(request, environ):
         except TypeError:
             keys = []
         for key in keys:
-<<<<<<< HEAD
-            if key is None: continue # not sure why cgi.FieldStorage returns None key
-=======
             if key is None:
                 continue  # not sure why cgi.FieldStorage returns None key
->>>>>>> upstream/master
             dpk = dpost[key]
             # if en element is not a file replace it with its value else leave it alone
             if isinstance(dpk, list):
@@ -487,47 +419,19 @@ def wsgibase(environ, responder):
                 response.status = env.web2py_status_code or response.status
 
                 if static_file:
-<<<<<<< HEAD
-                    if environ.get('QUERY_STRING','').startswith(
-                        'attachment'):
-=======
                     if environ.get('QUERY_STRING', '').startswith(
                             'attachment'):
->>>>>>> upstream/master
                         response.headers['Content-Disposition'] \
                             = 'attachment'
                     if version:
                         response.headers['Cache-Control'] = 'max-age=315360000'
-<<<<<<< HEAD
-                        response.headers['Expires'] = 'Thu, 31 Dec 2037 23:59:59 GMT'
-=======
                         response.headers[
                             'Expires'] = 'Thu, 31 Dec 2037 23:59:59 GMT'
->>>>>>> upstream/master
                     response.stream(static_file, request=request)
 
                 # ##################################################
                 # fill in request items
                 # ##################################################
-<<<<<<< HEAD
-                app = request.application ## must go after url_in!
-
-                if not global_settings.local_hosts:
-                    local_hosts = ['127.0.0.1','::ffff:127.0.0.1']
-                    if not global_settings.web2py_runtime_gae:
-                        try:
-                            local_hosts.append(socket.gethostname())
-                        except TypeError:
-                            pass
-                        try:
-                            if env.server_name:
-                                local_hosts += [
-                                    env.server_name,
-                                    socket.gethostbyname(env.server_name)]
-                        except (socket.gaierror,TypeError):
-                            pass
-                    global_settings.local_hosts = local_hosts
-=======
                 app = request.application  # must go after url_in!
 
                 if not global_settings.local_hosts:
@@ -548,24 +452,10 @@ def wsgibase(environ, responder):
                         except (socket.gaierror, TypeError):
                             pass
                     global_settings.local_hosts = list(local_hosts)
->>>>>>> upstream/master
                 else:
                     local_hosts = global_settings.local_hosts
                 client = get_client(env)
                 x_req_with = str(env.http_x_requested_with).lower()
-<<<<<<< HEAD
-                
-                request.update(
-                    client = client,
-                    folder = abspath('applications',app) + os.sep,
-                    ajax = x_req_with == 'xmlhttprequest',
-                    cid = env.http_web2py_component_element,
-                    is_local = env.remote_addr in local_hosts,
-                    is_https = env.wsgi_url_scheme in HTTPS_SCHEMES \
-                        or request.env.http_x_forwarded_proto in HTTPS_SCHEMES \
-                        or env.https=='on')
-                request.uuid = request.compute_uuid() # requires client
-=======
 
                 request.update(
                     client = client,
@@ -577,7 +467,6 @@ def wsgibase(environ, responder):
                         request.env.http_x_forwarded_proto in HTTPS_SCHEMES \
                         or env.https == 'on')
                 request.compute_uuid()  # requires client
->>>>>>> upstream/master
                 request.url = environ['PATH_INFO']
 
                 # ##################################################
@@ -587,11 +476,7 @@ def wsgibase(environ, responder):
                 if not exists(request.folder):
                     if app == rwthread.routes.default_application \
                             and app != 'welcome':
-<<<<<<< HEAD
-                        redirect(URL('welcome','default','index'))
-=======
                         redirect(URL('welcome', 'default', 'index'))
->>>>>>> upstream/master
                     elif rwthread.routes.error_handler:
                         _handler = rwthread.routes.error_handler
                         redirect(URL(_handler['application'],
@@ -599,19 +484,11 @@ def wsgibase(environ, responder):
                                      _handler['function'],
                                      args=app))
                     else:
-<<<<<<< HEAD
-                        raise HTTP(404, rwthread.routes.error_message \
-                                       % 'invalid request',
-                                   web2py_error='invalid application')
-                elif not request.is_local and \
-                        exists(pjoin(request.folder,'DISABLED')):
-=======
                         raise HTTP(404, rwthread.routes.error_message
                                    % 'invalid request',
                                    web2py_error='invalid application')
                 elif not request.is_local and \
                         exists(pjoin(request.folder, 'DISABLED')):
->>>>>>> upstream/master
                     raise HTTP(503, "<html><body><h1>Temporarily down for maintenance</h1></body></html>")
 
                 # ##################################################
@@ -663,20 +540,14 @@ def wsgibase(environ, responder):
                     import gluon.debug
                     # activate the debugger
                     gluon.debug.dbg.do_debug(mainpyfile=request.folder)
-                
+
                 serve_controller(request, response, session)
 
             except HTTP, http_response:
-<<<<<<< HEAD
-=======
 
                 if static_file:
                     return http_response.to(responder, env=env)
->>>>>>> upstream/master
 
-                if static_file:
-                    return http_response.to(responder,env=env)
-                        
                 if request.body:
                     request.body.close()
 
@@ -702,16 +573,6 @@ def wsgibase(environ, responder):
                 # if session not in db try store session on filesystem
                 # this must be done after trying to commit database!
                 # ##################################################
-<<<<<<< HEAD
-                    
-                session._try_store_in_cookie_or_file(request, response)
-                
-                if request.cid:
-                    if response.flash:
-                        http_response.headers['web2py-component-flash'] = urllib2.quote(xmlescape(response.flash).replace('\n',''))
-                    if response.js:
-                        http_response.headers['web2py-component-command'] = response.js.replace('\n','')
-=======
 
                 session._try_store_in_cookie_or_file(request, response)
 
@@ -723,7 +584,6 @@ def wsgibase(environ, responder):
                     if response.js:
                         http_response.headers['web2py-component-command'] = \
                             urllib2.quote(response.js.replace('\n',''))
->>>>>>> upstream/master
 
                 # ##################################################
                 # store cookies in headers
@@ -735,11 +595,7 @@ def wsgibase(environ, responder):
                 elif session._secure:
                     rcookies[response.session_id_name]['secure'] = True
                 http_response.cookies2headers(rcookies)
-<<<<<<< HEAD
-                ticket=None
-=======
                 ticket = None
->>>>>>> upstream/master
 
             except RestrictedError, e:
 
@@ -757,13 +613,8 @@ def wsgibase(environ, responder):
                     BaseAdapter.close_all_instances('rollback')
 
                 http_response = \
-<<<<<<< HEAD
-                    HTTP(500, rwthread.routes.error_message_ticket % \
-                             dict(ticket=ticket),
-=======
                     HTTP(500, rwthread.routes.error_message_ticket %
                          dict(ticket=ticket),
->>>>>>> upstream/master
                          web2py_error='ticket %s' % ticket)
 
         except:
@@ -785,13 +636,8 @@ def wsgibase(environ, responder):
             e = RestrictedError('Framework', '', '', locals())
             ticket = e.log(request) or 'unrecoverable'
             http_response = \
-<<<<<<< HEAD
-                HTTP(500, rwthread.routes.error_message_ticket \
-                         % dict(ticket=ticket),
-=======
                 HTTP(500, rwthread.routes.error_message_ticket
                      % dict(ticket=ticket),
->>>>>>> upstream/master
                      web2py_error='ticket %s' % ticket)
 
     finally:
@@ -806,11 +652,7 @@ def wsgibase(environ, responder):
         return wsgibase(new_environ, responder)
     if global_settings.web2py_crontype == 'soft':
         newcron.softcron(global_settings.applications_parent).start()
-<<<<<<< HEAD
-    return http_response.to(responder,env=env)
-=======
     return http_response.to(responder, env=env)
->>>>>>> upstream/master
 
 
 def save_password(password, port):
@@ -1033,7 +875,3 @@ class HttpServer(object):
             os.unlink(self.pid_filename)
         except:
             pass
-<<<<<<< HEAD
-
-=======
->>>>>>> upstream/master

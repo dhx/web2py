@@ -22,10 +22,7 @@ from http import HTTP
 
 if not global_settings.web2py_runtime_gae:
     import site
-<<<<<<< HEAD
-=======
 
->>>>>>> upstream/master
 
 def apath(path='', r=None):
     """
@@ -163,12 +160,8 @@ def app_compile(app, request):
         remove_compiled_application(folder)
         return tb
 
-<<<<<<< HEAD
-def app_create(app, request,force=False,key=None,info=False):
-=======
 
 def app_create(app, request, force=False, key=None, info=False):
->>>>>>> upstream/master
     """
     Create a copy of welcome.w2p (scaffolding) app
 
@@ -468,17 +461,11 @@ def upgrade(request, url='http://web2py.com'):
 
 
 def add_path_first(path):
-<<<<<<< HEAD
-    sys.path = [path]+[p for p in sys.path if (not p==path and not p==(path+'/'))]
-    if not global_settings.web2py_runtime_gae:
-        site.addsitedir(path)
-=======
     sys.path = [path] + [p for p in sys.path if (
         not p == path and not p == (path + '/'))]
     if not global_settings.web2py_runtime_gae:
         site.addsitedir(path)
 
->>>>>>> upstream/master
 
 def create_missing_folders():
     if not global_settings.web2py_runtime_gae:
@@ -501,13 +488,3 @@ def create_missing_app_folders(request):
                 if not os.path.exists(path):
                     os.mkdir(path)
             global_settings.app_folders.add(request.folder)
-<<<<<<< HEAD
-
-
-
-
-
-
-
-=======
->>>>>>> upstream/master

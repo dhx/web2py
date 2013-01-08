@@ -33,15 +33,9 @@ def custom_json(o):
         return str(o)
     elif isinstance(o, lazyT):
         return str(o)
-<<<<<<< HEAD
-    elif isinstance(o,XmlComponent):
-        return str(o)
-    elif hasattr(o,'as_list') and callable(o.as_list):
-=======
     elif isinstance(o, XmlComponent):
         return str(o)
     elif hasattr(o, 'as_list') and callable(o.as_list):
->>>>>>> upstream/master
         return o.as_list()
     elif hasattr(o, 'as_dict') and callable(o.as_dict):
         return o.as_dict()
@@ -76,20 +70,13 @@ def json(value, default=custom_json):
 def csv(value):
     return ''
 
-<<<<<<< HEAD
-=======
 
->>>>>>> upstream/master
 def ics(events, title=None, link=None, timeshift=0, **ignored):
     import datetime
     title = title or '(unkown)'
     if link and not callable(link):
-<<<<<<< HEAD
-        link = lambda item,prefix=link: prefix.replace('[id]',str(item['id']))
-=======
         link = lambda item, prefix=link: prefix.replace(
             '[id]', str(item['id']))
->>>>>>> upstream/master
     s = 'BEGIN:VCALENDAR'
     s += '\nVERSION:2.0'
     s += '\nX-WR-CALNAME:%s' % title
@@ -116,27 +103,6 @@ def ics(events, title=None, link=None, timeshift=0, **ignored):
 def rss(feed):
     if not 'entries' in feed and 'items' in feed:
         feed['entries'] = feed['items']
-<<<<<<< HEAD
-    now=datetime.datetime.now()
-    rss = rss2.RSS2(title = str(feed.get('title','(notitle)')),
-                    link = str(feed.get('link',None)),
-                    description = str(feed.get('description','')),
-                    lastBuildDate = feed.get('created_on', now),
-                    items = [rss2.RSSItem(
-                title=str(entry.get('title','(notitle)')),
-                link=str(entry.get('link',None)),
-                description=str(entry.get('description','')),
-                pubDate=entry.get('created_on', now)
-                ) for entry in feed.get('entries',[])])
-    return rss2.dumps(rss)
-
-
-
-
-
-
-
-=======
     now = datetime.datetime.now()
     rss = rss2.RSS2(title=str(feed.get('title', '(notitle)')),
                     link=str(feed.get('link', None)),
@@ -149,4 +115,3 @@ def rss(feed):
                            pubDate=entry.get('created_on', now)
                            ) for entry in feed.get('entries', [])])
     return rss.to_xml(encoding='utf-8')
->>>>>>> upstream/master

@@ -34,13 +34,7 @@ def helpicon():
     return IMG(_src=URL('static', 'images/help.png'), _alt='help')
 
 def searchbox(elementid):
-<<<<<<< HEAD
-    return TAG[''](LABEL(IMG(_id="search_start",_src=URL('static', 'images/search.png'), _alt=T('filter')), _class='icon', _for=elementid), ' ', INPUT(_id=elementid, _type='text', _size=12))
-
-
-=======
     return SPAN(LABEL(IMG(_id="search_start", _src=URL('static', 'images/search.png'), _alt=T('filter')),
                     _class='icon', _for=elementid), ' ',
                 INPUT(_id=elementid, _type='text', _size=12, _class="input-medium"),
             _class="searchbox")
->>>>>>> upstream/master

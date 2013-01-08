@@ -61,12 +61,8 @@ Here is a complete sample web2py action:
         form=SQLFORM.factory(Field('message'))
         if form.accepts(request,session):
             from gluon.contrib.websocket_messaging import websocket_send
-<<<<<<< HEAD:gluon/contrib/websocket_messaging.py
-            websocket_send('http://127.0.0.1:8888',form.vars.message,'mykey','mygroup')
-=======
             websocket_send(
                 'http://127.0.0.1:8888',form.vars.message,'mykey','mygroup')
->>>>>>> upstream/master:gluon/contrib/websocket_messaging.py
         return form
 
 Acknowledgements:
@@ -88,17 +84,11 @@ listeners = {}
 names = {}
 tokens = {}
 
-<<<<<<< HEAD:gluon/contrib/websocket_messaging.py
-def websocket_send(url,message,hmac_key=None,group='default'):
-    sig = hmac_key and hmac.new(hmac_key,message).hexdigest() or ''
-    params = urllib.urlencode({'message': message, 'signature': sig, 'group':group})
-=======
 
 def websocket_send(url, message, hmac_key=None, group='default'):
     sig = hmac_key and hmac.new(hmac_key, message).hexdigest() or ''
     params = urllib.urlencode(
         {'message': message, 'signature': sig, 'group': group})
->>>>>>> upstream/master:gluon/contrib/websocket_messaging.py
     f = urllib.urlopen(url, params)
     data = f.read()
     f.close()
@@ -215,13 +205,3 @@ if __name__ == "__main__":
     http_server = tornado.httpserver.HTTPServer(application)
     http_server.listen(int(options.port), address=options.address)
     tornado.ioloop.IOLoop.instance().start()
-<<<<<<< HEAD:gluon/contrib/websocket_messaging.py
-
-
-
-
-
-
-
-=======
->>>>>>> upstream/master:gluon/contrib/websocket_messaging.py

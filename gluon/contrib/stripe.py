@@ -63,13 +63,4 @@ if __name__ == '__main__':
     s = Stripe(key).check(d[u'id'])
     print 'paid', s['paid'], s['amount'], s['currency']
     s = Stripe(key).refund(d[u'id'])
-<<<<<<< HEAD
-    print 'refunded',s['refunded']
-
-
-
-
-
-=======
     print 'refunded', s['refunded']
->>>>>>> upstream/master

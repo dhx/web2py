@@ -2,20 +2,6 @@
 {{block sectionclass}}shell{{end}}
 <!-- begin "shell" block -->
 <div id="wrapper">
-<<<<<<< HEAD
-  <textarea id="output" readonly="readonly">web2py Shell {{=request.env.web2py_version}}</textarea>
-
-  <form id="form" action="{{=URL(r=request,f='callback',args=app)}}" method="get">
-    <div id="shellwrapper">
-      <div id="caret">&gt;&gt;&gt;</div>
-      <div class="tooltip">
-        <textarea class="prompt" name="statement" id="statement"></textarea>
-        <span>Type some Python code in here and hit Return (Enter) to execute it.</span>
-      </div>
-      <div id="autoscroll" style="cursor:pointer;float:right;">autoscroll</div>
-    </div>
-  </form>
-=======
 	<div class="row-fluid">
 		<div class="output-wrapper span8">
 			<textarea id="output" readonly="readonly">web2py Shell {{=request.env.web2py_version}}</textarea>
@@ -50,7 +36,6 @@
 		  </ul>
 		</div>
 	</div>
->>>>>>> upstream/master
 </div>
 <script type="text/javascript" src="{{=URL('static', 'js/autoscroll.js')}}"></script>
 

@@ -343,15 +343,4 @@ if __name__ == '__main__':
     data = argfp.read()
     argfp.close()
     print '<html><body>' + highlight(data, sys.argv[2])\
-<<<<<<< HEAD
-         + '</body></html>'
-
-
-
-
-
-
-
-=======
         + '</body></html>'
->>>>>>> upstream/master

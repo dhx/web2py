@@ -25,20 +25,12 @@ from gluon.languages import (read_possible_languages, read_dict, write_dict,
                              read_plural_dict, write_plural_dict)
 
 
-<<<<<<< HEAD
-if DEMO_MODE and request.function in ['change_password','pack','pack_plugin','upgrade_web2py','uninstall','cleanup','compile_app','remove_compiled_app','delete','delete_plugin','create_file','upload_file','update_languages','reload_routes','git_push','git_pull']:
-=======
 if DEMO_MODE and request.function in ['change_password', 'pack', 'pack_plugin', 'upgrade_web2py', 'uninstall', 'cleanup', 'compile_app', 'remove_compiled_app', 'delete', 'delete_plugin', 'create_file', 'upload_file', 'update_languages', 'reload_routes', 'git_push', 'git_pull']:
->>>>>>> upstream/master
     session.flash = T('disabled in demo mode')
     redirect(URL('site'))
 
 
-<<<<<<< HEAD
-if not is_manager() and request.function in ['change_password','upgrade_web2py']:
-=======
 if not is_manager() and request.function in ['change_password', 'upgrade_web2py']:
->>>>>>> upstream/master
     session.flash = T('disabled in multi user mode')
     redirect(URL('site'))
 
@@ -47,13 +39,9 @@ if FILTER_APPS and request.args(0) and not request.args(0) in FILTER_APPS:
     redirect(URL('site'))
 
 
-<<<<<<< HEAD
-if not session.token: session.token = web2py_uuid()
-=======
 if not session.token:
     session.token = web2py_uuid()
 
->>>>>>> upstream/master
 
 def count_lines(data):
     return len([line for line in data.split('\n') if line.strip() and not line.startswith('#')])
@@ -63,13 +51,6 @@ def log_progress(app, mode='EDIT', filename=None, progress=0):
     progress_file = os.path.join(apath(app, r=request), 'progress.log')
     now = str(request.now)[:19]
     if not os.path.exists(progress_file):
-<<<<<<< HEAD
-        safe_open(progress_file,'w').write('[%s] START\n' % now)
-    if filename:
-        safe_open(progress_file,'a').write('[%s] %s %s: %s\n' % (now,mode,filename,progress))
-
-def safe_open(a,b):
-=======
         safe_open(progress_file, 'w').write('[%s] START\n' % now)
     if filename:
         safe_open(progress_file, 'a').write(
@@ -77,7 +58,6 @@ def safe_open(a,b):
 
 
 def safe_open(a, b):
->>>>>>> upstream/master
     if DEMO_MODE and ('w' in b or 'a' in b):
         class tmp:
             def write(self, data):
@@ -163,14 +143,6 @@ def check_version():
         return A(T('Unable to check for upgrades'), _href=WEB2PY_URL)
     elif new_version != True:
         return A(T('web2py is up to date'), _href=WEB2PY_URL)
-<<<<<<< HEAD
-    elif platform.system().lower() in ('windows','win32','win64') and os.path.exists("web2py.exe"):
-        return SPAN('You should upgrade to version %s.%s.%s' % version_number[:3])
-    else:
-        return sp_button(URL('upgrade_web2py'), T('upgrade now')) \
-            + XML(' <strong class="upgrade_version">%s.%s.%s</strong>' \
-                      % version_number[:3])
-=======
     elif platform.system().lower() in ('windows', 'win32', 'win64') and os.path.exists("web2py.exe"):
         return SPAN('You should upgrade to version %s.%s.%s' % version_number[:3])
     else:
@@ -178,7 +150,6 @@ def check_version():
             + XML(' <strong class="upgrade_version">%s.%s.%s</strong>'
                   % version_number[:3])
 
->>>>>>> upstream/master
 
 def logout():
     """ Logout handler """
@@ -222,24 +193,6 @@ def site():
     file_or_appurl = 'file' in request.vars or 'appurl' in request.vars
 
     class IS_VALID_APPNAME(object):
-<<<<<<< HEAD
-        def __call__(self,value):
-            if not re.compile('\w+').match(value):
-                return (value,T('Invalid application name'))
-            if not request.vars.overwrite and \
-                    os.path.exists(os.path.join(apath(r=request),value)):
-                return (value,T('Application exists already'))
-            return (value,None)
-
-    is_appname = IS_VALID_APPNAME()
-    form_create = SQLFORM.factory(Field('name',requires=is_appname),
-                                  table_name='appcreate')
-    form_update = SQLFORM.factory(Field('name',requires=is_appname),
-                                  Field('file','upload',uploadfield=False),
-                                  Field('url'),
-                                  Field('overwrite','boolean'),
-                                  table_name='appupdate')
-=======
         def __call__(self, value):
             if not re.compile('\w+').match(value):
                 return (value, T('Invalid application name'))
@@ -258,7 +211,6 @@ def site():
                                   Field('overwrite', 'boolean'),
                                   table_name='appupdate',
                                   _class='well well-small')
->>>>>>> upstream/master
     form_create.process()
     form_update.process()
 
@@ -268,11 +220,7 @@ def site():
     elif form_create.accepted:
         # create a new application
         appname = cleanpath(form_create.vars.name)
-<<<<<<< HEAD
-        created, error = app_create(appname, request,info=True)
-=======
         created, error = app_create(appname, request, info=True)
->>>>>>> upstream/master
         if created:
             if MULTI_USER_MODE:
                 db.app.insert(name=appname, owner=auth.user.id)
@@ -282,11 +230,7 @@ def site():
         else:
             session.flash = \
                 DIV(T('unable to create application "%s"' % appname),
-<<<<<<< HEAD
-                    PRE(error))                      
-=======
                     PRE(error))
->>>>>>> upstream/master
         redirect(URL(r=request))
 
     elif form_update.accepted:
@@ -294,15 +238,9 @@ def site():
             if not have_git:
                 session.flash = GIT_MISSING
                 redirect(URL(r=request))
-<<<<<<< HEAD
-            target = os.path.join(apath(r=request),form_update.vars.name)
-            try:
-                new_repo = Repo.clone_from(form_update.vars.url,target)
-=======
             target = os.path.join(apath(r=request), form_update.vars.name)
             try:
                 new_repo = Repo.clone_from(form_update.vars.url, target)
->>>>>>> upstream/master
                 session.flash = T('new application "%s" imported',
                                   form_update.vars.name)
             except GitCommandError, err:
@@ -317,16 +255,6 @@ def site():
                     raise Exception("404 file not found")
             except Exception, e:
                 session.flash = \
-<<<<<<< HEAD
-                    DIV(T('Unable to download app because:'),PRE(str(e)))
-                redirect(URL(r=request))
-            fname = form_update.vars.url
-            
-        elif form_update.accepted and form_update.vars.file:
-            fname = request.vars.file.filename
-            f = request.vars.file.file
-            
-=======
                     DIV(T('Unable to download app because:'), PRE(str(e)))
                 redirect(URL(r=request))
             fname = form_update.vars.url
@@ -335,18 +263,13 @@ def site():
             fname = request.vars.file.filename
             f = request.vars.file.file
 
->>>>>>> upstream/master
         else:
             session.flash = 'No file uploaded and no URL specified'
             redirect(URL(r=request))
 
         if f:
             appname = cleanpath(form_update.vars.name)
-<<<<<<< HEAD
-            installed = app_install(appname, f, 
-=======
             installed = app_install(appname, f,
->>>>>>> upstream/master
                                     request, fname,
                                     overwrite=form_update.vars.overwrite)
         if f and installed:
@@ -376,11 +299,7 @@ def site():
 
     apps = sorted(apps, lambda a, b: cmp(a.upper(), b.upper()))
 
-<<<<<<< HEAD
-    return dict(app=None, apps=apps, myversion=myversion, 
-=======
     return dict(app=None, apps=apps, myversion=myversion,
->>>>>>> upstream/master
                 form_create=form_create, form_update=form_update)
 
 
@@ -442,11 +361,7 @@ def pack_plugin():
 
 def upgrade_web2py():
     dialog = FORM.confirm(T('Upgrade'),
-<<<<<<< HEAD
-                         {T('Cancel'):URL('site')})    
-=======
                           {T('Cancel'): URL('site')})
->>>>>>> upstream/master
     if dialog.accepted:
         (success, error) = upgrade(request)
         if success:
@@ -455,26 +370,18 @@ def upgrade_web2py():
             session.flash = T('unable to upgrade because "%s"', error)
         redirect(URL('site'))
     return dict(dialog=dialog)
-<<<<<<< HEAD
-=======
 
->>>>>>> upstream/master
 
 def uninstall():
     app = get_app()
 
     dialog = FORM.confirm(T('Uninstall'),
-<<<<<<< HEAD
-                         {T('Cancel'):URL('site')})
-    
-=======
                           {T('Cancel'): URL('site')})
     dialog['_id'] = 'confirm_form'
     dialog['_class'] = 'well'
     for component in dialog.components:
         component['_class'] = 'btn'
 
->>>>>>> upstream/master
     if dialog.accepted:
         if MULTI_USER_MODE:
             if is_manager() and db(db.app.name == app).delete():
@@ -552,10 +459,7 @@ def delete():
         redirect(URL(sender, anchor=request.vars.id2))
     return dict(filename=filename, sender=sender)
 
-<<<<<<< HEAD
-=======
 
->>>>>>> upstream/master
 def delete():
     """ Object delete handler """
     app = get_app()
@@ -566,39 +470,20 @@ def delete():
         sender = sender[0]
 
     dialog = FORM.confirm(T('Delete'),
-<<<<<<< HEAD
-                         {T('Cancel'):URL(sender, anchor=request.vars.id)})
-=======
                           {T('Cancel'): URL(sender, anchor=request.vars.id)})
->>>>>>> upstream/master
 
     if dialog.accepted:
         try:
             full_path = apath(filename, r=request)
-<<<<<<< HEAD
-            lineno = count_lines(open(full_path,'r').read())
-            os.unlink(full_path)
-            log_progress(app,'DELETE',filename,progress=-lineno)
-=======
             lineno = count_lines(open(full_path, 'r').read())
             os.unlink(full_path)
             log_progress(app, 'DELETE', filename, progress=-lineno)
->>>>>>> upstream/master
             session.flash = T('file "%(filename)s" deleted',
                               dict(filename=filename))
         except Exception:
             session.flash = T('unable to delete file "%(filename)s"',
                               dict(filename=filename))
         redirect(URL(sender, anchor=request.vars.id2))
-<<<<<<< HEAD
-    return dict(dialog=dialog,filename=filename)
-
-def enable():
-    app = get_app()
-    filename = os.path.join(apath(app, r=request),'DISABLED')
-    if is_gae:
-        return SPAN(T('Not supported'),_style='color:yellow')
-=======
     return dict(dialog=dialog, filename=filename)
 
 
@@ -607,19 +492,13 @@ def enable():
     filename = os.path.join(apath(app, r=request), 'DISABLED')
     if is_gae:
         return SPAN(T('Not supported'), _style='color:yellow')
->>>>>>> upstream/master
     elif os.path.exists(filename):
         os.unlink(filename)
         return SPAN(T('Disable'), _style='color:green')
     else:
-<<<<<<< HEAD
-        safe_open(filename,'wb').write(time.ctime())
-        return SPAN(T('Enable'),_style='color:red')
-=======
         safe_open(filename, 'wb').write(time.ctime())
         return SPAN(T('Enable'), _style='color:red')
 
->>>>>>> upstream/master
 
 def peek():
     """ Visualize object code """
@@ -630,11 +509,7 @@ def peek():
     else:
         path = apath(filename, r=request)
     try:
-<<<<<<< HEAD
-        data = safe_read(path).replace('\r','')
-=======
         data = safe_read(path).replace('\r', '')
->>>>>>> upstream/master
     except IOError:
         session.flash = T('file does not exist')
         redirect(URL('site'))
@@ -645,6 +520,7 @@ def peek():
                 filename=filename,
                 data=data,
                 extension=extension)
+
 
 def test():
     """ Execute controller tests """
@@ -674,13 +550,6 @@ def search():
             return True
         return False
     path = apath(request.args[0], r=request)
-<<<<<<< HEAD
-    files1 = glob(os.path.join(path,'*/*.py'))
-    files2 = glob(os.path.join(path,'*/*.html'))
-    files3 = glob(os.path.join(path,'*/*/*.html'))
-    files=[x[len(path)+1:].replace('\\','/') for x in files1+files2+files3 if match(x,keywords)]
-    return response.json(dict(files=files, message=T.M('Searching: **%s** %%{file}', len(files))))
-=======
     files1 = glob(os.path.join(path, '*/*.py'))
     files2 = glob(os.path.join(path, '*/*.html'))
     files3 = glob(os.path.join(path, '*/*/*.html'))
@@ -688,7 +557,6 @@ def search():
         '\\', '/') for x in files1 + files2 + files3 if match(x, keywords)]
     return response.json(dict(files=files, message=T.M('Searching: **%s** %%{file}', len(files))))
 
->>>>>>> upstream/master
 
 def edit():
     """ File edit handler """
@@ -790,14 +658,9 @@ def edit():
             except:
                 ex_name = 'unknown exception!'
             response.flash = DIV(T('failed to compile file because:'), BR(),
-<<<<<<< HEAD
-                                 B(ex_name), ' '+T('at line %s', e.lineno),
-                                 offset and ' '+T('at char %s', offset) or '',
-=======
                                  B(ex_name), ' ' + T('at line %s', e.lineno),
                                  offset and ' ' +
                                  T('at char %s', offset) or '',
->>>>>>> upstream/master
                                  PRE(str(e)))
 
     if data_or_revert and request.args[1] == 'modules':
@@ -839,15 +702,9 @@ def edit():
             editviewlinks = []
             for v in viewlist:
                 vf = os.path.split(v)[-1]
-<<<<<<< HEAD
-                vargs = "/".join([viewpath.replace(os.sep,"/"),vf])
-                editviewlinks.append(A(vf.split(".")[0],\
-                    _href=URL('edit',args=[vargs])))
-=======
                 vargs = "/".join([viewpath.replace(os.sep, "/"), vf])
                 editviewlinks.append(A(vf.split(".")[0],
                                        _href=URL('edit', args=[vargs])))
->>>>>>> upstream/master
 
     if len(request.args) > 2 and request.args[1] == 'controllers':
         controller = (request.args[2])[:-3]
@@ -955,18 +812,11 @@ def edit_language():
     strings = read_dict(apath(filename, r=request))
 
     if '__corrupted__' in strings:
-<<<<<<< HEAD
-       form = SPAN(strings['__corrupted__'],_class='error')
-       return dict(filename=filename, form=form)
-
-    keys = sorted(strings.keys(),lambda x,y: cmp(unicode(x,'utf-8').lower(), unicode(y,'utf-8').lower()))
-=======
         form = SPAN(strings['__corrupted__'], _class='error')
         return dict(filename=filename, form=form)
 
     keys = sorted(strings.keys(), lambda x, y: cmp(
         unicode(x, 'utf-8').lower(), unicode(y, 'utf-8').lower()))
->>>>>>> upstream/master
     rows = []
     rows.append(H2(T('Original/Translation')))
 
@@ -975,28 +825,16 @@ def edit_language():
         s = strings[key]
         (prefix, sep, key) = key.partition('\x01')
         if sep:
-<<<<<<< HEAD
-            prefix = SPAN(prefix+': ', _class='tm_ftag')
-=======
             prefix = SPAN(prefix + ': ', _class='tm_ftag')
->>>>>>> upstream/master
             k = key
         else:
             (k, prefix) = (prefix, '')
 
-<<<<<<< HEAD
-        _class='untranslated' if k==s else 'translated'
-
-        if len(s) <= 40:
-            elem = INPUT(_type='text', _name=name, value=s,
-                         _size=70,_class=_class)
-=======
         _class = 'untranslated' if k == s else 'translated'
 
         if len(s) <= 40:
             elem = INPUT(_type='text', _name=name, value=s,
                          _size=70, _class=_class)
->>>>>>> upstream/master
         else:
             elem = TEXTAREA(_name=name, value=s, _cols=70,
                             _rows=5, _class=_class)
@@ -1004,16 +842,11 @@ def edit_language():
         # Making the short circuit compatible with <= python2.4
         k = (s != k) and k or B(k)
 
-<<<<<<< HEAD
-        rows.append(P(prefix, k, BR(), elem, TAG.BUTTON(T('delete'),
-                            _onclick='return delkey("%s")' % name), _id=name))
-=======
         new_row = DIV(LABEL(prefix, k, _style="font-weight:normal;"),
                       CAT(elem, '\n', TAG.BUTTON(
                     T('delete'),
                     _onclick='return delkey("%s")' % name,
                     _class='btn')), _id=name, _class='span6 well well-small')
->>>>>>> upstream/master
 
         rows.append(DIV(new_row,_class="row-fluid"))
     rows.append(DIV(INPUT(_type='submit', _value=T('update'), _class="btn btn-primary"), _class='controls'))
@@ -1082,52 +915,6 @@ def edit_plurals():
             nplurals=request.vars.nplurals)))
     return dict(app=request.args[0], filename=filename, form=form)
 
-def edit_plurals():
-    """ Edit plurals file """
-    app = get_app()
-    filename = '/'.join(request.args)
-    plurals = read_plural_dict(apath(filename, r=request)) # plural forms dictionary
-    nplurals = int(request.vars.nplurals)-1 # plural forms quantity
-    xnplurals = xrange(nplurals)
-
-    if '__corrupted__' in plurals:
-       # show error message and exit
-       form = SPAN(plurals['__corrupted__'],_class='error')
-       return dict(filename=filename, form=form)
-
-    keys = sorted(plurals.keys(),lambda x,y: cmp(unicode(x,'utf-8').lower(), unicode(y,'utf-8').lower()))
-    rows = []
-
-    row=[T("Singular Form")]
-    row.extend([T("Plural Form #%s", n+1) for n in xnplurals])
-    table=TABLE(THEAD(TR(row)))
-
-    for key in keys:
-        name = md5_hash(key)
-        forms = plurals[key]
-
-        if len(forms) < nplurals:
-            forms.extend(None for i in xrange(nplurals-len(forms)))
-
-        row = [B(key)]
-        row.extend([INPUT(_type='text', _name=name+'_'+str(n), value=forms[n], _size=20) for n in xnplurals])
-        row.append(TD(TAG.BUTTON(T('delete'), _onclick='return delkey("%s")' % name)))
-        rows.append(TR(row, _id=name))
-    if rows:
-        table.append(TBODY(rows))
-    rows=[table, INPUT(_type='submit', _value=T('update'))]
-    form = FORM(*rows)
-    if form.accepts(request.vars, keepvalues=True):
-        new_plurals = dict()
-        for key in keys:
-            name = md5_hash(key)
-            if form.vars[name+'_0']==chr(127): continue
-            new_plurals[key] = [form.vars[name+'_'+str(n)] for n in xnplurals]
-        write_plural_dict(apath(filename, r=request), new_plurals)
-        session.flash = T('file saved on %(time)s', dict(time=time.ctime()))
-        redirect(URL(r=request, args=request.args, vars=dict(nplurals=request.vars.nplurals)))
-    return dict(app=request.args[0], filename=filename, form=form)
-
 
 def about():
     """ Read about info """
@@ -1146,19 +933,11 @@ def design():
         msg = T('ATTENTION: you cannot edit the running application!')
         response.flash = msg
 
-<<<<<<< HEAD
-    if request.vars and not request.vars.token==session.token:
-        redirect(URL('logout'))
-
-    if request.vars.pluginfile!=None and not isinstance(request.vars.pluginfile,str):
-        filename=os.path.basename(request.vars.pluginfile.filename)
-=======
     if request.vars and not request.vars.token == session.token:
         redirect(URL('logout'))
 
     if request.vars.pluginfile is not None and not isinstance(request.vars.pluginfile, str):
         filename = os.path.basename(request.vars.pluginfile.filename)
->>>>>>> upstream/master
         if plugin_install(app, request.vars.pluginfile.file,
                           request, filename):
             session.flash = T('new plugin installed')
@@ -1220,11 +999,7 @@ def design():
 
     # Get all private files
     privates = listdir(apath('%s/private/' % app, r=request), '[^\.#].*')
-<<<<<<< HEAD
-    privates = [x.replace('\\','/') for x in privates]
-=======
     privates = [x.replace('\\', '/') for x in privates]
->>>>>>> upstream/master
     privates.sort()
 
     # Get all static files
@@ -1233,19 +1008,11 @@ def design():
     statics.sort()
 
     # Get all languages
-<<<<<<< HEAD
-    languages=dict([(lang,info) for lang,info
-                   in read_possible_languages(
-                       apath(app, r=request)).iteritems()
-                   if info[2]!=0]) # info[2] is langfile_mtime:
-                                   # get only existed files
-=======
     langpath = os.path.join(apath(app, r=request),'languages')
     languages = dict([(lang, info) for lang, info
                       in read_possible_languages(langpath).iteritems()
                       if info[2] != 0])  # info[2] is langfile_mtime:
                                          # get only existed files
->>>>>>> upstream/master
 
     #Get crontab
     cronfolder = apath('%s/cron' % app, r=request)
@@ -1273,13 +1040,8 @@ def design():
                 modules=filter_plugins(modules, plugins),
                 extend=extend,
                 include=include,
-<<<<<<< HEAD
-                privates=filter_plugins(privates,plugins),
-                statics=filter_plugins(statics,plugins),
-=======
                 privates=filter_plugins(privates, plugins),
                 statics=filter_plugins(statics, plugins),
->>>>>>> upstream/master
                 languages=languages,
                 crontab=crontab,
                 plugins=plugins)
@@ -1289,18 +1051,6 @@ def delete_plugin():
     """ Object delete handler """
     app = request.args(0)
     plugin = request.args(1)
-<<<<<<< HEAD
-    plugin_name='plugin_'+plugin
-
-    dialog = FORM.confirm(
-        T('Delete'),
-        {T('Cancel'):URL('design', args=app)})
-
-    if dialog.accepted:
-        try:
-            for folder in ['models','views','controllers','static','modules', 'private']:
-                path=os.path.join(apath(app,r=request),folder)
-=======
     plugin_name = 'plugin_' + plugin
 
     dialog = FORM.confirm(
@@ -1311,7 +1061,6 @@ def delete_plugin():
         try:
             for folder in ['models', 'views', 'controllers', 'static', 'modules', 'private']:
                 path = os.path.join(apath(app, r=request), folder)
->>>>>>> upstream/master
                 for item in os.listdir(path):
                     if item.rsplit('.', 1)[0] == plugin_name:
                         filename = os.path.join(path, item)
@@ -1325,12 +1074,8 @@ def delete_plugin():
             session.flash = T('unable to delete file plugin "%(plugin)s"',
                               dict(plugin=plugin))
         redirect(URL('design', args=request.args(0), anchor=request.vars.id2))
-<<<<<<< HEAD
-    return dict(dialog=dialog,plugin=plugin)
-=======
     return dict(dialog=dialog, plugin=plugin)
 
->>>>>>> upstream/master
 
 def plugin():
     """ Application design handler """
@@ -1389,11 +1134,7 @@ def plugin():
 
     # Get all private files
     privates = listdir(apath('%s/private/' % app, r=request), '[^\.#].*')
-<<<<<<< HEAD
-    privates = [x.replace('\\','/') for x in privates]
-=======
     privates = [x.replace('\\', '/') for x in privates]
->>>>>>> upstream/master
     privates.sort()
 
     # Get all static files
@@ -1402,15 +1143,9 @@ def plugin():
     statics.sort()
 
     # Get all languages
-<<<<<<< HEAD
-    languages = sorted([lang+'.py' for lang, info in
-                    T.get_possible_languages_info().iteritems()
-                    if info[2]!=0]) # info[2] is langfile_mtime:
-=======
     languages = sorted([lang + '.py' for lang, info in
                         T.get_possible_languages_info().iteritems()
                         if info[2] != 0])  # info[2] is langfile_mtime:
->>>>>>> upstream/master
                                     # get only existed files
 
     #Get crontab
@@ -1419,11 +1154,7 @@ def plugin():
         safe_write(crontab, '#crontab')
 
     def filter_plugins(items):
-<<<<<<< HEAD
-        regex=re.compile('^plugin_'+plugin+'(/.*|\..*)?$')
-=======
         regex = re.compile('^plugin_' + plugin + '(/.*|\..*)?$')
->>>>>>> upstream/master
         return [item for item in items if item and regex.match(item)]
 
     return dict(app=app,
@@ -1443,17 +1174,10 @@ def plugin():
 
 def create_file():
     """ Create files handler """
-<<<<<<< HEAD
-    if request.vars and not request.vars.token==session.token:
-        redirect(URL('logout'))
-    try:
-        anchor='#'+request.vars.id if request.vars.id else ''
-=======
     if request.vars and not request.vars.token == session.token:
         redirect(URL('logout'))
     try:
         anchor = '#' + request.vars.id if request.vars.id else ''
->>>>>>> upstream/master
         if request.vars.app:
             app = get_app(request.vars.app)
             path = abspath(request.vars.location)
@@ -1467,27 +1191,16 @@ def create_file():
                 raise SyntaxError
             if not filename[-3:] == '.py':
                 filename += '.py'
-<<<<<<< HEAD
-            lang = re.match('^plural_rules-(.*)\.py$',filename).group(1)
-=======
             lang = re.match('^plural_rules-(.*)\.py$', filename).group(1)
->>>>>>> upstream/master
             langinfo = read_possible_languages(apath(app, r=request))[lang]
             text = dedent("""
                    #!/usr/bin/env python
                    # -*- coding: utf8 -*-
                    # Plural-Forms for %(lang)s (%(langname)s)
-<<<<<<< HEAD
 
                    nplurals=2  # for example, English language has 2 forms:
                                # 1 singular and 1 plural
 
-=======
-
-                   nplurals=2  # for example, English language has 2 forms:
-                               # 1 singular and 1 plural
-
->>>>>>> upstream/master
                    # Determine plural_id for number *n* as sequence of positive
                    # integers: 0,1,...
                    # NOTE! For singular form ALWAYS return plural_id = 0
@@ -1506,23 +1219,14 @@ def create_file():
                 raise SyntaxError
             if not filename[-3:] == '.py':
                 filename += '.py'
-<<<<<<< HEAD
-            path=os.path.join(apath(app, r=request),'languages',filename)
-=======
             path = os.path.join(apath(app, r=request), 'languages', filename)
->>>>>>> upstream/master
             if not os.path.exists(path):
                 safe_write(path, '')
             # create language xx[-yy].py file:
             findT(apath(app, r=request), filename[:-3])
             session.flash = T('language file "%(filename)s" created/updated',
-<<<<<<< HEAD
-                               dict(filename=filename))
-            redirect(request.vars.sender+anchor)
-=======
                               dict(filename=filename))
             redirect(request.vars.sender + anchor)
->>>>>>> upstream/master
 
         elif path[-8:] == '/models/':
             # Handle python models
@@ -1556,12 +1260,8 @@ def create_file():
             if len(filename) == 5:
                 raise SyntaxError
 
-<<<<<<< HEAD
-            msg = T('This is the %(filename)s template', dict(filename=filename))
-=======
             msg = T(
                 'This is the %(filename)s template', dict(filename=filename))
->>>>>>> upstream/master
             if extension == 'html':
                 text = dedent("""
                    {{extend 'layout.html'}}
@@ -1593,15 +1293,9 @@ def create_file():
             if request.vars.plugin and not filename.startswith('plugin_%s/' % request.vars.plugin):
                 filename = 'plugin_%s/%s' % (request.vars.plugin, filename)
             text = ''
-<<<<<<< HEAD
-            
-        else:
-            redirect(request.vars.sender+anchor)
-=======
 
         else:
             redirect(request.vars.sender + anchor)
->>>>>>> upstream/master
 
         full_filename = os.path.join(path, filename)
         dirpath = os.path.dirname(full_filename)
@@ -1616,37 +1310,23 @@ def create_file():
         log_progress(app, 'CREATE', filename)
         session.flash = T('file "%(filename)s" created',
                           dict(filename=full_filename[len(path):]))
-<<<<<<< HEAD
-        vars={}
-        if request.vars.id: vars['id']=request.vars.id
-        if request.vars.app: vars['app']=request.vars.app
-=======
         vars = {}
         if request.vars.id:
             vars['id'] = request.vars.id
         if request.vars.app:
             vars['app'] = request.vars.app
->>>>>>> upstream/master
         redirect(URL('edit',
                  args=[os.path.join(request.vars.location, filename)], vars=vars))
     except Exception, e:
         if not isinstance(e, HTTP):
             session.flash = T('cannot create file')
 
-<<<<<<< HEAD
-    redirect(request.vars.sender+anchor)
-=======
     redirect(request.vars.sender + anchor)
->>>>>>> upstream/master
 
 
 def upload_file():
     """ File uploading handler """
-<<<<<<< HEAD
-    if request.vars and not request.vars.token==session.token:
-=======
     if request.vars and not request.vars.token == session.token:
->>>>>>> upstream/master
         redirect(URL('logout'))
     try:
         filename = None
@@ -1707,12 +1387,8 @@ def errors():
     method = request.args(1) or 'new'
     db_ready = {}
     db_ready['status'] = get_ticket_storage(app)
-<<<<<<< HEAD
-    db_ready['errmessage'] = T("No ticket_storage.txt found under /private folder")
-=======
     db_ready['errmessage'] = T(
         "No ticket_storage.txt found under /private folder")
->>>>>>> upstream/master
     db_ready['errlink'] = "http://web2py.com/books/default/chapter/29/13#Collecting-tickets"
 
     if method == 'new':
@@ -1760,7 +1436,6 @@ def errors():
         decorated.sort(key=operator.itemgetter(0), reverse=True)
 
         return dict(errors=[x[1] for x in decorated], app=app, method=method, db_ready=db_ready)
-
 
     elif method == 'dbnew':
         errors_path = apath('%s/errors' % app, r=request)
@@ -2010,6 +1685,7 @@ def reload_routes():
     gluon.rewrite.load()
     redirect(URL('site'))
 
+
 def manage_students():
     if not (MULTI_USER_MODE and is_manager()):
         session.flash = T('Not Authorized')
@@ -2039,10 +1715,7 @@ def bulk_register():
 # 2) should not prompt user at console
 # 3) should give option to force commit and not reuqire manual merge
 
-<<<<<<< HEAD
-=======
 
->>>>>>> upstream/master
 def git_pull():
     """ Git Pull handler """
     app = get_app()
@@ -2050,17 +1723,10 @@ def git_pull():
         session.flash = GIT_MISSING
         redirect(URL('site'))
     dialog = FORM.confirm(T('Pull'),
-<<<<<<< HEAD
-                         {T('Cancel'):URL('site')})    
-    if dialog.accepted:
-        try:
-            repo = Repo(os.path.join(apath(r=request),app))
-=======
                           {T('Cancel'): URL('site')})
     if dialog.accepted:
         try:
             repo = Repo(os.path.join(apath(r=request), app))
->>>>>>> upstream/master
             origin = repo.remotes.origin
             origin.fetch()
             origin.pull()
@@ -2076,16 +1742,6 @@ def git_pull():
             session.flash = T("Pull is not possible because you have unmerged files. Fix them up in the work tree, and then try again.")
             redirect(URL('site'))
         except GitCommandError, status:
-<<<<<<< HEAD
-            session.flash = T("Pull failed, git exited abnormally. See logs for details.")
-            redirect(URL('site'))
-        except Exception,e:
-            session.flash = T("Pull failed, git exited abnormally. See logs for details.")
-            redirect(URL('site'))
-    elif 'cancel' in request.vars:
-        redirect(URL('site'))
-    return dict(app=app,dialog=dialog)
-=======
             session.flash = T(
                 "Pull failed, git exited abnormally. See logs for details.")
             redirect(URL('site'))
@@ -2096,7 +1752,6 @@ def git_pull():
     elif 'cancel' in request.vars:
         redirect(URL('site'))
     return dict(app=app, dialog=dialog)
->>>>>>> upstream/master
 
 
 def git_push():
@@ -2105,21 +1760,6 @@ def git_push():
     if not have_git:
         session.flash = GIT_MISSING
         redirect(URL('site'))
-<<<<<<< HEAD
-    form = SQLFORM.factory(Field('changelog',requires=IS_NOT_EMPTY()))
-    form.element('input[type=submit]')['_value']=T('Push')
-    form.add_button(T('Cancel'),URL('site'))
-    form.process()
-    if form.accepted:
-        try:
-            repo = Repo(os.path.join(apath(r=request),app))
-            index = repo.index
-            index.add([apath(r=request)+app+'/*'])
-            new_commit = index.commit(form.vars.changelog)
-            origin = repo.remotes.origin
-            origin.push()
-            session.flash = T("Git repo updated with latest application changes.")
-=======
     form = SQLFORM.factory(Field('changelog', requires=IS_NOT_EMPTY()))
     form.element('input[type=submit]')['_value'] = T('Push')
     form.add_button(T('Cancel'), URL('site'))
@@ -2134,20 +1774,12 @@ def git_push():
             origin.push()
             session.flash = T(
                 "Git repo updated with latest application changes.")
->>>>>>> upstream/master
             redirect(URL('site'))
         except UnmergedEntriesError:
             session.flash = T("Push failed, there are unmerged entries in the cache. Resolve merge issues manually and try again.")
             redirect(URL('site'))
         except Exception, e:
-<<<<<<< HEAD
-            session.flash = T("Push failed, git exited abnormally. See logs for details.")
-            redirect(URL('site'))
-    return dict(app=app,form=form)
-
-=======
             session.flash = T(
                 "Push failed, git exited abnormally. See logs for details.")
             redirect(URL('site'))
     return dict(app=app, form=form)
->>>>>>> upstream/master

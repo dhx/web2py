@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 ## 2.4.1
 
 - support for semantic versioning
@@ -48,7 +46,6 @@
 - upgraded feedparser.py and rss2.py
 - codemirror has autoresize
 
->>>>>>> upstream/master
 ## 2.1.0
 
 - overall faster web2py

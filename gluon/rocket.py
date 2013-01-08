@@ -12,25 +12,15 @@ import logging
 import platform
 
 # Define Constants
-<<<<<<< HEAD
-VERSION = '1.2.5'
-=======
 VERSION = '1.2.6'
->>>>>>> upstream/master
 SERVER_NAME = socket.gethostname()
 SERVER_SOFTWARE = 'Rocket %s' % VERSION
 HTTP_SERVER_SOFTWARE = '%s Python/%s' % (
     SERVER_SOFTWARE, sys.version.split(' ')[0])
 BUF_SIZE = 16384
-<<<<<<< HEAD
-SOCKET_TIMEOUT = 10 # in secs
-THREAD_STOP_CHECK_INTERVAL = 1 # in secs, How often should threads check for a server stop message?
-IS_JYTHON = platform.system() == 'Java' # Handle special cases for Jython
-=======
 SOCKET_TIMEOUT = 10  # in secs
 THREAD_STOP_CHECK_INTERVAL = 1  # in secs, How often should threads check for a server stop message?
 IS_JYTHON = platform.system() == 'Java'  # Handle special cases for Jython
->>>>>>> upstream/master
 IGNORE_ERRORS_ON_CLOSE = set([errno.ECONNABORTED, errno.ECONNRESET])
 DEFAULT_LISTEN_QUEUE_SIZE = 5
 DEFAULT_MIN_THREADS = 10
@@ -1384,32 +1374,12 @@ class Worker(Thread):
             self.conn.sendall(b(msg))
         except socket.timeout:
             self.closeConnection = True
-<<<<<<< HEAD
-            self.err_log.error(
-                'Tried to send "%s" to client but received timeout error'
-                % status)
-        except socket.error:
-            self.closeConnection = True
-            self.err_log.error(
-                'Tried to send "%s" to client but received socket error'
-                % status)
-
-    #def kill(self):
-    #    if self.isAlive() and hasattr(self, 'conn'):
-    #        try:
-    #            self.conn.shutdown(socket.SHUT_RDWR)
-    #        except socket.error:
-    #            info = sys.exc_info()
-    #            if info[1].args[0] != socket.EBADF:
-    #                self.err_log.debug('Error on shutdown: '+str(info))
-=======
             msg = 'Tried to send "%s" to client but received timeout error'
             self.err_log.error(msg % status)
         except socket.error:
             self.closeConnection = True
             msg = 'Tried to send "%s" to client but received socket error'
             self.err_log.error(msg % status)
->>>>>>> upstream/master
 
     def read_request_line(self, sock_file):
         self.request_line = ''
@@ -1428,17 +1398,11 @@ class Worker(Thread):
                 if PY3K:
                     d = d.decode('ISO-8859-1')
         except socket.timeout:
-<<<<<<< HEAD
-            raise SocketTimeout("Socket timed out before request.")
-        except TypeError:
-            raise SocketClosed("ssl bug caused closer of socket, upgrade to python 2.7")
-=======
             raise SocketTimeout('Socket timed out before request.')
         except TypeError:
             raise SocketClosed(
                 'SSL bug caused closure of socket.  See '
                 '"https://groups.google.com/d/topic/web2py/P_Gw0JxWzCs".')
->>>>>>> upstream/master
 
         d = d.strip()
 
@@ -1465,11 +1429,7 @@ class Worker(Thread):
             raise BadRequest
 
         req = match.groupdict()
-<<<<<<< HEAD
-        for k,v in req.iteritems():
-=======
         for k, v in req.iteritems():
->>>>>>> upstream/master
             if not v:
                 req[k] = ""
             if k == 'path':
@@ -1517,69 +1477,43 @@ class Worker(Thread):
                    host=host)
         return req
 
-<<<<<<< HEAD
-
-    def read_headers(self, sock_file, environ):
-        try:
-=======
     def read_headers(self, sock_file):
         try:
             headers = dict()
->>>>>>> upstream/master
             lname = None
+            lval = None
             while True:
                 l = sock_file.readline()
-<<<<<<< HEAD
-=======
 
->>>>>>> upstream/master
                 if PY3K:
                     try:
                         l = str(l, 'ISO-8859-1')
                     except UnicodeDecodeError:
-<<<<<<< HEAD
-                        self.err_log.warning('Invalid request header: '+repr(l))
-
-                if l.strip().replace('\0','') == '':
-=======
                         self.err_log.warning(
                             'Client sent invalid header: ' + repr(l))
 
                 if l.strip().replace('\0', '') == '':
->>>>>>> upstream/master
                     break
-                elif l[0] in ' \t' and lname:
+
+                if l[0] in ' \t' and lname:
                     # Some headers take more than one line
-<<<<<<< HEAD
-                    environ[lname] += ' ' + l.strip()
-=======
                     lval += ' ' + l.strip()
->>>>>>> upstream/master
                 else:
                     # HTTP header values are latin-1 encoded
                     l = l.split(':', 1)
                     # HTTP header names are us-ascii encoded
 
-<<<<<<< HEAD
-                    lname = str('HTTP_'+l[0].strip().upper().replace('-', '_'))
-                    lval = str(l[-1].strip())
-                    environ[lname] = lval
-=======
                     lname = l[0].strip().upper().replace('-', '_')
                     lval = l[-1].strip()
 
                 headers[str(lname)] = str(lval)
->>>>>>> upstream/master
 
         except socket.timeout:
             raise SocketTimeout("Socket timed out before request.")
 
-<<<<<<< HEAD
-=======
         return headers
 
 
->>>>>>> upstream/master
 class SocketTimeout(Exception):
     "Exception for when a socket times out between requests."
     pass
@@ -1643,24 +1577,16 @@ class ChunkedReader(object):
     def readlines(self):
         yield self.readline()
 
-<<<<<<< HEAD
-=======
 
->>>>>>> upstream/master
 def get_method(method):
     methods = dict(wsgi=WSGIWorker)
     return methods[method.lower()]
 
-<<<<<<< HEAD
-# Monolithic build...end of module: rocket\worker.py
-# Monolithic build...start of module: rocket\methods\wsgi.py
-=======
 # Monolithic build...end of module: rocket/worker.py
 # Monolithic build...start of module: rocket/methods/__init__.py
 
 # Monolithic build...end of module: rocket/methods/__init__.py
 # Monolithic build...start of module: rocket/methods/wsgi.py
->>>>>>> upstream/master
 
 # Import System Modules
 import sys
@@ -1727,20 +1653,16 @@ class WSGIWorker(Worker):
         environ = self.base_environ.copy()
 
         # Grab the headers
-<<<<<<< HEAD
-        self.read_headers(sock_file,environ)
-=======
         for k, v in self.read_headers(sock_file).iteritems():
             environ[str('HTTP_' + k)] = v
->>>>>>> upstream/master
 
         # Add CGI Variables
-        environ['SERVER_PORT'] = str(conn.server_port)
-        environ['REMOTE_PORT'] = str(conn.client_port)
-        environ['REMOTE_ADDR'] = str(conn.client_addr)
         environ['REQUEST_METHOD'] = request['method']
         environ['PATH_INFO'] = request['path']
         environ['SERVER_PROTOCOL'] = request['protocol']
+        environ['SERVER_PORT'] = str(conn.server_port)
+        environ['REMOTE_PORT'] = str(conn.client_port)
+        environ['REMOTE_ADDR'] = str(conn.client_addr)
         environ['QUERY_STRING'] = request['query_string']
         if 'HTTP_CONTENT_LENGTH' in environ:
             environ['CONTENT_LENGTH'] = environ['HTTP_CONTENT_LENGTH']
@@ -1946,61 +1868,4 @@ class WSGIWorker(Worker):
 
             sock_file.close()
 
-<<<<<<< HEAD
-# Monolithic build...end of module: rocket\methods\wsgi.py
-
-#
-# the following code is not part of Rocket but was added in web2py for testing purposes
-#
-
-def demo_app(environ, start_response):
-    global static_folder
-    import os
-    types = {'htm': 'text/html','html': 'text/html','gif': 'image/gif',
-             'jpg': 'image/jpeg','png': 'image/png','pdf': 'applications/pdf'}
-    if static_folder:
-        if not static_folder.startswith('/'):
-            static_folder = os.path.join(os.getcwd(),static_folder)
-        path = os.path.join(static_folder, environ['PATH_INFO'][1:] or 'index.html')
-        type = types.get(path.split('.')[-1],'text')
-        if os.path.exists(path):
-            try:
-                data = open(path,'rb').read()
-                start_response('200 OK', [('Content-Type', type)])
-            except IOError:
-                start_response('404 NOT FOUND', [])
-                data = '404 NOT FOUND'
-        else:
-            start_response('500 INTERNAL SERVER ERROR', [])
-            data = '500 INTERNAL SERVER ERROR'
-    else:
-        start_response('200 OK', [('Content-Type', 'text/html')])
-        data = '<html><body><h1>Hello from Rocket Web Server</h1></body></html>'
-    return [data]
-
-def demo():
-    from optparse import OptionParser
-    parser = OptionParser()
-    parser.add_option("-i", "--ip", dest="ip",default="127.0.0.1",
-                      help="ip address of the network interface")
-    parser.add_option("-p", "--port", dest="port",default="8000",
-                      help="post where to run web server")
-    parser.add_option("-s", "--static", dest="static",default=None,
-                      help="folder containing static files")
-    (options, args) = parser.parse_args()
-    global static_folder
-    static_folder = options.static
-    print 'Rocket running on %s:%s' % (options.ip, options.port)
-    r=Rocket((options.ip,int(options.port)),'wsgi', {'wsgi_app':demo_app})
-    r.start()
-
-if __name__=='__main__':
-    demo()
-
-
-
-
-
-=======
 # Monolithic build...end of module: rocket/methods/wsgi.py
->>>>>>> upstream/master

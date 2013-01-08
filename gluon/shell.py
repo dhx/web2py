@@ -176,12 +176,8 @@ def run(
     adir = os.path.join('applications', a)
     if not os.path.exists(adir):
         if sys.stdin and not sys.stdin.name == '/dev/null':
-<<<<<<< HEAD
-            confirm = raw_input('application %s does not exist, create (y/n)?' % a)
-=======
             confirm = raw_input(
                 'application %s does not exist, create (y/n)?' % a)
->>>>>>> upstream/master
         else:
             logging.warn('application does not exist and will not be created')
             return
@@ -446,13 +442,3 @@ def execute_from_command_line(argv=None):
 
 if __name__ == '__main__':
     execute_from_command_line()
-<<<<<<< HEAD
-
-
-
-
-
-
-
-=======
->>>>>>> upstream/master

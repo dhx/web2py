@@ -44,4 +44,3 @@ def email_auth(server="smtp.gmail.com:587",
                     pass
             return False
     return email_auth_aux
-

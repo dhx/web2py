@@ -12,11 +12,7 @@ import logging
 if os.path.isdir('gluon'):
     sys.path.append(os.path.realpath('gluon'))  # running from web2py base
 else:
-<<<<<<< HEAD
-    sys.path.append(os.path.realpath('../')) # running from gluon/tests/
-=======
     sys.path.append(os.path.realpath('../'))  # running from gluon/tests/
->>>>>>> upstream/master
     os.environ['web2py_path'] = os.path.realpath('../../')  # for settings
 
 from rewrite import load, filter_url, filter_err, get_effective_router, regex_filter_out, regex_select
@@ -205,12 +201,8 @@ default_application = 'defapp'
         except AttributeError:
             pass
 
-<<<<<<< HEAD
-        self.assertEqual(filter_url('http://domain.com/welcome/default/fcn_1'),  "/welcome/default/fcn_1")
-=======
         self.assertEqual(filter_url('http://domain.com/welcome/default/fcn_1'),
                          "/welcome/default/fcn_1")
->>>>>>> upstream/master
         #self.assertRaises(HTTP, filter_url, 'http://domain.com/welcome/default/fcn-1')
         #try:
         #    # 2.7+ only
@@ -237,19 +229,6 @@ default_application = 'defapp'
     ('/favicon.ico', '/welcome/static/favicon.ico'),
     ('/admin$anything', '/admin$anything'),
     ('.*:https?://(.*\\.)?domain1.com:$method /', '/app1/default'),
-<<<<<<< HEAD
-    ('.*:https?://(.*\\.)?domain1.com:$method /static/$anything', '/app1/static/$anything'),
-    ('.*:https?://(.*\\.)?domain1.com:$method /appadmin/$anything', '/app1/appadmin/$anything'),
-    ('.*:https?://(.*\\.)?domain1.com:$method /$anything', '/app1/default/$anything'),
-    ('.*:https?://(.*\\.)?domain2.com:$method /', '/app2/default'),
-    ('.*:https?://(.*\\.)?domain2.com:$method /static/$anything', '/app2/static/$anything'),
-    ('.*:https?://(.*\\.)?domain2.com:$method /appadmin/$anything', '/app2/appadmin/$anything'),
-    ('.*:https?://(.*\\.)?domain2.com:$method /$anything', '/app2/default/$anything'),
-    ('.*:https?://(.*\\.)?domain3.com:$method /', '/app3/defcon3'),
-    ('.*:https?://(.*\\.)?domain3.com:$method /static/$anything', '/app3/static/$anything'),
-    ('.*:https?://(.*\\.)?domain3.com:$method /appadmin/$anything', '/app3/appadmin/$anything'),
-    ('.*:https?://(.*\\.)?domain3.com:$method /$anything', '/app3/defcon3/$anything'),
-=======
     ('.*:https?://(.*\\.)?domain1.com:$method /static/$anything',
      '/app1/static/$anything'),
     ('.*:https?://(.*\\.)?domain1.com:$method /appadmin/$anything',
@@ -270,7 +249,6 @@ default_application = 'defapp'
      '/app3/appadmin/$anything'),
     ('.*:https?://(.*\\.)?domain3.com:$method /$anything',
      '/app3/defcon3/$anything'),
->>>>>>> upstream/master
     ('/', '/welcome/default'),
     ('/welcome/default/$anything', '/welcome/default/$anything'),
     ('/welcome/$anything', '/welcome/default/$anything'),
@@ -294,23 +272,6 @@ routes_out = [
     ]
 '''
         load(data=data)
-<<<<<<< HEAD
-        self.assertEqual(filter_url('http://domain.com/welcome/default/f/arg1'),
-            "/welcome/default/f ['arg1']")
-        self.assertEqual(filter_url('http://domain.com/welcome/default/f/arg1/'),
-            "/welcome/default/f ['arg1']")
-        self.assertEqual(filter_url('http://domain.com/welcome/default/f/arg1//'),
-            "/welcome/default/f ['arg1', '']")
-        self.assertEqual(filter_url('http://domain.com/welcome/default/f//arg1'),
-            "/welcome/default/f ['', 'arg1']")
-        self.assertEqual(filter_url('http://domain.com/welcome/default/f/arg1/arg2'),
-            "/welcome/default/f ['arg1', 'arg2']")
-        self.assertEqual(filter_url('http://domain.com/welcome/default/f/arg1//arg2'),
-            "/welcome/default/f ['arg1', '', 'arg2']")
-        self.assertEqual(filter_url('http://domain.com/welcome/default/f/arg1//arg3/'),
-            "/welcome/default/f ['arg1', '', 'arg3']")
-        self.assertEqual(filter_url('http://domain.com/welcome/default/f/arg1//arg3//'),
-=======
         self.assertEqual(
             filter_url('http://domain.com/welcome/default/f/arg1'),
             "/welcome/default/f ['arg1']")
@@ -334,7 +295,6 @@ routes_out = [
             "/welcome/default/f ['arg1', '', 'arg3']")
         self.assertEqual(
             filter_url('http://domain.com/welcome/default/f/arg1//arg3//'),
->>>>>>> upstream/master
             "/welcome/default/f ['arg1', '', 'arg3', '']")
 
         self.assertEqual(
@@ -365,14 +325,6 @@ routes_out = [
         self.assertEqual(
             str(URL(a='a', c='c', f='f', anchor='anchor')), "/a/c/f#anchor")
         args = ['a1', 'a2']
-<<<<<<< HEAD
-        self.assertEqual(str(URL(a='a', c='c', f='f', args=args, anchor='anchor')),
-            "/a/c/f/a1/a2#anchor")
-        vars = dict(v1=1, v2=2)
-        self.assertEqual(str(URL(a='a', c='c', f='f', vars=vars, anchor='anchor')),
-            "/a/c/f?v1=1&v2=2#anchor")
-        self.assertEqual(str(URL(a='a', c='c', f='f', args=args, vars=vars, anchor='anchor')),
-=======
         self.assertEqual(
             str(URL(a='a', c='c', f='f', args=args, anchor='anchor')),
             "/a/c/f/a1/a2#anchor")
@@ -383,7 +335,6 @@ routes_out = [
         self.assertEqual(
             str(URL(
                 a='a', c='c', f='f', args=args, vars=vars, anchor='anchor')),
->>>>>>> upstream/master
             "/a/c/f/a1/a2?v1=1&v2=2#anchor")
 
         data = r'''routes_out = [
@@ -435,36 +386,6 @@ routes_out = [
         r.env.wsgi_url_scheme = 'httpx'  # distinguish incoming scheme
         self.assertEqual(str(URL(r=r, a='a', c='c', f='f')), "/a/c/f")
         self.assertEqual(str(URL(r=r, a='a', c='c', f='f', host=True)),
-<<<<<<< HEAD
-            "httpx://domain.com/a/c/f")
-        self.assertEqual(str(URL(r=r, a='a', c='c', f='f', host='host.com')),
-            "httpx://host.com/a/c/f")
-        self.assertEqual(str(URL(r=r, a='a', c='c', f='f', scheme=True)),
-            "httpx://domain.com/a/c/f")
-        self.assertEqual(str(URL(r=r, a='a', c='c', f='f', scheme=False)),
-            "/a/c/f")
-        self.assertEqual(str(URL(r=r, a='a', c='c', f='f', scheme='https')),
-            "https://domain.com/a/c/f")
-        self.assertEqual(str(URL(r=r, a='a', c='c', f='f', scheme='wss')),
-            "wss://domain.com/a/c/f")
-        self.assertEqual(str(URL(r=r, a='a', c='c', f='f', scheme=True, host=True)),
-            "httpx://domain.com/a/c/f")
-        self.assertEqual(str(URL(r=r, a='a', c='c', f='f', scheme='https', host=True)),
-            "https://domain.com/a/c/f")
-        self.assertEqual(str(URL(r=r, a='a', c='c', f='f', scheme=False, host=True)),
-            "httpx://domain.com/a/c/f")
-        self.assertEqual(str(URL(r=r, a='a', c='c', f='f', scheme=True, host='host.com')),
-            "httpx://host.com/a/c/f")
-        self.assertEqual(str(URL(r=r, a='a', c='c', f='f', scheme=False, host='host.com')),
-            "httpx://host.com/a/c/f")
-        self.assertEqual(str(URL(r=r, a='a', c='c', f='f', port=1234)),
-            "httpx://domain.com:1234/a/c/f")
-        self.assertEqual(str(URL(r=r, a='a', c='c', f='f', scheme=True, port=1234)),
-            "httpx://domain.com:1234/a/c/f")
-        self.assertEqual(str(URL(r=r, a='a', c='c', f='f', host='host.com', port=1234)),
-            "httpx://host.com:1234/a/c/f")
-        self.assertEqual(str(URL(r=r, a='a', c='c', f='f', scheme='wss', host='host.com', port=1234)),
-=======
                          "httpx://domain.com/a/c/f")
         self.assertEqual(str(URL(r=r, a='a', c='c', f='f', host='host.com')),
                          "httpx://host.com/a/c/f")
@@ -502,7 +423,6 @@ routes_out = [
         self.assertEqual(
             str(URL(r=r, a='a', c='c', f='f', scheme='wss',
                 host='host.com', port=1234)),
->>>>>>> upstream/master
             "wss://host.com:1234/a/c/f")
 
     def test_request_uri(self):
@@ -515,15 +435,6 @@ routes_out = [
     ]
 '''
         load(data=data)
-<<<<<<< HEAD
-        self.assertEqual(filter_url('http://domain.com/abc', env=True).request_uri,
-            '/init/default/abc')
-        self.assertEqual(filter_url('http://domain.com/abc?def', env=True).request_uri,
-            '/init/default/abc?def')
-        self.assertEqual(filter_url('http://domain.com/index/abc', env=True).request_uri,
-            "/init/default/index/abc")
-        self.assertEqual(filter_url('http://domain.com/index/a%20bc', env=True).request_uri,
-=======
         self.assertEqual(
             filter_url('http://domain.com/abc', env=True).request_uri,
             '/init/default/abc')
@@ -535,7 +446,6 @@ routes_out = [
             "/init/default/index/abc")
         self.assertEqual(
             filter_url('http://domain.com/index/a%20bc', env=True).request_uri,
->>>>>>> upstream/master
             "/init/default/index/a bc")
 
 
@@ -543,4 +453,3 @@ if __name__ == '__main__':
     setUpModule()       # pre-2.7
     unittest.main()
     tearDownModule()
-

@@ -120,11 +120,7 @@ class Validator(object):
         """
         return value
 
-<<<<<<< HEAD
-    def __call__(self,value):
-=======
     def __call__(self, value):
->>>>>>> upstream/master
         raise NotImplementedError
         return (value, None)
 
@@ -284,11 +280,7 @@ class IS_LENGTH(Validator):
                 value.file.seek(0, os.SEEK_END)
                 length = value.file.tell()
                 value.file.seek(0, os.SEEK_SET)
-<<<<<<< HEAD
-            elif hasattr(value,'value'):
-=======
             elif hasattr(value, 'value'):
->>>>>>> upstream/master
                 val = value.value
                 if val:
                     length = len(val)
@@ -483,12 +475,8 @@ class IS_IN_DB(Validator):
             records = self.dbset(table).select(*fields, **dd)
         else:
             orderby = self.orderby or \
-<<<<<<< HEAD
-                reduce(lambda a,b:a|b,(f for f in fields if not f.name=='id'))
-=======
                 reduce(lambda a, b: a | b, (
                     f for f in fields if not f.name == 'id'))
->>>>>>> upstream/master
             dd = dict(orderby=orderby, cache=self.cache, cacheable=True)
             records = self.dbset(table).select(table.ALL, **dd)
         self.theset = [str(r[self.kfield]) for r in records]
@@ -512,13 +500,8 @@ class IS_IN_DB(Validator):
         if self.multiple:
             if self._and:
                 raise NotImplementedError
-<<<<<<< HEAD
-            if isinstance(value,list):
-                values=value
-=======
             if isinstance(value, list):
                 values = value
->>>>>>> upstream/master
             elif value:
                 values = [value]
             else:
@@ -531,20 +514,12 @@ class IS_IN_DB(Validator):
                     return (values, None)
             else:
                 from dal import GoogleDatastoreAdapter
-<<<<<<< HEAD
-                def count(values, s=self.dbset, f=field):
-                    return s(f.belongs(map(int,values))).count()
-                if isinstance(self.dbset.db._adapter, GoogleDatastoreAdapter):
-                    range_ids = range(0,len(values),30)
-                    total = sum(count(values[i:i+30]) for i in range_ids)
-=======
 
                 def count(values, s=self.dbset, f=field):
                     return s(f.belongs(map(int, values))).count()
                 if isinstance(self.dbset.db._adapter, GoogleDatastoreAdapter):
                     range_ids = range(0, len(values), 30)
                     total = sum(count(values[i:i + 30]) for i in range_ids)
->>>>>>> upstream/master
                     if total == len(values):
                         return (values, None)
                 elif count(values) == len(values):
@@ -1443,7 +1418,6 @@ class IS_GENERIC_URL(Validator):
 
     """
 
-
     def __init__(
         self,
         error_message='enter a valid URL',
@@ -1468,9 +1442,6 @@ class IS_GENERIC_URL(Validator):
         if self.prepend_scheme not in self.allowed_schemes:
             raise SyntaxError("prepend_scheme='%s' is not in allowed_schemes=%s"
                               % (self.prepend_scheme, self.allowed_schemes))
-
-    GENERIC_URL = re.compile(r"%[^0-9A-Fa-f]{2}|%[^0-9A-Fa-f][0-9A-Fa-f]|%[0-9A-Fa-f][^0-9A-Fa-f]|%$|%[0-9A-Fa-f]$|%[^0-9A-Fa-f]$")
-    GENERIC_URL_VALID = re.compile(r"[A-Za-z0-9;/?:@&=+$,\-_\.!~*'\(\)%#]+$")
 
     GENERIC_URL = re.compile(r"%[^0-9A-Fa-f]{2}|%[^0-9A-Fa-f][0-9A-Fa-f]|%[0-9A-Fa-f][^0-9A-Fa-f]|%$|%[0-9A-Fa-f]$|%[^0-9A-Fa-f]$")
     GENERIC_URL_VALID = re.compile(r"[A-Za-z0-9;/?:@&=+$,\-_\.!~*'\(\)%#]+$")
@@ -1502,11 +1473,7 @@ class IS_GENERIC_URL(Validator):
                         # ports, check to see if adding a valid scheme fixes
                         # the problem (but only do this if it doesn't have
                         # one already!)
-<<<<<<< HEAD
-                        if value.find('://')<0 and None in self.allowed_schemes:
-=======
                         if value.find('://') < 0 and None in self.allowed_schemes:
->>>>>>> upstream/master
                             schemeToUse = self.prepend_scheme or 'http'
                             prependTest = self.__call__(
                                 schemeToUse + '://' + value)
@@ -1865,12 +1832,8 @@ class IS_HTTP_URL(Validator):
 
     """
 
-<<<<<<< HEAD
-    GENERIC_VALID_IP = re.compile("([\w.!~*'|;:&=+$,-]+@)?\d+\.\d+\.\d+\.\d+(:\d*)*$")
-=======
     GENERIC_VALID_IP = re.compile(
         "([\w.!~*'|;:&=+$,-]+@)?\d+\.\d+\.\d+\.\d+(:\d*)*$")
->>>>>>> upstream/master
     GENERIC_VALID_DOMAIN = re.compile("([\w.!~*'|;:&=+$,-]+@)?(([A-Za-z0-9]+[A-Za-z0-9\-]*[A-Za-z0-9]+\.)*([A-Za-z0-9]+\.)*)*([A-Za-z]+[A-Za-z0-9\-]*[A-Za-z0-9]+)\.?(:\d*)*$")
 
     def __init__(
@@ -1928,12 +1891,8 @@ class IS_HTTP_URL(Validator):
                         return (value, None)
                     else:
                         # else if authority is a valid domain name
-<<<<<<< HEAD
-                        domainMatch = self.GENERIC_VALID_DOMAIN.match(authority)
-=======
                         domainMatch = self.GENERIC_VALID_DOMAIN.match(
                             authority)
->>>>>>> upstream/master
                         if domainMatch:
                             # if the top-level domain really exists
                             if domainMatch.group(5).lower()\
@@ -1952,11 +1911,7 @@ class IS_HTTP_URL(Validator):
                     else:
                         # abbreviated case: if we haven't already, prepend a
                         # scheme and see if it fixes the problem
-<<<<<<< HEAD
-                        if value.find('://')<0:
-=======
                         if value.find('://') < 0:
->>>>>>> upstream/master
                             schemeToUse = self.prepend_scheme or 'http'
                             prependTest = self.__call__(schemeToUse
                                                         + '://' + value)
@@ -2280,10 +2235,6 @@ class IS_DATETIME(Validator):
         except:
             self.extremes.update(IS_DATETIME.nice(self.format))
             return (value, translate(self.error_message) % self.extremes)
-<<<<<<< HEAD
-
-=======
->>>>>>> upstream/master
 
     def formatter(self, value):
         if value is None:
@@ -2295,13 +2246,8 @@ class IS_DATETIME(Validator):
         format = format.replace('%Y', y)
         if year < 1900:
             year = 2000
-<<<<<<< HEAD
-        d = datetime.datetime(year,value.month,value.day,
-                              value.hour,value.minute,value.second)
-=======
         d = datetime.datetime(year, value.month, value.day,
                               value.hour, value.minute, value.second)
->>>>>>> upstream/master
         return d.strftime(format)
 
 
@@ -2341,13 +2287,8 @@ class IS_DATE_IN_RANGE(IS_DATE):
             else:
                 error_message = "enter date in range %(min)s %(max)s"
         IS_DATE.__init__(self,
-<<<<<<< HEAD
-                         format = format,
-                         error_message = error_message)
-=======
                          format=format,
                          error_message=error_message)
->>>>>>> upstream/master
         self.extremes = dict(min=minimum, max=maximum)
 
     def __call__(self, value):
@@ -2396,15 +2337,9 @@ class IS_DATETIME_IN_RANGE(IS_DATETIME):
             else:
                 error_message = "enter date and time in range %(min)s %(max)s"
         IS_DATETIME.__init__(self,
-<<<<<<< HEAD
-                         format = format,
-                         error_message = error_message)
-        self.extremes = dict(min = minimum, max = maximum)
-=======
                              format=format,
                              error_message=error_message)
         self.extremes = dict(min=minimum, max=maximum)
->>>>>>> upstream/master
 
     def __call__(self, value):
         (value, msg) = IS_DATETIME.__call__(self, value)
@@ -2642,83 +2577,6 @@ class CLEANUP(Validator):
         v = self.regex.sub('', str(value).strip())
         return (v, None)
 
-class LazyCrypt(object):
-    """
-    Stores a lazy password hash
-    """
-    def __init__(self,crypt,password):
-        """
-        crypt is an instance of the CRYPT validator,
-        password is the password as inserted by the user
-        """
-        self.crypt = crypt
-        self.password = password
-        self.crypted = None
-
-    def __str__(self):
-        """
-        Encrypted self.password and caches it in self.crypted.
-        If self.crypt.salt the output is in the format <algorithm>$<salt>$<hash>
-
-        Try get the digest_alg from the key (if it exists)
-        else assume the default digest_alg. If not key at all, set key=''
-
-        If a salt is specified use it, if salt is True, set salt to uuid
-        (this should all be backward compatible)
-
-        Options:
-        key = 'uuid'
-        key = 'md5:uuid'
-        key = 'sha512:uuid'
-        ...
-        key = 'pbkdf2(1000,64,sha512):uuid' 1000 iterations and 64 chars length
-        """
-        if self.crypted:
-            return self.crypted
-        if self.crypt.key:
-            if ':' in self.crypt.key:
-                digest_alg, key = self.crypt.key.split(':',1)
-            else:
-                digest_alg, key = self.crypt.digest_alg, self.crypt.key
-        else:
-            digest_alg, key = self.crypt.digest_alg, ''
-        if self.crypt.salt:
-            if self.crypt.salt == True:
-                salt = str(web2py_uuid()).replace('-','')[-16:]
-            else:
-                salt = self.crypt.salt
-        else:
-            salt = ''
-        hashed = simple_hash(self.password, key, salt, digest_alg)
-        self.crypted = '%s$%s$%s' % (digest_alg, salt, hashed)
-        return self.crypted
-
-    def __eq__(self, stored_password):
-        """
-        compares the current lazy crypted password with a stored password
-        """
-        if self.crypt.key:
-            if ':' in self.crypt.key:
-                key = self.crypt.key.split(':')[1]
-            else:
-                key = self.crypt.key
-        else:
-            key = ''
-        if stored_password is None:
-            return False
-        elif stored_password.count('$')==2:
-            (digest_alg, salt, hash) = stored_password.split('$')
-            h = simple_hash(self.password, key, salt, digest_alg)
-            temp_pass = '%s$%s$%s' % (digest_alg, salt, h)
-        else: # no salting
-            # guess digest_alg
-            digest_alg = DIGEST_ALG_BY_SIZE.get(len(stored_password),None)
-            if not digest_alg:
-                return False
-            else:
-                temp_pass = simple_hash(self.password, key, '', digest_alg)
-        return temp_pass == stored_password
-
 
 class LazyCrypt(object):
     """
@@ -2904,11 +2762,7 @@ class CRYPT(object):
     def __call__(self, value):
         if len(value) < self.min_length:
             return ('', translate(self.error_message))
-<<<<<<< HEAD
-        return (LazyCrypt(self,value),None)
-=======
         return (LazyCrypt(self, value), None)
->>>>>>> upstream/master
 
 #  entropy calculator for IS_STRONG
 #
@@ -2917,13 +2771,9 @@ upperset = frozenset(unicode('ABCDEFGHIJKLMNOPQRSTUVWXYZ'))
 numberset = frozenset(unicode('0123456789'))
 sym1set = frozenset(unicode('!@#$%^&*()'))
 sym2set = frozenset(unicode('~`-_=+[]{}\\|;:\'",.<>?/'))
-<<<<<<< HEAD
-otherset = frozenset(unicode('0123456789abcdefghijklmnopqrstuvwxyz')) # anything else
-=======
 otherset = frozenset(
     unicode('0123456789abcdefghijklmnopqrstuvwxyz'))  # anything else
 
->>>>>>> upstream/master
 
 def calc_entropy(string):
     " calculate a simple entropy for a given string "
@@ -2951,15 +2801,10 @@ def calc_entropy(string):
         if inset is not lastset:
             alphabet += 1   # credit for set transitions
             lastset = cset
-<<<<<<< HEAD
-    entropy = len(string) * math.log(alphabet) / 0.6931471805599453 # math.log(2)
-    return round(entropy, 2)
-=======
     entropy = len(
         string) * math.log(alphabet) / 0.6931471805599453  # math.log(2)
     return round(entropy, 2)
 
->>>>>>> upstream/master
 
 class IS_STRONG(object):
     """
@@ -2971,12 +2816,8 @@ class IS_STRONG(object):
     enforces complexity requirements on a field
 
     >>> IS_STRONG(es=True)('Abcd1234')
-<<<<<<< HEAD
-    ('Abcd1234', 'Must include at least 1 of the following: ~!@#$%^&*()_+-=?<>,.:;{}[]|')
-=======
     ('Abcd1234',
      'Must include at least 1 of the following: ~!@#$%^&*()_+-=?<>,.:;{}[]|')
->>>>>>> upstream/master
     >>> IS_STRONG(es=True)('Abcd1234!')
     ('Abcd1234!', None)
     >>> IS_STRONG(es=True, entropy=1)('a')
@@ -2996,11 +2837,7 @@ class IS_STRONG(object):
 
     """
 
-<<<<<<< HEAD
-    def __init__(self, min=None, max=None, upper=None, lower=None, number=None, 
-=======
     def __init__(self, min=None, max=None, upper=None, lower=None, number=None,
->>>>>>> upstream/master
                  entropy=None,
                  special=None, specials=r'~!@#$%^&*()_+-=?<>,.:;{}[]|',
                  invalid=' "', error_message=None, es=False):
@@ -3028,13 +2865,6 @@ class IS_STRONG(object):
 
     def __call__(self, value):
         failures = []
-<<<<<<< HEAD
-        if self.entropy is not None:
-            entropy = calc_entropy(value)
-            if entropy < self.entropy:
-                failures.append(translate("Entropy (%(have)s) less than required (%(need)s)") \
-                    % dict(have=entropy, need=self.entropy))
-=======
         if value and len(value) == value.count('*') > 4:
             return (value, None)
         if self.entropy is not None:
@@ -3042,7 +2872,6 @@ class IS_STRONG(object):
             if entropy < self.entropy:
                 failures.append(translate("Entropy (%(have)s) less than required (%(need)s)")
                                 % dict(have=entropy, need=self.entropy))
->>>>>>> upstream/master
         if type(self.min) == int and self.min > 0:
             if not len(value) >= self.min:
                 failures.append(translate("Minimum length is %s") % self.min)
@@ -3053,15 +2882,6 @@ class IS_STRONG(object):
             all_special = [ch in value for ch in self.specials]
             if self.special > 0:
                 if not all_special.count(True) >= self.special:
-<<<<<<< HEAD
-                    failures.append(translate("Must include at least %s of the following: %s") \
-                                        % (self.special, self.specials))
-        if self.invalid:
-            all_invalid = [ch in value for ch in self.invalid]
-            if all_invalid.count(True) > 0:
-                failures.append(translate("May not contain any of the following: %s") \
-                    % self.invalid)
-=======
                     failures.append(translate("Must include at least %s of the following: %s")
                                     % (self.special, self.specials))
         if self.invalid:
@@ -3069,43 +2889,26 @@ class IS_STRONG(object):
             if all_invalid.count(True) > 0:
                 failures.append(translate("May not contain any of the following: %s")
                                 % self.invalid)
->>>>>>> upstream/master
         if type(self.upper) == int:
             all_upper = re.findall("[A-Z]", value)
             if self.upper > 0:
                 if not len(all_upper) >= self.upper:
-<<<<<<< HEAD
-                    failures.append(translate("Must include at least %s upper case") \
-                        % str(self.upper))
-            else:
-                if len(all_upper) > 0:
-                    failures.append(translate("May not include any upper case letters"))
-=======
                     failures.append(translate("Must include at least %s upper case")
                                     % str(self.upper))
             else:
                 if len(all_upper) > 0:
                     failures.append(
                         translate("May not include any upper case letters"))
->>>>>>> upstream/master
         if type(self.lower) == int:
             all_lower = re.findall("[a-z]", value)
             if self.lower > 0:
                 if not len(all_lower) >= self.lower:
-<<<<<<< HEAD
-                    failures.append(translate("Must include at least %s lower case") \
-                        % str(self.lower))
-            else:
-                if len(all_lower) > 0:
-                    failures.append(translate("May not include any lower case letters"))
-=======
                     failures.append(translate("Must include at least %s lower case")
                                     % str(self.lower))
             else:
                 if len(all_lower) > 0:
                     failures.append(
                         translate("May not include any lower case letters"))
->>>>>>> upstream/master
         if type(self.number) == int:
             all_number = re.findall("[0-9]", value)
             if self.number > 0:
@@ -3113,13 +2916,8 @@ class IS_STRONG(object):
                 if self.number > 1:
                     numbers = "numbers"
                 if not len(all_number) >= self.number:
-<<<<<<< HEAD
-                    failures.append(translate("Must include at least %s %s") \
-                        % (str(self.number), numbers))
-=======
                     failures.append(translate("Must include at least %s %s")
                                     % (str(self.number), numbers))
->>>>>>> upstream/master
             else:
                 if len(all_number) > 0:
                     failures.append(translate("May not include any numbers"))
@@ -3493,17 +3291,5 @@ class IS_IPV4(Validator):
 
 if __name__ == '__main__':
     import doctest
-<<<<<<< HEAD
-    doctest.testmod(optionflags=doctest.NORMALIZE_WHITESPACE|doctest.ELLIPSIS)
-
-
-
-
-
-
-
-
-=======
     doctest.testmod(
         optionflags=doctest.NORMALIZE_WHITESPACE | doctest.ELLIPSIS)
->>>>>>> upstream/master

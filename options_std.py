@@ -14,23 +14,14 @@ import os
 
 ip = '0.0.0.0'
 port = 80
-<<<<<<< HEAD
-interfaces=[('0.0.0.0',80)] #,('0.0.0.0',443,'ssl_private_key.pem','ssl_certificate.pem')]
-=======
 interfaces = [('0.0.0.0', 80)]
                #,('0.0.0.0',443,'ssl_private_key.pem','ssl_certificate.pem')]
->>>>>>> upstream/master
 password = '<recycle>'  # ## <recycle> means use the previous password
 pid_filename = 'httpserver.pid'
 log_filename = 'httpserver.log'
 profiler_filename = None
-<<<<<<< HEAD
-ssl_certificate = None #'ssl_certificate.pem'  # ## path to certificate file
-ssl_private_key = None #'ssl_private_key.pem'  # ## path to private key file
-=======
 ssl_certificate = None  # 'ssl_certificate.pem'  # ## path to certificate file
 ssl_private_key = None  # 'ssl_private_key.pem'  # ## path to private key file
->>>>>>> upstream/master
 #numthreads = 50 # ## deprecated; remove
 minthreads = None
 maxthreads = None
@@ -41,7 +32,3 @@ shutdown_timeout = 5
 folder = os.getcwd()
 extcron = None
 nocron = None
-<<<<<<< HEAD
-
-=======
->>>>>>> upstream/master

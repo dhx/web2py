@@ -141,10 +141,4 @@ class CasAuth(object):
         redirects to the CAS logout page
         """
         import urllib
-<<<<<<< HEAD
-        redirect("%s?service=%s" % (self.cas_logout_url,self.cas_my_url))
-
-
-=======
         redirect("%s?service=%s" % (self.cas_logout_url, self.cas_my_url))
->>>>>>> upstream/master

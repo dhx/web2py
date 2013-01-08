@@ -39,10 +39,6 @@ class TestStorage(unittest.TestCase):
         s.d = list()
         self.assertTrue(s.d is s['d'])
 
-<<<<<<< HEAD
-
-=======
->>>>>>> upstream/master
     def test_store_none(self):
         """ Test Storage store-None handling
             s.key = None deletes an item
@@ -78,4 +74,3 @@ class TestStorage(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-

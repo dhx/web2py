@@ -1,8 +1,3 @@
-<<<<<<< HEAD
-echo 'setup-web2py-nginx-uwsgi-ubuntu-precise.sh'
-echo 'Requires Ubuntu 12.04 and installs Nginx + uWSGI + Web2py'
-
-=======
 #!/bin/bash
 echo 'setup-web2py-nginx-uwsgi-ubuntu-precise.sh'
 echo 'Requires Ubuntu > 12.04 and installs Nginx + uWSGI + Web2py'
@@ -11,21 +6,12 @@ if [[ $EUID -ne 0 ]]; then
    echo "You must run the script as root or using sudo"
    exit 1
 fi
->>>>>>> upstream/master
 # Get Web2py Admin Password
 echo -e "Web2py Admin Password: \c "
 read  PW
 # Upgrade and install needed software
 apt-get update
 apt-get -y upgrade
-<<<<<<< HEAD
-apt-get -y dist-upgrade
-apt-get autoremove
-apt-get autoclean
-apt-get -y install nginx-full
-apt-get -y install uwsgi uwsgi-plugin-python
-
-=======
 apt-get autoremove
 apt-get autoclean
 apt-get -y install nginx-full
@@ -33,7 +19,6 @@ apt-get -y install build-essential python-dev libxml2-dev python-pip unzip
 pip install --upgrade pip
 PIPPATH=`which pip`
 $PIPPATH install --upgrade uwsgi
->>>>>>> upstream/master
 # Create configuration file /etc/nginx/sites-available/web2py
 echo 'server {
         listen          80;
@@ -48,21 +33,12 @@ echo 'server {
             #remove next comment on production
             #expires max;
         }
-<<<<<<< HEAD
-         location / {
-                #uwsgi_pass      127.0.0.1:9001;
-                uwsgi_pass      unix:///run/uwsgi/app/web2py/web2py.socket;
-                include         uwsgi_params;
-                uwsgi_param     UWSGI_SCHEME $scheme;
-                uwsgi_param     SERVER_SOFTWARE    nginx/$nginx_version;
-=======
         location / {
             #uwsgi_pass      127.0.0.1:9001;
             uwsgi_pass      unix:///tmp/web2py.socket;
             include         uwsgi_params;
             uwsgi_param     UWSGI_SCHEME $scheme;
             uwsgi_param     SERVER_SOFTWARE    nginx/$nginx_version;
->>>>>>> upstream/master
         }
 }
 server {
@@ -77,19 +53,11 @@ server {
         ssl_protocols SSLv3 TLSv1;
         keepalive_timeout    70;
         location / {
-<<<<<<< HEAD
-                #uwsgi_pass      127.0.0.1:9001;
-                uwsgi_pass      unix:///run/uwsgi/app/web2py/web2py.socket;
-                include         uwsgi_params;
-                uwsgi_param     UWSGI_SCHEME $scheme;
-                uwsgi_param     SERVER_SOFTWARE    nginx/$nginx_version;
-=======
             #uwsgi_pass      127.0.0.1:9001;
             uwsgi_pass      unix:///tmp/web2py.socket;
             include         uwsgi_params;
             uwsgi_param     UWSGI_SCHEME $scheme;
             uwsgi_param     SERVER_SOFTWARE    nginx/$nginx_version;
->>>>>>> upstream/master
         }
  
 }' >/etc/nginx/sites-available/web2py
@@ -98,23 +66,6 @@ ln -s /etc/nginx/sites-available/web2py /etc/nginx/sites-enabled/web2py
 rm /etc/nginx/sites-enabled/default
 mkdir /etc/nginx/ssl
 cd /etc/nginx/ssl
-<<<<<<< HEAD
-openssl genrsa -out web2py.key 1024
-openssl req -batch -new -key web2py.key -out web2py.csr
-openssl x509 -req -days 1780 -in web2py.csr -signkey web2py.key -out web2py.crt
-
-# Create configuration file /etc/uwsgi/apps-available/web2py.xml
-echo '<uwsgi>
-    <plugin>python</plugin>
-    <socket>/run/uwsgi/app/web2py/web2py.socket</socket>
-    <pythonpath>/home/www-data/web2py/</pythonpath>
-    <app mountpoint="/">
-        <script>wsgihandler</script>
-    </app>
-    <master/>
-    <processes>4</processes>
-    <harakiri>60</harakiri> 
-=======
  
 openssl genrsa 1024 > web2py.key
 chmod 400 web2py.key
@@ -134,7 +85,6 @@ echo '<uwsgi>
     <master/>
     <processes>4</processes>
     <harakiri>60</harakiri>
->>>>>>> upstream/master
     <reload-mercy>8</reload-mercy>
     <cpu-affinity>1</cpu-affinity>
     <stats>/tmp/stats.socket</stats>
@@ -142,15 +92,6 @@ echo '<uwsgi>
     <limit-as>512</limit-as>
     <reload-on-as>256</reload-on-as>
     <reload-on-rss>192</reload-on-rss>
-<<<<<<< HEAD
-    <no-orphans/>
-    <vacuum/>    
-</uwsgi>' >/etc/uwsgi/apps-available/web2py.xml
-ln -s /etc/uwsgi/apps-available/web2py.xml /etc/uwsgi/apps-enabled/web2py.xml
-
-# Install Web2py
-apt-get -y install unzip
-=======
     <uid>www-data</uid>
     <gid>www-data</gid>
     <cron>0 0 -1 -1 -1 python /home/www-data/web2py/web2py.py -Q -S welcome -M -R scripts/sessions2trash.py -A -o</cron>
@@ -176,7 +117,6 @@ respawn
 exec uwsgi --master --die-on-term --emperor /etc/uwsgi --logto /var/log/uwsgi/uwsgi.log
 ' > /etc/init/uwsgi-emperor.conf
 # Install Web2py
->>>>>>> upstream/master
 mkdir /home/www-data
 cd /home/www-data
 wget http://web2py.com/examples/static/web2py_src.zip
@@ -187,11 +127,6 @@ wget http://web2py.googlecode.com/hg/scripts/sessions2trash.py -O /home/www-data
 chown -R www-data:www-data web2py
 cd /home/www-data/web2py
 sudo -u www-data python -c "from gluon.main import save_password; save_password('$PW',443)"
-<<<<<<< HEAD
-/etc/init.d/uwsgi restart
-/etc/init.d/nginx restart
-
-=======
 start uwsgi-emperor
 /etc/init.d/nginx restart
  
@@ -201,4 +136,3 @@ start uwsgi-emperor
 # stop uwsgi-emperor
 ## to reload web2py only (without restarting uwsgi)
 # touch /etc/uwsgi/web2py.xml
->>>>>>> upstream/master

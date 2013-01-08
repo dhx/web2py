@@ -103,8 +103,3 @@ class ExtendedLoginForm(object):
 
         form.components.append(self.alt_login_form.login_form())
         return form
-<<<<<<< HEAD
-
-
-=======
->>>>>>> upstream/master

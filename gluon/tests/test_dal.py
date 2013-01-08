@@ -13,14 +13,10 @@ else:
 
 import unittest
 import datetime
-<<<<<<< HEAD
-import cStringIO
-=======
 try:
     import cStringIO as StringIO
 except:
     from io import StringIO
->>>>>>> upstream/master
 from dal import DAL, Field, Table, SQLALL
 
 ALLOWED_DATATYPES = [
@@ -562,19 +558,11 @@ class TestImportExportFields(unittest.TestCase):
                 id = db.person.insert(name=str(k))
                 db.pet.insert(friend=id,name=str(k))
         db.commit()
-<<<<<<< HEAD
-        stream = cStringIO.StringIO()
-        db.export_to_csv_file(stream)
-        db(db.pet).delete()
-        db(db.person).delete()
-        stream = cStringIO.StringIO(stream.getvalue())
-=======
         stream = StringIO.StringIO()
         db.export_to_csv_file(stream)
         db(db.pet).delete()
         db(db.person).delete()
         stream = StringIO.StringIO(stream.getvalue())
->>>>>>> upstream/master
         db.import_from_csv_file(stream)
         assert db(db.person.id==db.pet.friend)(db.person.name==db.pet.name).count()==10
         db.pet.drop()
@@ -594,15 +582,9 @@ class TestImportExportUuidFields(unittest.TestCase):
                 id = db.person.insert(name=str(k),uuid=str(k))
                 db.pet.insert(friend=id,name=str(k))
         db.commit()
-<<<<<<< HEAD
-        stream = cStringIO.StringIO()
-        db.export_to_csv_file(stream)
-        stream = cStringIO.StringIO(stream.getvalue())
-=======
         stream = StringIO.StringIO()
         db.export_to_csv_file(stream)
         stream = StringIO.StringIO(stream.getvalue())
->>>>>>> upstream/master
         db.import_from_csv_file(stream)
         assert db(db.person).count()==10
         assert db(db.person.id==db.pet.friend)(db.person.name==db.pet.name).count()==20

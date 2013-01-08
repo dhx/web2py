@@ -33,11 +33,7 @@ class TicketStorage(Storage):
         self,
         db=None,
         tablename='web2py_ticket'
-<<<<<<< HEAD
-        ):
-=======
     ):
->>>>>>> upstream/master
         Storage.__init__(self)
         self.db = db
         self.tablename = tablename
@@ -106,10 +102,6 @@ class TicketStorage(Storage):
             table = self._get_table(self.db, self.tablename, app)
             rows = self.db(table.ticket_id == ticket_id).select()
             return cPickle.loads(rows[0].ticket_data) if rows else {}
-<<<<<<< HEAD
-            
-=======
->>>>>>> upstream/master
 
 
 class RestrictedError(Exception):
@@ -243,8 +235,6 @@ def snapshot(info=None, context=5, code=None, environment=None):
     import pydoc
     import cgitb
 
-    pydoc.text._repr_instance.maxstring = 10000
-
     # if no exception info given, get current:
     etype, evalue, etb = info or sys.exc_info()
 
@@ -332,13 +322,3 @@ def snapshot(info=None, context=5, code=None, environment=None):
             s[k] = BEAUTIFY(v)
 
     return s
-<<<<<<< HEAD
-
-
-
-
-
-
-
-=======
->>>>>>> upstream/master

@@ -89,11 +89,7 @@ def wsgiapp(env, res):
     if global_settings.web2py_runtime == 'gae:development':
         gluon.admin.create_missing_folders()
 
-<<<<<<< HEAD
-    web2py_path = global_settings.applications_parent # backward compatibility
-=======
     web2py_path = global_settings.applications_parent  # backward compatibility
->>>>>>> upstream/master
 
     return gluon.main.wsgibase(env, res)
 
@@ -108,11 +104,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-<<<<<<< HEAD
-
-
-
-
-
-=======
->>>>>>> upstream/master

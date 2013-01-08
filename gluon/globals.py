@@ -48,7 +48,6 @@ except ImportError:
     have_minify = False
 
 regex_session_id = re.compile('^([\w\-]+/)?[\w\-\.]+$')
-regex_nopasswd = re.compile('(?<=\:)([^:@/]+)(?=@.+)')
 
 __all__ = ['Request', 'Response', 'Session']
 
@@ -83,11 +82,7 @@ class Request(Storage):
 
     def __init__(self):
         Storage.__init__(self)
-<<<<<<< HEAD
-        self.wsgi = Storage() # hooks to environ and start_response
-=======
         self.wsgi = Storage()  # hooks to environ and start_response
->>>>>>> upstream/master
         self.env = Storage()
         self.cookies = Cookie.SimpleCookie()
         self.get_vars = Storage()
@@ -121,13 +116,8 @@ class Request(Storage):
         if session:
             session._user_agent = user_agent
         user_agent = Storage(user_agent)
-<<<<<<< HEAD
-        for key,value in user_agent.items():
-            if isinstance(value,dict):
-=======
         for key, value in user_agent.items():
             if isinstance(value, dict):
->>>>>>> upstream/master
                 user_agent[key] = Storage(value)
         return user_agent
 
@@ -136,9 +126,6 @@ class Request(Storage):
         If request comes in over HTTP, redirect it to HTTPS
         and secure the session.
         """
-<<<<<<< HEAD
-        if not global_settings.cronjob and not self.is_https:
-=======
         cmd_opts = global_settings.cmd_options
         #checking if this is called within the scheduler or within the shell
         #in addition to checking if it's not a cronjob
@@ -146,7 +133,6 @@ class Request(Storage):
             or global_settings.cronjob or self.is_https):
             current.session.secure()
         else:
->>>>>>> upstream/master
             current.session.forget()
             redirect(URL(scheme='https', args=self.args, vars=self.vars))
 
@@ -247,15 +233,9 @@ class Response(Storage):
 
     def include_meta(self):
         s = '\n'.join(
-<<<<<<< HEAD
-            '<meta name="%s" content="%s" />\n' % (k,xmlescape(v))
-            for k,v in (self.meta or {}).iteritems())
-        self.write(s,escape=False)
-=======
             '<meta name="%s" content="%s" />\n' % (k, xmlescape(v))
             for k, v in (self.meta or {}).iteritems())
         self.write(s, escape=False)
->>>>>>> upstream/master
 
     def include_files(self, extensions=None):
 
@@ -279,14 +259,6 @@ class Response(Storage):
             if item.endswith('.css'):
                 has_css = True
             files.append(item)
-<<<<<<< HEAD
-        
-        if have_minify and ((self.optimize_css and has_css) or (self.optimize_js and has_js)):
-            # cache for 5 minutes by default
-            key = hashlib.md5(repr(files)).hexdigest()
- 
-            cache = self.cache_includes or (current.cache.ram, 60*5)
-=======
 
         if have_minify and ((self.optimize_css and has_css) or (self.optimize_js and has_js)):
             # cache for 5 minutes by default
@@ -294,7 +266,6 @@ class Response(Storage):
 
             cache = self.cache_includes or (current.cache.ram, 60 * 5)
 
->>>>>>> upstream/master
             def call_minify(files=files):
                 return minify.minify(files,
                                      URL('static', 'temp'),
@@ -303,28 +274,13 @@ class Response(Storage):
                                      self.optimize_js)
             if cache:
                 cache_model, time_expire = cache
-<<<<<<< HEAD
-                files = cache_model('response.files.minified/'+key,
-=======
                 files = cache_model('response.files.minified/' + key,
->>>>>>> upstream/master
                                     call_minify,
                                     time_expire)
             else:
                 files = call_minify()
         s = ''
         for item in files:
-<<<<<<< HEAD
-            if isinstance(item,str):
-                f = item.lower().split('?')[0]
-                if self.static_version:
-                    item = item.replace('/static/', '/static/_%s/' % self.static_version, 1)
-                if f.endswith('.css'):  s += css_template % item
-                elif f.endswith('.js'): s += js_template % item
-                elif f.endswith('.coffee'): s += coffee_template % item
-                elif f.endswith('.less'): s += less_template % item
-            elif isinstance(item,(list,tuple)):
-=======
             if isinstance(item, str):
                 f = item.lower().split('?')[0]
                 if self.static_version:
@@ -339,7 +295,6 @@ class Response(Storage):
                 elif f.endswith('.less'):
                     s += less_template % item
             elif isinstance(item, (list, tuple)):
->>>>>>> upstream/master
                 f = item[0]
                 if f == 'css:inline':
                     s += css_inline % item[1]
@@ -354,11 +309,7 @@ class Response(Storage):
         request=None,
         attachment=False,
         filename=None,
-<<<<<<< HEAD
-        ):
-=======
     ):
->>>>>>> upstream/master
         """
         if a controller function::
 
@@ -409,17 +360,10 @@ class Response(Storage):
                     os.path.getsize(filename)
             except OSError:
                 pass
-<<<<<<< HEAD
-        
-        env = request.env
-        # Internet Explorer < 9.0 will not allow downloads over SSL unless caching is enabled
-        if request.is_https and isinstance(env.http_user_agent,str) and \
-=======
 
         env = request.env
         # Internet Explorer < 9.0 will not allow downloads over SSL unless caching is enabled
         if request.is_https and isinstance(env.http_user_agent, str) and \
->>>>>>> upstream/master
                 not re.search(r'Opera', env.http_user_agent) and \
                 re.search(r'MSIE [5-8][^0-9]', env.http_user_agent):
             headers['Pragma'] = 'cache'
@@ -461,14 +405,8 @@ class Response(Storage):
         headers['Content-Type'] = contenttype(name)
         if attachment:
             headers['Content-Disposition'] = \
-<<<<<<< HEAD
-                'attachment; filename=%s' % filename
-        return self.stream(stream, chunk_size=chunk_size, request=request)
-                           
-=======
                 'attachment; filename="%s"' % filename.replace('"','\"')
         return self.stream(stream, chunk_size=chunk_size, request=request)
->>>>>>> upstream/master
 
     def json(self, data, default=None):
         return json(data, default=default or custom_json)
@@ -501,41 +439,6 @@ class Response(Storage):
         BUTTON = TAG.button
         admin = URL("admin", "default", "design",
                     args=current.request.application)
-<<<<<<< HEAD
-        from gluon.dal import THREAD_LOCAL
-        if hasattr(THREAD_LOCAL,'instances'):
-            dbstats = [TABLE(*[TR(PRE(row[0]),'%.2fms' % (row[1]*1000)) \
-                                   for row in i.db._timings]) \
-                           for i in THREAD_LOCAL.instances]
-            dbtables = dict([(regex_nopasswd.sub('******',i.uri), 
-                              {'defined': 
-                               sorted(list(set(i.db.tables) - 
-                                           set(i.db._LAZY_TABLES.keys()))) or
-                               '[no defined tables]',
-                               'lazy': sorted(i.db._LAZY_TABLES.keys()) or
-                               '[no lazy tables]'})
-                             for i in THREAD_LOCAL.instances])
-        else:
-            dbstats = [] # if no db or on GAE
-            dbtables = {}
-        u = web2py_uuid()
-        backtotop = A('Back to top', _href="#totop-%s" % u)
-        return DIV(
-            BUTTON('design',_onclick="document.location='%s'" % admin),
-            BUTTON('request',_onclick="jQuery('#request-%s').slideToggle()"%u),
-            BUTTON('response',_onclick="jQuery('#response-%s').slideToggle()"%u),
-            BUTTON('session',_onclick="jQuery('#session-%s').slideToggle()"%u),
-            BUTTON('db tables',_onclick="jQuery('#db-tables-%s').slideToggle()"%u),
-            BUTTON('db stats',_onclick="jQuery('#db-stats-%s').slideToggle()"%u),
-            DIV(BEAUTIFY(current.request), backtotop,_class="hidden",_id="request-%s"%u),
-            DIV(BEAUTIFY(current.session), backtotop, _class="hidden",_id="session-%s"%u),
-            DIV(BEAUTIFY(current.response), backtotop, _class="hidden",_id="response-%s"%u),
-            DIV(BEAUTIFY(dbtables), backtotop, _class="hidden",_id="db-tables-%s"%u),
-            DIV(BEAUTIFY(dbstats), backtotop, _class="hidden",_id="db-stats-%s"%u),
-            SCRIPT("jQuery('.hidden').hide()")
-            ,_id="totop-%s" % u
-            )
-=======
         from gluon.dal import DAL
         dbstats = []
         dbtables = {}
@@ -573,7 +476,6 @@ class Response(Storage):
             SCRIPT("jQuery('.hidden').hide()"), _id="totop-%s" % u
         )
 
->>>>>>> upstream/master
 
 class Session(Storage):
 
@@ -594,27 +496,17 @@ class Session(Storage):
         cookie_key=None,
         cookie_expires=None,
         compression_level=None
-<<<<<<< HEAD
-        ):
-=======
     ):
->>>>>>> upstream/master
         """
         separate can be separate=lambda(session_name): session_name[-2:]
         and it is used to determine a session prefix.
         separate can be True and it is set to session_name[-2:]
         """
-<<<<<<< HEAD
-        if request is None: request = current.request
-        if response is None: response = current.response
-        if separate == True:
-=======
         if request is None:
             request = current.request
         if response is None:
             response = current.response
         if separate is True:
->>>>>>> upstream/master
             separate = lambda session_name: session_name[-2:]
         self._unlock(response)
         if not masterapp:
@@ -622,11 +514,7 @@ class Session(Storage):
         response.session_id_name = 'session_id_%s' % masterapp.lower()
         response.session_data_name = 'session_data_%s' % masterapp.lower()
         response.session_cookie_expires = cookie_expires
-<<<<<<< HEAD
-        
-=======
 
->>>>>>> upstream/master
         # Load session data from cookie
         cookies = request.cookies
 
@@ -642,23 +530,15 @@ class Session(Storage):
             session_cookie_data = cookies[response.session_data_name].value
         else:
             session_cookie_data = None
-<<<<<<< HEAD
-                
-=======
 
->>>>>>> upstream/master
         # if we are supposed to use cookie based session data
         if cookie_key:
             response.session_storage_type = 'cookie'
             response.session_cookie_key = cookie_key
             response.session_cookie_compression_level = compression_level
             if session_cookie_data:
-<<<<<<< HEAD
-                data = secure_loads(session_cookie_data,cookie_key,compression_level=compression_level)
-=======
                 data = secure_loads(session_cookie_data, cookie_key,
                                     compression_level=compression_level)
->>>>>>> upstream/master
                 if data:
                     self.update(data)
         # else if we are supposed to use file based sessions
@@ -678,10 +558,7 @@ class Session(Storage):
                     response.session_id = None
             # do not try load the data from file is these was data in cookie
             if response.session_id and not session_cookie_data:
-<<<<<<< HEAD
-=======
                 # os.path.exists(response.session_filename):
->>>>>>> upstream/master
                 try:
                     response.session_file = \
                         open(response.session_filename, 'rb+')
@@ -693,15 +570,10 @@ class Session(Storage):
                         response.session_file.seek(0)
                         oc = response.session_filename.split('/')[-1]\
                             .split('-')[0]
-<<<<<<< HEAD
-                        if check_client and client!=oc:
-                            raise Exception, "cookie attack"
-=======
                         if check_client and client != oc:
                             raise Exception("cookie attack")
                     except:
                         response.session_id = None
->>>>>>> upstream/master
                     finally:
                         pass
                         #This causes admin login to break. Must find out why.
@@ -714,11 +586,7 @@ class Session(Storage):
                 if separate:
                     prefix = separate(response.session_id)
                     response.session_id = '%s/%s' % \
-<<<<<<< HEAD
-                        (prefix,response.session_id)
-=======
                         (prefix, response.session_id)
->>>>>>> upstream/master
                 response.session_filename = \
                     os.path.join(up(request.folder), masterapp,
                                  'sessions', response.session_id)
@@ -746,42 +614,25 @@ class Session(Storage):
                     Field('locked', 'boolean', default=False),
                     Field('client_ip', length=64),
                     Field('created_datetime', 'datetime',
-<<<<<<< HEAD
-                             default=request.now),
-=======
                           default=request.now),
->>>>>>> upstream/master
                     Field('modified_datetime', 'datetime'),
                     Field('unique_key', length=64),
                     Field('session_data', 'blob'),
                     migrate=table_migrate,
-<<<<<<< HEAD
-                    )
-                table = db[tname] # to allow for lazy table
-=======
                 )
                 table = db[tname]  # to allow for lazy table
->>>>>>> upstream/master
             try:
 
                 # Get session data out of the database
                 (record_id, unique_key) = response.session_id.split(':')
                 if record_id == '0':
-<<<<<<< HEAD
-                    raise Exception, 'record_id == 0'
-=======
                     raise Exception('record_id == 0')
->>>>>>> upstream/master
                         # Select from database
                 if not session_cookie_data:
                     rows = db(table.id == record_id).select()
                     # Make sure the session data exists in the database
                     if len(rows) == 0 or rows[0].unique_key != unique_key:
-<<<<<<< HEAD
-                        raise Exception, 'No record'
-=======
                         raise Exception('No record')
->>>>>>> upstream/master
                     # rows[0].update_record(locked=True)
                     # Unpickle the data
                     session_data = cPickle.loads(rows[0].session_data)
@@ -798,12 +649,8 @@ class Session(Storage):
         rcookies[response.session_id_name] = response.session_id
         rcookies[response.session_id_name]['path'] = '/'
         if cookie_expires:
-<<<<<<< HEAD
-            rcookies[response.session_id_name]['expires'] = cookie_expires.strftime(FMT)
-=======
             rcookies[response.session_id_name][
                 'expires'] = cookie_expires.strftime(FMT)
->>>>>>> upstream/master
         # if not cookie_key, but session_data_name in cookies
         # expire session_data_name from cookies
         if session_cookie_data:
@@ -843,17 +690,6 @@ class Session(Storage):
         self._forget = True
 
     def _try_store_in_cookie(self, request, response):
-<<<<<<< HEAD
-        if response.session_storage_type!='cookie': return False
-        name = response.session_data_name
-        value = secure_dumps(dict(self),response.session_cookie_key, compression_level=response.session_cookie_compression_level)
-        expires = response.session_cookie_expires
-        rcookies = response.cookies 
-        rcookies.pop(name,None)            
-        rcookies[name] = value
-        rcookies[name]['path'] = '/'
-        if expires: 
-=======
         if response.session_storage_type != 'cookie':
             return False
         name = response.session_data_name
@@ -864,16 +700,11 @@ class Session(Storage):
         rcookies[name] = value
         rcookies[name]['path'] = '/'
         if expires:
->>>>>>> upstream/master
             rcookies[name]['expires'] = expires.strftime(FMT)
         return True
 
     def _unchanged(self):
-<<<<<<< HEAD
-        previous_session_hash = self.pop('_session_hash',None)
-=======
         previous_session_hash = self.pop('_session_hash', None)
->>>>>>> upstream/master
         if not previous_session_hash and not \
                 any(value is not None for value in self.itervalues()):
             return True
@@ -889,11 +720,7 @@ class Session(Storage):
         # don't save if file-based sessions,
         # no session id, or session being forgotten
         # or no changes to session
-<<<<<<< HEAD
-        if response.session_storage_type!='db' or not response.session_id \
-=======
         if response.session_storage_type != 'db' or not response.session_id \
->>>>>>> upstream/master
                 or self._forget or self._unchanged():
             return False
 
@@ -902,11 +729,7 @@ class Session(Storage):
         unique_key = response.session_db_unique_key
 
         dd = dict(locked=False,
-<<<<<<< HEAD
-                  client_ip=request.client.replace(':','.'),
-=======
                   client_ip=request.client.replace(':', '.'),
->>>>>>> upstream/master
                   modified_datetime=request.now,
                   session_data=cPickle.dumps(dict(self)),
                   unique_key=unique_key)
@@ -922,28 +745,6 @@ class Session(Storage):
 
     def _try_store_in_cookie_or_file(self, request, response):
         return \
-<<<<<<< HEAD
-            self._try_store_in_cookie(request,response) or \
-            self._try_store_in_file(request,response)
-
-    def _try_store_in_file(self, request, response):
-        if response.session_storage_type!='file':
-            return False
-
-        try:
-            if not response.session_id or self._forget or self._unchanged():
-                return False
-
-            if response.session_new:
-                # Tests if the session sub-folder exists, if not, create it
-                session_folder = os.path.dirname(response.session_filename)
-                if not os.path.exists(session_folder):
-                    os.mkdir(session_folder)
-                response.session_file = open(response.session_filename, 'wb')
-                portalocker.lock(response.session_file, portalocker.LOCK_EX)
-                response.session_locked = True
-
-=======
             self._try_store_in_cookie(request, response) or \
             self._try_store_in_file(request, response)
 
@@ -962,7 +763,6 @@ class Session(Storage):
                 portalocker.lock(response.session_file, portalocker.LOCK_EX)
                 response.session_locked = True
 
->>>>>>> upstream/master
             if response.session_file:
                 cPickle.dump(dict(self), response.session_file)
                 response.session_file.truncate()

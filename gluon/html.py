@@ -33,12 +33,8 @@ regex_crlf = re.compile('\r|\n')
 join = ''.join
 
 # name2codepoint is incomplete respect to xhtml (and xml): 'apos' is missing.
-<<<<<<< HEAD
-entitydefs = dict(map(lambda (k,v): (k, unichr(v).encode('utf-8')), name2codepoint.iteritems()))
-=======
 entitydefs = dict(map(lambda (
     k, v): (k, unichr(v).encode('utf-8')), name2codepoint.iteritems()))
->>>>>>> upstream/master
 entitydefs.setdefault('apos', u"'".encode('utf-8'))
 
 
@@ -351,12 +347,8 @@ def URL(
 
         # re-assembling the same way during hash authentication
         message = h_args + '?' + urllib.urlencode(sorted(h_vars))
-<<<<<<< HEAD
-        sig = simple_hash(message, hmac_key or '',salt or '',digest_alg='sha1')
-=======
         sig = simple_hash(
             message, hmac_key or '', salt or '', digest_alg='sha1')
->>>>>>> upstream/master
         # add the signature into vars
         list_vars.append(('_signature', sig))
 
@@ -374,15 +366,9 @@ def URL(
         function += '.' + extension
 
     if regex_crlf.search(join([application, controller, function, other])):
-<<<<<<< HEAD
-        raise SyntaxError, 'CRLF Injection Detected'
-
-    url = url_out(r,env, application, controller, function,
-=======
         raise SyntaxError('CRLF Injection Detected')
 
     url = url_out(r, env, application, controller, function,
->>>>>>> upstream/master
                   args, other, scheme, host, port)
     return url
 
@@ -424,11 +410,7 @@ def verifyURL(request, hmac_key=None, hash_vars=True, salt=None, user_signature=
     """
 
     if not '_signature' in request.get_vars:
-<<<<<<< HEAD
-        return False # no signature in the request URL
-=======
         return False  # no signature in the request URL
->>>>>>> upstream/master
 
     # check if user_signature requires
     if user_signature:
@@ -511,32 +493,6 @@ class XmlComponent(object):
 
     def xml(self):
         raise NotImplementedError
-    def __mul__(self,n):
-        return CAT(*[self for i in range(n)])
-    def __add__(self,other):
-        if isinstance(self,CAT):
-            components = self.components
-        else:
-            components = [self]
-        if isinstance(other,CAT):
-            components += other.components
-        else:
-            components += [other]
-        return CAT(*components)
-
-    def add_class(self, name):
-        """ add a class to _class attribute """
-        c = self['_class']
-        classes = (set(c.split()) if c else set())|set(name.split())
-        self['_class'] = ' '.join(classes) if classes else None
-        return self
-
-    def remove_class(self, name):
-        """ remove a class from _class attribute """
-        c = self['_class']
-        classes = (set(c.split()) if c else set())-set(name.split())
-        self['_class'] = ' '.join(classes) if classes else None
-        return self
 
     def __mul__(self, n):
         return CAT(*[self for i in range(n)])
@@ -595,19 +551,11 @@ class XML(XmlComponent):
             'code',
             'pre',
             'img/',
-<<<<<<< HEAD
-            'h1','h2','h3','h4','h5','h6',
-            'table','tr','td','div',
-            'strong',
-            ],
-        allowed_attributes = {
-=======
             'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
             'table', 'tr', 'td', 'div',
             'strong',
         ],
         allowed_attributes={
->>>>>>> upstream/master
             'a': ['href', 'title', 'target'],
             'img': ['src', 'alt'],
             'blockquote': ['type'],
@@ -893,15 +841,9 @@ class DIV(XmlComponent):
                 c.session = self.session
                 c.formname = self.formname
                 if hideerror and not \
-<<<<<<< HEAD
-                        self.attributes.get('hideerror',False):
-                    c['hideerror'] = hideerror
-                newstatus = c._traverse(status,hideerror) and newstatus
-=======
                         self.attributes.get('hideerror', False):
                     c['hideerror'] = hideerror
                 newstatus = c._traverse(status, hideerror) and newstatus
->>>>>>> upstream/master
 
         # for input, textarea, select, option
         # deal with 'value' and 'validation'
@@ -1127,11 +1069,7 @@ class DIV(XmlComponent):
         # check if the component has an attribute with the same
         # value as provided
         check = True
-<<<<<<< HEAD
-        tag = getattr(self,'tag').replace('/', '')
-=======
         tag = getattr(self, 'tag').replace('/', '')
->>>>>>> upstream/master
         if args and tag not in args:
             check = False
         for (key, value) in kargs.iteritems():
@@ -1160,10 +1098,7 @@ class DIV(XmlComponent):
         find_text = replace is not False and kargs.get('find_text', False)
         is_regex = not isinstance(find_text, (str, int, bool))
         find_components = not (check and first_only)
-<<<<<<< HEAD
-=======
 
->>>>>>> upstream/master
         def replace_component(i):
             if replace is None:
                 del self[i]
@@ -1175,11 +1110,7 @@ class DIV(XmlComponent):
         if find_text or find_components:
             for i, c in enumerate(self.components):
                 if check and find_text and isinstance(c, str) and \
-<<<<<<< HEAD
-                   ((is_regex and find_text.search(c)) or (str(find_text) in c)):
-=======
                         ((is_regex and find_text.search(c)) or (str(find_text) in c)):
->>>>>>> upstream/master
                     replace_component(i)
                 if find_components and isinstance(c, XmlComponent):
                     child_matches = c.elements(*args, **kargs)
@@ -1547,15 +1478,6 @@ class A(DIV):
                 (self['component'], self['target'] or '', d)
             self['_href'] = self['_href'] or '#null'
         elif self['callback']:
-<<<<<<< HEAD
-            returnfalse="var e = arguments[0] || window.event; e.cancelBubble=true; if (e.stopPropagation) e.stopPropagation();"
-            if d:
-                self['_onclick']="if(confirm(w2p_ajax_confirm_message||'Are you sure you want o delete this object?')){ajax('%s',[],'%s');%s};%s" % \
-                    (self['callback'],self['target'] or '',d, returnfalse)
-            else:
-                self['_onclick']="ajax('%s',[],'%s');%sreturn false" % \
-                    (self['callback'],self['target'] or '',d)
-=======
             returnfalse = "var e = arguments[0] || window.event; e.cancelBubble=true; if (e.stopPropagation) {e.stopPropagation(); e.stopImmediatePropagation(); e.preventDefault();}"
             if d:
                 self['_onclick'] = "if(confirm(w2p_ajax_confirm_message||'Are you sure you want to delete this object?')){ajax('%s',[],'%s');%s};%s" % \
@@ -1563,7 +1485,6 @@ class A(DIV):
             else:
                 self['_onclick'] = "ajax('%s',[],'%s');%sreturn false" % \
                     (self['callback'], self['target'] or '', d)
->>>>>>> upstream/master
             self['_href'] = self['_href'] or '#null'
         elif self['cid']:
             pre = self['pre_call'] + ';' if self['pre_call'] else ''
@@ -1812,11 +1733,7 @@ class INPUT(DIV):
         if self['_type'] != 'checkbox':
             self['old_value'] = self['value'] or self['_value'] or ''
             value = request_vars_get(name, '')
-<<<<<<< HEAD
-            self['value'] = value
-=======
             self['value'] = value if not hasattr(value,'file') else None
->>>>>>> upstream/master
         else:
             self['old_value'] = self['value'] or False
             value = request_vars_get(name)
@@ -1869,11 +1786,7 @@ class INPUT(DIV):
         elif not t == 'submit':
             if value is None:
                 self['value'] = _value
-<<<<<<< HEAD
-            elif not isinstance(value,list):
-=======
             elif not isinstance(value, list):
->>>>>>> upstream/master
                 self['_value'] = value
 
     def xml(self):
@@ -1881,12 +1794,8 @@ class INPUT(DIV):
         if name and hasattr(self, 'errors') \
                 and self.errors.get(name, None) \
                 and self['hideerror'] != True:
-<<<<<<< HEAD
-            self['_class'] = (self['_class'] and self['_class']+' ' or '')+'invalidinput'
-=======
             self['_class'] = (self['_class'] and self['_class']
                               + ' ' or '') + 'invalidinput'
->>>>>>> upstream/master
             return DIV.xml(self) + DIV(
                 DIV(
                     self.errors[name], _class='error',
@@ -2048,9 +1957,6 @@ class FORM(DIV):
     def assert_status(self, status, request_vars):
         return status
 
-    def assert_status(self, status, request_vars):
-        return status
-
     def accepts(
         self,
         request_vars,
@@ -2091,23 +1997,16 @@ class FORM(DIV):
             if hasattr(self, 'record_hash') and self.record_hash != formkey:
                 status = False
                 self.record_changed = changed = True
-<<<<<<< HEAD
-        status = self._traverse(status,hideerror)
-=======
         status = self._traverse(status, hideerror)
->>>>>>> upstream/master
         status = self.assert_status(status, request_vars)
         if onvalidation:
             if isinstance(onvalidation, dict):
                 onsuccess = onvalidation.get('onsuccess', None)
                 onfailure = onvalidation.get('onfailure', None)
                 onchange = onvalidation.get('onchange', None)
-<<<<<<< HEAD
-=======
                 if [k for k in onvalidation if not k in (
                         'onsuccess','onfailure','onchange')]:
                     raise RuntimeError('Invalid key in onvalidate dict')
->>>>>>> upstream/master
                 if onsuccess and status:
                     call_as_list(onsuccess,self)
                 if onfailure and request_vars and not status:
@@ -2115,13 +2014,8 @@ class FORM(DIV):
                     status = len(self.errors) == 0
                 if changed:
                     if onchange and self.record_changed and \
-<<<<<<< HEAD
-                        self.detect_record_change:
-                        onchange(self)
-=======
                             self.detect_record_change:
                         call_as_list(onchange,self)
->>>>>>> upstream/master
             elif status:
                 call_as_list(onvalidation, self)
         if self.errors:
@@ -2147,11 +2041,7 @@ class FORM(DIV):
 
     def hidden_fields(self):
         c = []
-<<<<<<< HEAD
-        attr = self.attributes.get('hidden',{})
-=======
         attr = self.attributes.get('hidden', {})
->>>>>>> upstream/master
         if 'hidden' in self.attributes:
             c = [INPUT(_type='hidden', _name=key, _value=value)
                  for (key, value) in attr.iteritems()]
@@ -2202,14 +2092,6 @@ class FORM(DIV):
         any other kwargs will be passed for form.accepts(...)
         """
         from gluon import current, redirect
-<<<<<<< HEAD
-        kwargs['request_vars'] = kwargs.get('request_vars',current.request.post_vars)
-        kwargs['session'] = kwargs.get('session',current.session)
-        kwargs['dbio'] = kwargs.get('dbio',False) # necessary for SQLHTML forms
-
-        onsuccess = kwargs.get('onsuccess','flash')
-        onfailure = kwargs.get('onfailure','flash')
-=======
         kwargs['request_vars'] = kwargs.get(
             'request_vars', current.request.post_vars)
         kwargs['session'] = kwargs.get('session', current.session)
@@ -2218,26 +2100,17 @@ class FORM(DIV):
 
         onsuccess = kwargs.get('onsuccess', 'flash')
         onfailure = kwargs.get('onfailure', 'flash')
->>>>>>> upstream/master
         onchange = kwargs.get('onchange', 'flash')
         message_onsuccess = kwargs.get('message_onsuccess',
                                        current.T("Success!"))
         message_onfailure = kwargs.get('message_onfailure',
                                        current.T("Errors in form, please check it out."))
         message_onchange = kwargs.get('message_onchange',
-<<<<<<< HEAD
-                                       current.T("Form consecutive submissions not allowed. " + 
-                                                 "Try re-submitting or refreshing the form page."))
-        next = kwargs.get('next',None)
-        for key in ('message_onsuccess','message_onfailure','onsuccess',
-                    'onfailure','next', 'message_onchange', 'onchange'):
-=======
                                       current.T("Form consecutive submissions not allowed. " +
                                                 "Try re-submitting or refreshing the form page."))
         next = kwargs.get('next', None)
         for key in ('message_onsuccess', 'message_onfailure', 'onsuccess',
                     'onfailure', 'next', 'message_onchange', 'onchange'):
->>>>>>> upstream/master
             if key in kwargs:
                 del kwargs[key]
 
@@ -2251,11 +2124,7 @@ class FORM(DIV):
                 onsuccess(self)
             if next:
                 if self.vars:
-<<<<<<< HEAD
-                    for key,value in self.vars.iteritems():
-=======
                     for key, value in self.vars.iteritems():
->>>>>>> upstream/master
                         next = next.replace('[%s]' % key,
                                             urllib.quote(str(value)))
                     if not next.startswith('/'):
@@ -2311,31 +2180,6 @@ class FORM(DIV):
 
     REDIRECT_JS = "window.location='%s';return false"
 
-<<<<<<< HEAD
-    def add_button(self,value,url,_class=None):
-        submit = self.element('input[type=submit]')
-        submit.parent.append(
-            INPUT(_type="button",_value=value,_class=_class,
-                  _onclick=self.REDIRECT_JS % url))
-
-
-
-    @staticmethod
-    def confirm(text='OK',buttons=None,hidden=None):
-        if not buttons: buttons = {}
-        if not hidden: hidden={}
-        inputs = [INPUT(_type='button',
-                        _value=name,
-                        _onclick=FORM.REDIRECT_JS % link) \
-                      for name,link in buttons.iteritems()]
-        inputs += [INPUT(_type='hidden',
-                         _name=name,
-                         _value=value)
-                   for name,value in hidden.iteritems()]
-        form = FORM(INPUT(_type='submit',_value=text),*inputs)
-        form.process()
-        return form
-=======
     def add_button(self, value, url, _class=None):
         submit = self.element('input[type=submit]')
         submit.parent.append(
@@ -2360,7 +2204,6 @@ class FORM(DIV):
         form.process()
         return form
 
->>>>>>> upstream/master
 
 class BEAUTIFY(DIV):
 
@@ -2398,17 +2241,10 @@ class BEAUTIFY(DIV):
         if level == 0:
             return
         for c in self.components:
-<<<<<<< HEAD
-            if hasattr(c,'value') and not callable(c.value):
-                if c.value:
-                    components.append(c.value)
-            if hasattr(c,'xml') and callable(c.xml):
-=======
             if hasattr(c, 'value') and not callable(c.value):
                 if c.value:
                     components.append(c.value)
             if hasattr(c, 'xml') and callable(c.xml):
->>>>>>> upstream/master
                 components.append(c)
                 continue
             elif hasattr(c, 'keys') and callable(c.keys):
@@ -2501,11 +2337,7 @@ class MENU(DIV):
                 li = LI(A(name, **link))
             elif link:
                 li = LI(A(name, _href=link))
-<<<<<<< HEAD
-            elif not link and isinstance(name,A):
-=======
             elif not link and isinstance(name, A):
->>>>>>> upstream/master
                 li = LI(name)
             else:
                 li = LI(A(name, _href='#',
@@ -2533,15 +2365,9 @@ class MENU(DIV):
             if len(item) <= 4 or item[4] == True:
                 select.append(OPTION(CAT(prefix, item[0]),
                                      _value=item[2], _selected=item[1]))
-<<<<<<< HEAD
-                if len(item)>3 and len(item[3]):
-                    self.serialize_mobile(
-                        item[3], select, prefix = CAT(prefix, item[0], '/'))
-=======
                 if len(item) > 3 and len(item[3]):
                     self.serialize_mobile(
                         item[3], select, prefix=CAT(prefix, item[0], '/'))
->>>>>>> upstream/master
         select['_onchange'] = 'window.location=this.value'
         return select
 
@@ -2660,27 +2486,17 @@ class web2pyHTMLParser(HTMLParser):
                 data = data.decode('utf8')
             except:
                 data = data.decode('latin1')
-<<<<<<< HEAD
-        self.parent.append(data.encode('utf8','xmlcharref'))
-    def handle_charref(self,name):
-=======
         self.parent.append(data.encode('utf8', 'xmlcharref'))
 
     def handle_charref(self, name):
->>>>>>> upstream/master
         if name.startswith('x'):
             self.parent.append(unichr(int(name[1:], 16)).encode('utf8'))
         else:
             self.parent.append(unichr(int(name)).encode('utf8'))
-<<<<<<< HEAD
-    def handle_entityref(self,name):
-        self.parent.append(entitydefs[name])
-=======
 
     def handle_entityref(self, name):
         self.parent.append(entitydefs[name])
 
->>>>>>> upstream/master
     def handle_endtag(self, tagname):
         # this deals with unbalanced tags
         if tagname == self.last:
@@ -2788,19 +2604,11 @@ class MARKMIN(XmlComponent):
         calls the gluon.contrib.markmin render function to convert the wiki syntax
         """
         from contrib.markmin.markmin2html import render
-<<<<<<< HEAD
-        return render(self.text,extra=self.extra,
-                      allowed=self.allowed,sep=self.sep,latex=self.latex,
-                      URL=self.url, environment=self.environment,
-                      autolinks=self.autolinks,protolinks=self.protolinks,
-                      class_prefix=self.class_prefix,id_prefix=self.id_prefix)
-=======
         return render(self.text, extra=self.extra,
                       allowed=self.allowed, sep=self.sep, latex=self.latex,
                       URL=self.url, environment=self.environment,
                       autolinks=self.autolinks, protolinks=self.protolinks,
                       class_prefix=self.class_prefix, id_prefix=self.id_prefix)
->>>>>>> upstream/master
 
     def __str__(self):
         return self.xml()

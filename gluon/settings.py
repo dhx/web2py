@@ -21,24 +21,6 @@ if global_settings.db_sessions is not True:
 
 global_settings.gluon_parent = \
     os.environ.get('web2py_path', os.getcwd())
-<<<<<<< HEAD
-
-global_settings.applications_parent = global_settings.gluon_parent
-
-global_settings.app_folders = set()
-
-global_settings.debugging = False
-
-global_settings.is_pypy = \
-    hasattr(platform,'python_implementation') and \
-    platform.python_implementation() == 'PyPy'
-
-global_settings.is_jython = \
-    'java' in sys.platform.lower() or \
-    hasattr(sys, 'JYTHON_JAR') or \
-    str(sys.copyright).find('Jython') > 0
-=======
->>>>>>> upstream/master
 
 global_settings.applications_parent = global_settings.gluon_parent
 

@@ -21,11 +21,7 @@ TEXT_EDITOR_THEME = (
     "tomorrow_night_eighties", "twilight", "vibrant_ink")[0]
 
 ## Editor Keyboard bindings (only for ace and codemirror)
-<<<<<<< HEAD
-TEXT_EDITOR_KEYBINDING = '' # 'emacs' or 'vi'
-=======
 TEXT_EDITOR_KEYBINDING = ''  # 'emacs' or 'vi'
->>>>>>> upstream/master
 
 ### edit_area only
 # The default font size, measured in 'points'. The value must be an integer > 0

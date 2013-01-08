@@ -1,6 +1,0 @@
-<<<<<<< HEAD
-
-
-
-=======
->>>>>>> upstream/master

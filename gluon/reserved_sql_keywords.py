@@ -1710,16 +1710,5 @@ ADAPTERS = {
     'common': COMMON,
 }
 
-<<<<<<< HEAD
-ADAPTERS['all'] = reduce(lambda a,b:a.union(b),(x for x in ADAPTERS.values()))
-
-
-
-
-
-
-
-=======
 ADAPTERS['all'] = reduce(lambda a, b: a.union(b), (
     x for x in ADAPTERS.values()))
->>>>>>> upstream/master

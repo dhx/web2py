@@ -89,13 +89,8 @@
 #         domains = None,
 #         map_hyphen = False,
 #         acfe_match = r'\w+$',                 # legal app/ctlr/fcn/ext
-<<<<<<< HEAD
-#         file_match = r'([-+=@$%\w]+[./]?)+$', # legal static subpath
-#         args_match = r'([\w@ -]+[=.]?)+$',    # legal arg in args
-=======
 #         file_match = r'([-+=@$%\w]|(?<=[-+=@$%\w])[./])*$',   # legal static subpath
 #         args_match = r'([\w@ -]|(?<=[\w@ -])[.=])*$',         # legal arg in args
->>>>>>> upstream/master
 #     )
 #
 #  See rewrite.map_url_in() and rewrite.map_url_out() for implementation details.
@@ -215,11 +210,3 @@ def __routes_doctest():
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
-<<<<<<< HEAD
-
-
-
-
-
-=======
->>>>>>> upstream/master

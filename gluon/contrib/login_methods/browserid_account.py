@@ -35,19 +35,6 @@ class BrowserID(object):
     """
 
     def __init__(self,
-<<<<<<< HEAD
-                request,
-                audience = "",
-                assertion_post_url = "",
-                prompt = "BrowserID Login",
-                issuer = "browserid.org",
-                verify_url = "https://browserid.org/verify",
-                browserid_js = "https://browserid.org/include.js",
-                browserid_button = "https://browserid.org/i/sign_in_red.png",
-                crypto_js = "https://crypto-js.googlecode.com/files/2.2.0-crypto-md5.js",
-                on_login_failure = None,
-                ):
-=======
                  request,
                  audience="",
                  assertion_post_url="",
@@ -59,7 +46,6 @@ class BrowserID(object):
                  crypto_js="https://crypto-js.googlecode.com/files/2.2.0-crypto-md5.js",
                  on_login_failure=None,
                  ):
->>>>>>> upstream/master
 
         self.request = request
         self.audience = audience
@@ -82,19 +68,11 @@ class BrowserID(object):
         if request.vars.assertion:
             audience = self.audience
             issuer = self.issuer
-<<<<<<< HEAD
-            assertion = XML(request.vars.assertion,sanitize=True)
-            verify_data = {'assertion':assertion,'audience':audience}
-            auth_info_json = fetch(self.verify_url,data=verify_data)
-            j = json.loads(auth_info_json)
-            epoch_time = int(time.time()*1000) # we need 13 digit epoch time
-=======
             assertion = XML(request.vars.assertion, sanitize=True)
             verify_data = {'assertion': assertion, 'audience': audience}
             auth_info_json = fetch(self.verify_url, data=verify_data)
             j = json.loads(auth_info_json)
             epoch_time = int(time.time() * 1000)  # we need 13 digit epoch time
->>>>>>> upstream/master
             if j["status"] == "okay" and j["audience"] == audience and j['issuer'] == issuer and j['expires'] >= epoch_time:
                 return dict(email=j['email'])
             elif self.on_login_failure:
@@ -111,4 +89,3 @@ class BrowserID(object):
                    A(IMG(_src=self.browserid_button, _alt=self.prompt), _href="#", _onclick=onclick, _class="browserid", _title="Login With BrowserID"),
                    SCRIPT(self.asertion_js))
         return form
-

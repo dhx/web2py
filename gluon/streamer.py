@@ -42,21 +42,12 @@ def streamer(stream, chunk_size=DEFAULT_CHUNK_SIZE, bytes=None):
 
 def stream_file_or_304_or_206(
     static_file,
-<<<<<<< HEAD
-    chunk_size = DEFAULT_CHUNK_SIZE,
-    request = None,
-    headers = {},
-    status = 200,
-    error_message = None,
-    ):
-=======
     chunk_size=DEFAULT_CHUNK_SIZE,
     request=None,
     headers={},
     status=200,
     error_message=None,
 ):
->>>>>>> upstream/master
     if error_message is None:
         error_message = rewrite.THREAD_LOCAL.routes.error_message % 'invalid request'
     try:
@@ -73,11 +64,7 @@ def stream_file_or_304_or_206(
     stat_file = os.stat(static_file)
     fsize = stat_file[stat.ST_SIZE]
     modified = stat_file[stat.ST_MTIME]
-<<<<<<< HEAD
-    mtime = time.strftime('%a, %d %b %Y %H:%M:%S GMT',time.gmtime(modified))
-=======
     mtime = time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(modified))
->>>>>>> upstream/master
     headers.setdefault('Content-Type', contenttype(static_file))
     headers.setdefault('Last-Modified', mtime)
     headers.setdefault('Pragma', 'cache')
@@ -110,17 +97,10 @@ def stream_file_or_304_or_206(
             status = 206
     # in all the other cases (not 304, not 206, but 200 or error page)
     if status != 206:
-<<<<<<< HEAD
-        enc =  request.env.http_accept_encoding
-        if enc and 'gzip' in enc and not 'Content-Encoding' in headers:
-            gzipped = static_file + '.gz'
-            if os.path.isfile(gzipped) and os.path.getmtime(gzipped)>modified:
-=======
         enc = request.env.http_accept_encoding
         if enc and 'gzip' in enc and not 'Content-Encoding' in headers:
             gzipped = static_file + '.gz'
             if os.path.isfile(gzipped) and os.path.getmtime(gzipped) >= modified:
->>>>>>> upstream/master
                 static_file = gzipped
                 fsize = os.path.getsize(gzipped)
                 headers['Content-Encoding'] = 'gzip'

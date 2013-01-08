@@ -35,9 +35,6 @@ def file_create_form(location):
               INPUT(_type="submit",_value=T("submit")),_action=URL('create_file'))
     return form
 def deletefile(arglist):
-<<<<<<< HEAD
-  return A(TAG[''](IMG(_src=URL('static', 'images/delete_icon.png')), SPAN(T('Delete this file (you will be asked to confirm deletion)'))), _class='icon delete tooltip', _href=URL('delete',args=arglist,vars=dict(sender=request.function+'/'+app+'/'+request.args[1])))
-=======
 	return A(TAG[''](IMG(_src=URL('static', 'images/delete_icon.png')), 
 						SPAN(T('Delete this file (you will be asked to confirm deletion)'))),
 						_href=URL('delete',args=arglist,vars=dict(sender=request.function+'/'+app+'/'+request.args[1])),
@@ -45,7 +42,6 @@ def deletefile(arglist):
 						_rel="tooltip",
 						**{'_data-placement':'right',
 							'_data-original-title':T('Delete this file (you will be asked to confirm deletion)')})
->>>>>>> upstream/master
 }}
 
 {{block sectionclass}}plugin{{end}}
@@ -54,21 +50,6 @@ def deletefile(arglist):
 
 <!-- COLLAPSE/JUMP-TO BUTTONS -->
 <div class="right-full controls">
-<<<<<<< HEAD
-  <a class="button special" href="#" onclick="jQuery('h3').click();return false"><span>{{=T("collapse/expand all")}}</span></a>
-  <span class="buttongroup">
-  {{=button("#models", T("models"))}}
-  {{=button("#controllers", T("controllers"))}}
-  {{=button("#views", T("views"))}}
-  {{=button("#static", T("static"))}}
-  {{=button("#modules", T("modules"))}}
-  </span>
-  <span class="buttongroup">
-  {{=sp_button(URL('design',args=request.args, anchor=request.vars.id), T("back"))}}
-  {{=sp_button(URL('delete_plugin',args=request.args, vars=request.vars), T("delete plugin"))}}
-  {{=sp_button(URL('pack_plugin',args=request.args), T("pack plugin"))}}
-  </span>
-=======
 	<p class="buttons-row">
 	<a class="button special btn btn-inverse" href="#" onclick="jQuery('h3>span').click();return false"><span>{{=T("collapse/expand all")}}</span></a>
 	<span class="buttongroup">
@@ -84,7 +65,6 @@ def deletefile(arglist):
 	{{=sp_button(URL('pack_plugin',args=request.args), T("pack plugin"))}}
 	</span>
 	</p>
->>>>>>> upstream/master
 </div>
 
 <!-- MODELS -->

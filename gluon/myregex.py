@@ -11,11 +11,7 @@ import re
 
 # pattern to find defined tables
 
-<<<<<<< HEAD
-regex_tables = re.compile(\
-=======
 regex_tables = re.compile(
->>>>>>> upstream/master
     """^[\w]+\.define_table\(\s*[\'\"](?P<name>\w+)[\'\"]""",
     flags=re.M)
 
@@ -28,17 +24,5 @@ regex_expose = re.compile(
 regex_include = re.compile(
     '(?P<all>\{\{\s*include\s+[\'"](?P<name>[^\'"]*)[\'"]\s*\}\})')
 
-<<<<<<< HEAD
-regex_extend = re.compile(\
-    '^\s*(?P<all>\{\{\s*extend\s+[\'"](?P<name>[^\'"]+)[\'"]\s*\}\})',re.MULTILINE)
-
-
-
-
-
-
-
-=======
 regex_extend = re.compile(
     '^\s*(?P<all>\{\{\s*extend\s+[\'"](?P<name>[^\'"]+)[\'"]\s*\}\})', re.MULTILINE)
->>>>>>> upstream/master

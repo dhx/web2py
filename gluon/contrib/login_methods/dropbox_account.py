@@ -42,54 +42,21 @@ class DropboxAccount(object):
                  login_url="",
                  on_login_failure=None,
                  ):
-<<<<<<< HEAD
-        
-        self.request=request
-        self.key=key
-        self.secret=secret
-        self.access_type=access_type
-=======
 
         self.request = request
         self.key = key
         self.secret = secret
         self.access_type = access_type
->>>>>>> upstream/master
         self.login_url = login_url
         self.on_login_failure = on_login_failure
         self.sess = session.DropboxSession(
             self.key, self.secret, self.access_type)
 
-<<<<<<< HEAD
-
-=======
->>>>>>> upstream/master
     def get_user(self):
         request = self.request
         if not current.session.dropbox_request_token:
             return None
         elif not current.session.dropbox_access_token:
-<<<<<<< HEAD
-            
-            request_token = current.session.dropbox_request_token        
-            self.sess.set_request_token(request_token[0],request_token[1])
-            access_token = self.sess.obtain_access_token(self.sess.token)
-            current.session.dropbox_access_token = \
-                (access_token.key,access_token.secret)
-        else:
-            access_token = current.session.dropbox_access_token
-            self.sess.set_token(access_token[0],access_token[1])
-
-        
-        user = Storage()
-        self.client = client.DropboxClient(self.sess)
-        data = self.client.account_info()
-        display_name = data.get('display_name','').split(' ',1)
-        user = dict(email = data.get('email',None),
-                    first_name = display_name[0],
-                    last_name = display_name[-1],
-                    registration_id = data.get('uid',None))
-=======
 
             request_token = current.session.dropbox_request_token
             self.sess.set_request_token(request_token[0], request_token[1])
@@ -108,7 +75,6 @@ class DropboxAccount(object):
                     first_name=display_name[0],
                     last_name=display_name[-1],
                     registration_id=data.get('uid', None))
->>>>>>> upstream/master
         if not user['registration_id'] and self.on_login_failure:
             redirect(self.on_login_failure)
         return user
@@ -117,11 +83,7 @@ class DropboxAccount(object):
 
         request_token = self.sess.obtain_request_token()
         current.session.dropbox_request_token =  \
-<<<<<<< HEAD
-            (request_token.key,request_token.secret)
-=======
             (request_token.key, request_token.secret)
->>>>>>> upstream/master
         dropbox_url = self.sess.build_authorize_url(request_token,
                                                     self.login_url)
         redirect(dropbox_url)
@@ -131,15 +93,9 @@ class DropboxAccount(object):
                       _style="width:400px;height:240px;")
         return form
 
-<<<<<<< HEAD
-    def logout_url(self, next = "/"):
-        current.session.dropbox_request_token=None
-        current.session.auth=None
-=======
     def logout_url(self, next="/"):
         current.session.dropbox_request_token = None
         current.session.auth = None
->>>>>>> upstream/master
         redirect('https://www.dropbox.com/logout')
         return next
 
@@ -172,11 +128,5 @@ def use_dropbox(auth, filename='private/dropbox.key', **kwargs):
         auth.settings.actions_disabled = \
             ['register', 'change_password', 'request_reset_password']
         auth.settings.login_form = DropboxAccount(
-<<<<<<< HEAD
-            request,key=key,secret=secret,access_type=access_type,
-            login_url = login_url,**kwargs)
-
-=======
             request, key=key, secret=secret, access_type=access_type,
             login_url=login_url, **kwargs)
->>>>>>> upstream/master

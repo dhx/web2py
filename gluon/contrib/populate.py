@@ -90,13 +90,8 @@ def populate(table, n, default=True, compute=False):
                 continue
             elif field.type == 'id':
                 continue
-<<<<<<< HEAD
-            elif default and field.default !=None:
-                record[fieldname]=field.default
-=======
             elif default and not field.default in (None, ''):
                 record[fieldname] = field.default
->>>>>>> upstream/master
             elif compute and field.compute:
                 continue
             elif field.type == 'text':
@@ -131,12 +126,8 @@ def populate(table, n, default=True, compute=False):
             elif field.type == 'list:integer' and hasattr(field.requires, 'options'):
                 options = field.requires.options(zero=False)
                 if len(options) > 0:
-<<<<<<< HEAD
-                    record[fieldname] = [item[0] for item in random.sample(options, random.randint(0,len(options)-1)/2)]
-=======
                     record[fieldname] = [item[0] for item in random.sample(
                         options, random.randint(0, len(options) - 1) / 2)]
->>>>>>> upstream/master
             elif field.type == 'integer':
                 try:
                     record[fieldname] = random.randint(
@@ -181,27 +172,14 @@ def populate(table, n, default=True, compute=False):
                             table._db[field.type[15:]].id > 0).select()]
                 n = len(ids[tablename])
                 if n:
-<<<<<<< HEAD
-                    record[fieldname] = [item for item in random.sample(ids[tablename], random.randint(0,n-1)/2)]
-=======
                     record[fieldname] = [item for item in random.sample(
                         ids[tablename], random.randint(0, n - 1) / 2)]
->>>>>>> upstream/master
                 else:
                     record[fieldname] = 0
             elif field.type == 'list:string' \
                     and hasattr(field.requires, 'options'):
                 options = field.requires.options(zero=False)
                 if len(options) > 0:
-<<<<<<< HEAD
-                    record[fieldname] = [item[0] for item in random.sample(options, random.randint(0,len(options)-1)/2)]
-            elif field.type=='string' and hasattr(field.requires,'options'):
-                options=field.requires.options(zero=False)
-                record[fieldname] = options[random.randint(0,len(options)-1)][0]
-            elif field.type=='string' and fieldname.find('url')>=0:
-                record[fieldname] = 'http://%s.example.com' % da_du_ma(4)
-            elif field.type=='string' and fieldname.find('email')>=0:
-=======
                     record[fieldname] = [item[0] for item in random.sample(
                         options, random.randint(0, len(options) - 1) / 2)]
             elif field.type == 'string' \
@@ -213,7 +191,6 @@ def populate(table, n, default=True, compute=False):
                 record[fieldname] = 'http://%s.example.com' % \
                     da_du_ma(4)
             elif field.type == 'string' and fieldname.find('email') >= 0:
->>>>>>> upstream/master
                 record[fieldname] = '%s@example.com' % da_du_ma(4)
             elif field.type == 'string' and fieldname.find('name') >= 0:
                 record[fieldname] = da_du_ma(4).capitalize()
@@ -226,15 +203,4 @@ def populate(table, n, default=True, compute=False):
 if __name__ == '__main__':
     ell = Learner()
     ell.loadd(eval(IUP))
-<<<<<<< HEAD
-    print ell.generate(1000,prefix=None)
-
-
-
-
-
-
-
-=======
     print ell.generate(1000, prefix=None)
->>>>>>> upstream/master

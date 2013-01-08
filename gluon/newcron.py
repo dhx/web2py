@@ -57,10 +57,7 @@ class extcron(threading.Thread):
         if not _cron_stopping:
             logger.debug('external cron invocation')
             crondance(self.path, 'external', startup=False, apps=self.apps)
-<<<<<<< HEAD
-=======
 
->>>>>>> upstream/master
 
 class hardcron(threading.Thread):
 
@@ -235,11 +232,7 @@ class cronlauncher(threading.Thread):
 
     def run(self):
         import subprocess
-<<<<<<< HEAD
-        if isinstance(self.cmd, (list,tuple)):
-=======
         if isinstance(self.cmd, (list, tuple)):
->>>>>>> upstream/master
             cmd = self.cmd
         else:
             cmd = self.cmd.split()
@@ -259,11 +252,7 @@ class cronlauncher(threading.Thread):
 
 
 def crondance(applications_parent, ctype='soft', startup=False, apps=None):
-<<<<<<< HEAD
-    apppath = os.path.join(applications_parent,'applications')
-=======
     apppath = os.path.join(applications_parent, 'applications')
->>>>>>> upstream/master
     cron_path = os.path.join(applications_parent)
     token = Token(cron_path)
     cronmaster = token.acquire(startup=startup)
@@ -333,11 +322,7 @@ def crondance(applications_parent, ctype='soft', startup=False, apps=None):
             elif command.startswith('*'):
                 (action, models, command) = (True, '-M', command[1:])
             else:
-<<<<<<< HEAD
-                action=False
-=======
                 action = False
->>>>>>> upstream/master
 
             if action and command.endswith('.py'):
                 commands.extend(('-J',                # cron job
@@ -354,11 +339,7 @@ def crondance(applications_parent, ctype='soft', startup=False, apps=None):
                 commands = command
 
             # from python docs:
-<<<<<<< HEAD
-            # You do not need shell=True to run a batch file or 
-=======
             # You do not need shell=True to run a batch file or
->>>>>>> upstream/master
             # console-based executable.
             shell = False
 
@@ -369,13 +350,3 @@ def crondance(applications_parent, ctype='soft', startup=False, apps=None):
                     'WEB2PY CRON: Execution error for %s: %s'
                     % (task.get('cmd'), e))
     token.release()
-<<<<<<< HEAD
-
-
-
-
-
-
-
-=======
->>>>>>> upstream/master

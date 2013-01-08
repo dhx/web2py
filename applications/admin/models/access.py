@@ -131,15 +131,9 @@ if session.authorized:
         session.last_time = t0
 
 
-<<<<<<< HEAD
-if request.vars.is_mobile in ('true','false','auto'):
-    session.is_mobile = request.vars.is_mobile or 'auto'
-if request.controller=='default' and request.function=='index':
-=======
 if request.vars.is_mobile in ('true', 'false', 'auto'):
     session.is_mobile = request.vars.is_mobile or 'auto'
 if request.controller == 'default' and request.function == 'index':
->>>>>>> upstream/master
     if not request.vars.is_mobile:
         session.is_mobile = 'auto'
 if not session.is_mobile:
@@ -160,13 +154,8 @@ if request.controller == "webservices":
         time.sleep(10)
         raise HTTP(403, "Not authorized")
 elif not session.authorized and not \
-<<<<<<< HEAD
-    (request.controller+'/'+request.function in 
-     ('default/index','default/user','plugin_jqmobile/index','plugin_jqmobile/about')):
-=======
     (request.controller + '/' + request.function in
      ('default/index', 'default/user', 'plugin_jqmobile/index', 'plugin_jqmobile/about')):
->>>>>>> upstream/master
 
     if request.env.query_string:
         query_string = '?' + request.env.query_string
@@ -183,13 +172,6 @@ elif session.authorized and \
      request.function == 'index':
     redirect(URL(request.application, 'default', 'site'))
 
-<<<<<<< HEAD
-if request.controller=='appadmin' and DEMO_MODE:
-    session.flash = 'Appadmin disabled in demo mode'
-    redirect(URL('default','sites'))
-
-=======
 if request.controller == 'appadmin' and DEMO_MODE:
     session.flash = 'Appadmin disabled in demo mode'
     redirect(URL('default', 'sites'))
->>>>>>> upstream/master

@@ -11,14 +11,11 @@ import copy
 import gluon.contenttype
 import gluon.fileutils
 
-<<<<<<< HEAD
-=======
 try:
     import pygraphviz as pgv
 except ImportError:
     pgv = None
 
->>>>>>> upstream/master
 response.subtitle = 'Database Administration (appadmin)'
 
 # ## critical --- make a copy of the environment
@@ -120,10 +117,6 @@ def query_by_table_type(tablename, db, request=request):
 # ##########################################################
 # ## list all databases and tables
 # ###########################################################
-<<<<<<< HEAD
-
-=======
->>>>>>> upstream/master
 def index():
     return dict(databases=databases)
 
@@ -213,11 +206,7 @@ def select():
                                     or '')), TR(T('Delete:'), INPUT(_name='delete_check',
                 _class='delete', _type='checkbox', value=False), ''),
                 TR('', '', INPUT(_type='submit', _value=T('submit')))),
-<<<<<<< HEAD
-                _action=URL(r=request,args=request.args))
-=======
                 _action=URL(r=request, args=request.args))
->>>>>>> upstream/master
 
     tb = None
     if form.accepts(request.vars, formname=None):
@@ -229,11 +218,7 @@ def select():
             nrows = db(query).count()
             if form.vars.update_check and form.vars.update_fields:
                 db(query).update(**eval_in_global_env('dict(%s)'
-<<<<<<< HEAD
-                                  % form.vars.update_fields))
-=======
                                                       % form.vars.update_fields))
->>>>>>> upstream/master
                 response.flash = T('%s %%{row} updated', nrows)
             elif form.vars.delete_check:
                 db(query).delete()
@@ -249,16 +234,6 @@ def select():
             import traceback
             tb = traceback.format_exc()
             (rows, nrows) = ([], 0)
-<<<<<<< HEAD
-            response.flash = DIV(T('Invalid Query'),PRE(str(e)))
-    # begin handle upload csv
-    csv_table = table or request.vars.table
-    if csv_table:
-        formcsv = FORM(str(T('or import from csv file'))+" ",
-                       INPUT(_type='file',_name='csvfile'),
-                       INPUT(_type='hidden',_value=csv_table,_name='table'),
-                       INPUT(_type='submit',_value=T('import')))
-=======
             response.flash = DIV(T('Invalid Query'), PRE(str(e)))
     # begin handle upload csv
     csv_table = table or request.vars.table
@@ -267,7 +242,6 @@ def select():
                        INPUT(_type='file', _name='csvfile'),
                        INPUT(_type='hidden', _value=csv_table, _name='table'),
                        INPUT(_type='submit', _value=T('import')))
->>>>>>> upstream/master
     else:
         formcsv = None
     if formcsv and formcsv.process().accepted:
@@ -276,11 +250,7 @@ def select():
                        request.vars.csvfile.file)
             response.flash = T('data uploaded')
         except Exception, e:
-<<<<<<< HEAD
-            response.flash = DIV(T('unable to parse csv file'),PRE(str(e)))
-=======
             response.flash = DIV(T('unable to parse csv file'), PRE(str(e)))
->>>>>>> upstream/master
     # end handle upload csv
 
     return dict(
@@ -291,15 +261,9 @@ def select():
         nrows=nrows,
         rows=rows,
         query=request.vars.query,
-<<<<<<< HEAD
-        formcsv = formcsv,
-        tb = tb,
-        )
-=======
         formcsv=formcsv,
         tb=tb,
     )
->>>>>>> upstream/master
 
 
 # ##########################################################
@@ -356,18 +320,12 @@ def state():
 
 def ccache():
     form = FORM(
-<<<<<<< HEAD
-        P(TAG.BUTTON(T("Clear CACHE?"), _type="submit", _name="yes", _value="yes")),
-        P(TAG.BUTTON(T("Clear RAM"), _type="submit", _name="ram", _value="ram")),
-        P(TAG.BUTTON(T("Clear DISK"), _type="submit", _name="disk", _value="disk")),
-=======
         P(TAG.BUTTON(
             T("Clear CACHE?"), _type="submit", _name="yes", _value="yes")),
         P(TAG.BUTTON(
             T("Clear RAM"), _type="submit", _name="ram", _value="ram")),
         P(TAG.BUTTON(
             T("Clear DISK"), _type="submit", _name="disk", _value="disk")),
->>>>>>> upstream/master
     )
 
     if form.accepts(request.vars, session):

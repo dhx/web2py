@@ -16,10 +16,7 @@ logger = logging.getLogger("web2py.session.redis")
 
 locker = thread.allocate_lock()
 
-<<<<<<< HEAD
-=======
 
->>>>>>> upstream/master
 def RedisSession(*args, **vars):
     """
     Usage example: put in models
@@ -52,11 +49,7 @@ class RedisClient(object):
         """
         self.server = server
         self.db = db or 0
-<<<<<<< HEAD
-        host,port = (self.server.split(':')+['6379'])[:2]
-=======
         host, port = (self.server.split(':') + ['6379'])[:2]
->>>>>>> upstream/master
         port = int(port)
         self.debug = debug
         if current and current.request:
@@ -71,14 +64,6 @@ class RedisClient(object):
         return self.tablename
 
     def Field(self, fieldname, type='string', length=None, default=None,
-<<<<<<< HEAD
-              required=False,requires=None):
-        return None
-
-    def define_table(self,tablename,*fields,**args):
-        if not self.tablename:
-            self.tablename = MockTable(self, self.r_server, tablename, self.session_expiry)
-=======
               required=False, requires=None):
         return None
 
@@ -86,7 +71,6 @@ class RedisClient(object):
         if not self.tablename:
             self.tablename = MockTable(
                 self, self.r_server, tablename, self.session_expiry)
->>>>>>> upstream/master
         return self.tablename
 
     def __getitem__(self, key):
@@ -100,10 +84,7 @@ class RedisClient(object):
         #this is only called by session2trash.py
         pass
 
-<<<<<<< HEAD
-=======
 
->>>>>>> upstream/master
 class MockTable(object):
 
     def __init__(self, db, r_server, tablename, session_expiry):
@@ -111,12 +92,8 @@ class MockTable(object):
         self.r_server = r_server
         self.tablename = tablename
         #set the namespace for sessions of this app
-<<<<<<< HEAD
-        self.keyprefix = 'w2p:sess:%s' % tablename.replace('web2py_session_', '')
-=======
         self.keyprefix = 'w2p:sess:%s' % tablename.replace(
             'web2py_session_', '')
->>>>>>> upstream/master
         #fast auto-increment id (needed for session handling)
         self.serial = "%s:serial" % self.keyprefix
         #index of all the session keys of this app
@@ -152,16 +129,10 @@ class MockTable(object):
             self.r_server.expire(key, self.session_expiry)
         return newid
 
-<<<<<<< HEAD
-class MockQuery(object):
-    """a fake Query object that supports querying by id
-       and listing all keys. No other operation is supported 
-=======
 
 class MockQuery(object):
     """a fake Query object that supports querying by id
        and listing all keys. No other operation is supported
->>>>>>> upstream/master
     """
     def __init__(self, field=None, db=None, prefix=None, session_expiry=False):
         self.field = field
@@ -205,12 +176,8 @@ class MockQuery(object):
                         continue
                 val = Storage(val)
                 #add a delete_record method (necessary for sessions2trash.py)
-<<<<<<< HEAD
-                val.delete_record = RecordDeleter(self.db, sess, self.keyprefix)
-=======
                 val.delete_record = RecordDeleter(
                     self.db, sess, self.keyprefix)
->>>>>>> upstream/master
                 rtn.append(val)
             return rtn
         else:
@@ -224,14 +191,6 @@ class MockQuery(object):
                 self.db.expire(key, self.session.expiry)
             return rtn
 
-<<<<<<< HEAD
-class RecordDeleter(object):
-    """Dumb record deleter to support sessions2trash.py"""
-    
-    def __init__(self, db, key, keyprefix):
-        self.db, self.key, self.keyprefix = db, key, keyprefix
-        
-=======
 
 class RecordDeleter(object):
     """Dumb record deleter to support sessions2trash.py"""
@@ -239,15 +198,9 @@ class RecordDeleter(object):
     def __init__(self, db, key, keyprefix):
         self.db, self.key, self.keyprefix = db, key, keyprefix
 
->>>>>>> upstream/master
     def __call__(self):
         id_idx = "%s:id_idx" % self.keyprefix
         #remove from the index
         self.db.srem(id_idx, self.key)
         #remove the key itself
         self.db.delete(self.key)
-<<<<<<< HEAD
-        
-    
-=======
->>>>>>> upstream/master

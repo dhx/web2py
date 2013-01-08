@@ -20,8 +20,3 @@ def pam_auth():
         return authenticate(username, password)
 
     return pam_auth_aux
-<<<<<<< HEAD
-
-
-=======
->>>>>>> upstream/master

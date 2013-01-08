@@ -188,25 +188,12 @@ def ldap_auth(server='ldap', port=None,
                      str(custom_scope), str(manage_groups)))
         if manage_user:
             if user_firstname_attrib.count(':') > 0:
-<<<<<<< HEAD
-                (user_firstname_attrib, user_firstname_part) = user_firstname_attrib.split(':', 1)
-=======
                 (user_firstname_attrib,
                  user_firstname_part) = user_firstname_attrib.split(':', 1)
->>>>>>> upstream/master
                 user_firstname_part = (int(user_firstname_part) - 1)
             else:
                 user_firstname_part = None
             if user_lastname_attrib.count(':') > 0:
-<<<<<<< HEAD
-                (user_lastname_attrib, user_lastname_part) = user_lastname_attrib.split(':', 1)
-                user_lastname_part = (int(user_lastname_part) - 1)
-            else:
-                user_lastname_part = None
-            user_firstname_attrib = ldap.filter.escape_filter_chars(user_firstname_attrib)
-            user_lastname_attrib = ldap.filter.escape_filter_chars(user_lastname_attrib)
-            user_mail_attrib = ldap.filter.escape_filter_chars(user_mail_attrib)
-=======
                 (user_lastname_attrib,
                  user_lastname_part) = user_lastname_attrib.split(':', 1)
                 user_lastname_part = (int(user_lastname_part) - 1)
@@ -218,7 +205,6 @@ def ldap_auth(server='ldap', port=None,
                 user_lastname_attrib)
             user_mail_attrib = ldap.filter.escape_filter_chars(
                 user_mail_attrib)
->>>>>>> upstream/master
         try:
             if allowed_groups:
                 if not is_user_in_allowed_groups(username, password):
@@ -236,12 +222,8 @@ def ldap_auth(server='ldap', port=None,
                 con.set_option(ldap.OPT_PROTOCOL_VERSION, 3)
                 # In cases where ForestDnsZones and DomainDnsZones are found,
                 # result will look like the following:
-<<<<<<< HEAD
-                # ['ldap://ForestDnsZones.domain.com/DC=ForestDnsZones,DC=domain,DC=com']
-=======
                 # ['ldap://ForestDnsZones.domain.com/DC=ForestDnsZones,
                 #    DC=domain,DC=com']
->>>>>>> upstream/master
                 if ldap_binddn:
                     # need to search directory with an admin account 1st
                     con.simple_bind_s(ldap_binddn, ldap_bindpw)
@@ -257,14 +239,9 @@ def ldap_auth(server='ldap', port=None,
                                            user_mail_attrib])
                 result = con.search_ext_s(
                     ldap_basedn, ldap.SCOPE_SUBTREE,
-<<<<<<< HEAD
-                    "(&(sAMAccountName=%s)(%s))" % (ldap.filter.escape_filter_chars(username_bare),
-                                                    filterstr),
-=======
                     "(&(sAMAccountName=%s)(%s))" % (
                                 ldap.filter.escape_filter_chars(username_bare),
                                 filterstr),
->>>>>>> upstream/master
                     requested_attrs)[0][1]
                 if not isinstance(result, dict):
                     # result should be a dict in the form
@@ -317,14 +294,9 @@ def ldap_auth(server='ldap', port=None,
                 # bind anonymously
                 con.simple_bind_s(dn, pw)
                 # search by e-mail address
-<<<<<<< HEAD
-                filter = '(&(mail=%s)(%s))' % (ldap.filter.escape_filter_chars(username),
-                                               filterstr)
-=======
                 filter = '(&(mail=%s)(%s))' % (
                                 ldap.filter.escape_filter_chars(username),
                                 filterstr)
->>>>>>> upstream/master
                 # find the uid
                 attrs = ['uid']
                 if manage_user:
@@ -346,12 +318,8 @@ def ldap_auth(server='ldap', port=None,
                     basedns = ldap_basedn
                 else:
                     basedns = [ldap_basedn]
-<<<<<<< HEAD
-                filter = '(&(uid=%s)(%s))' % (ldap.filter.escape_filter_chars(username), filterstr)
-=======
                 filter = '(&(uid=%s)(%s))' % (
                     ldap.filter.escape_filter_chars(username), filterstr)
->>>>>>> upstream/master
                 found = False
                 for basedn in basedns:
                     try:
@@ -365,15 +333,10 @@ def ldap_auth(server='ldap', port=None,
                             break
                     except ldap.LDAPError, detail:
                         (exc_type, exc_value) = sys.exc_info()[:2]
-<<<<<<< HEAD
-                        logger.warning("ldap_auth: searching %s for %s resulted in %s: %s\n" %
-                                       (basedn, filter, exc_type, exc_value))
-=======
                         logger.warning(
                         "ldap_auth: searching %s for %s resulted in %s: %s\n" %
                                        (basedn, filter, exc_type, exc_value)
                                        )
->>>>>>> upstream/master
                 if not found:
                     logger.warning('User [%s] not found!' % username)
                     return False
@@ -386,12 +349,8 @@ def ldap_auth(server='ldap', port=None,
                 else:
                     basedns = [ldap_basedn]
                 filter = '(&(%s=%s)(%s))' % (username_attrib,
-<<<<<<< HEAD
-                                             ldap.filter.escape_filter_chars(username),
-=======
                                              ldap.filter.escape_filter_chars(
                                                  username),
->>>>>>> upstream/master
                                              filterstr)
                 if custom_scope == 'subtree':
                     ldap_scope = ldap.SCOPE_SUBTREE
@@ -411,15 +370,10 @@ def ldap_auth(server='ldap', port=None,
                             break
                     except ldap.LDAPError, detail:
                         (exc_type, exc_value) = sys.exc_info()[:2]
-<<<<<<< HEAD
-                        logger.warning("ldap_auth: searching %s for %s resulted in %s: %s\n" %
-                                       (basedn, filter, exc_type, exc_value))
-=======
                         logger.warning(
                         "ldap_auth: searching %s for %s resulted in %s: %s\n" %
                                        (basedn, filter, exc_type, exc_value)
                                        )
->>>>>>> upstream/master
                 if not found:
                     logger.warning('User [%s] not found!' % username)
                     return False
@@ -428,24 +382,16 @@ def ldap_auth(server='ldap', port=None,
                 logger.info('[%s] Manage user data' % str(username))
                 try:
                     if user_firstname_part is not None:
-<<<<<<< HEAD
-                        store_user_firstname = result[user_firstname_attrib][0].split(' ', 1)[user_firstname_part]
-=======
                         store_user_firstname = result[user_firstname_attrib][
                             0].split(' ', 1)[user_firstname_part]
->>>>>>> upstream/master
                     else:
                         store_user_firstname = result[user_firstname_attrib][0]
                 except KeyError, e:
                     store_user_firstname = None
                 try:
                     if user_lastname_part is not None:
-<<<<<<< HEAD
-                        store_user_lastname = result[user_lastname_attrib][0].split(' ', 1)[user_lastname_part]
-=======
                         store_user_lastname = result[user_lastname_attrib][
                             0].split(' ', 1)[user_lastname_part]
->>>>>>> upstream/master
                     else:
                         store_user_lastname = result[user_lastname_attrib][0]
                 except KeyError, e:
@@ -536,30 +482,19 @@ def ldap_auth(server='ldap', port=None,
             #
             # Get all group name where the user is in actually in ldap
             # #########################################################
-<<<<<<< HEAD
-            ldap_groups_of_the_user = get_user_groups_from_ldap(username, password)
-=======
             ldap_groups_of_the_user = get_user_groups_from_ldap(
                 username, password)
->>>>>>> upstream/master
 
             #
             # Get all group name where the user is in actually in local db
             # #############################################################
             try:
-<<<<<<< HEAD
-                db_user_id = db(db.auth_user.username == username).select(db.auth_user.id).first().id
-            except:
-                try:
-                    db_user_id = db(db.auth_user.email == username).select(db.auth_user.id).first().id
-=======
                 db_user_id = db(db.auth_user.username == username).select(
                     db.auth_user.id).first().id
             except:
                 try:
                     db_user_id = db(db.auth_user.email == username).select(
                         db.auth_user.id).first().id
->>>>>>> upstream/master
                 except AttributeError, e:
                     #
                     # There is no user in local db
@@ -572,20 +507,12 @@ def ldap_auth(server='ldap', port=None,
                         db_user_id = db.auth_user.insert(email=username,
                                                          first_name=username)
             if not db_user_id:
-<<<<<<< HEAD
-                logging.error('There is no username or email for %s!' % username)
-                raise
-            db_group_search = db((db.auth_membership.user_id == db_user_id) &
-                                (db.auth_user.id == db.auth_membership.user_id) &
-                                 (db.auth_group.id == db.auth_membership.group_id))
-=======
                 logging.error(
                     'There is no username or email for %s!' % username)
                 raise
             db_group_search = db((db.auth_membership.user_id == db_user_id) &
                             (db.auth_user.id == db.auth_membership.user_id) &
                             (db.auth_group.id == db.auth_membership.group_id))
->>>>>>> upstream/master
             db_groups_of_the_user = list()
             db_group_id = dict()
 
@@ -604,12 +531,8 @@ def ldap_auth(server='ldap', port=None,
             for group_to_del in db_groups_of_the_user:
                 if ldap_groups_of_the_user.count(group_to_del) == 0:
                     db((db.auth_membership.user_id == db_user_id) &
-<<<<<<< HEAD
-                       (db.auth_membership.group_id == db_group_id[group_to_del])).delete()
-=======
                        (db.auth_membership.group_id == \
                          db_group_id[group_to_del])).delete()
->>>>>>> upstream/master
 
             #
             # Create user membership in groups where user is not in already
@@ -618,16 +541,10 @@ def ldap_auth(server='ldap', port=None,
                 if db_groups_of_the_user.count(group_to_add) == 0:
                     if db(db.auth_group.role == group_to_add).count() == 0:
                         gid = db.auth_group.insert(role=group_to_add,
-<<<<<<< HEAD
-                                                   description='Generated from LDAP')
-                    else:
-                        gid = db(db.auth_group.role == group_to_add).select(db.auth_group.id).first().id
-=======
                                             description='Generated from LDAP')
                     else:
                         gid = db(db.auth_group.role == group_to_add).select(
                             db.auth_group.id).first().id
->>>>>>> upstream/master
                     db.auth_membership.insert(user_id=db_user_id,
                                               group_id=gid)
         except:
@@ -701,12 +618,8 @@ def ldap_auth(server='ldap', port=None,
             con.set_option(ldap.OPT_PROTOCOL_VERSION, 3)
             # In cases where ForestDnsZones and DomainDnsZones are found,
             # result will look like the following:
-<<<<<<< HEAD
-            # ['ldap://ForestDnsZones.domain.com/DC=ForestDnsZones,DC=domain,DC=com']
-=======
             # ['ldap://ForestDnsZones.domain.com/DC=ForestDnsZones,
             #     DC=domain,DC=com']
->>>>>>> upstream/master
             if ldap_binddn:
                 # need to search directory with an admin account 1st
                 con.simple_bind_s(ldap_binddn, ldap_bindpw)
@@ -718,12 +631,8 @@ def ldap_auth(server='ldap', port=None,
             # We have to use the full string
             username = con.search_ext_s(base_dn, ldap.SCOPE_SUBTREE,
                                         "(&(sAMAccountName=%s)(%s))" %
-<<<<<<< HEAD
-                                        (ldap.filter.escape_filter_chars(username_bare), filterstr), ["cn"])[0][0]
-=======
                             (ldap.filter.escape_filter_chars(username_bare),
                             filterstr), ["cn"])[0][0]
->>>>>>> upstream/master
         else:
             if ldap_binddn:
                 # need to search directory with an bind_dn account 1st
@@ -733,13 +642,9 @@ def ldap_auth(server='ldap', port=None,
                 con.simple_bind_s('', '')
 
         # search for groups where user is in
-<<<<<<< HEAD
-        filter = '(&(%s=%s)(%s))' % (ldap.filter.escape_filter_chars(group_member_attrib),
-=======
         filter = '(&(%s=%s)(%s))' % (ldap.filter.escape_filter_chars(
                                                             group_member_attrib
                                                             ),
->>>>>>> upstream/master
                                      ldap.filter.escape_filter_chars(username),
                                      group_filterstr)
         group_search_result = con.search_s(group_dn,

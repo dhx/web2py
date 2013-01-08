@@ -29,12 +29,8 @@ update:
 	wget -O gluon/contrib/simplejsonrpc.py http://rad2py.googlecode.com/hg/ide2py/simplejsonrpc.py
 	echo "remember that pymysql was tweaked"
 src:
-<<<<<<< HEAD
-	echo 'Version 2.1.1 ('`date +%Y-%m-%d\ %H:%M:%S`') dev' > VERSION
-=======
 	### Use semantic versioning
 	echo 'Version 2.4.1-alpha.2+timestamp.'`date +%Y.%m.%d.%H.%M.%S` > VERSION
->>>>>>> upstream/master
 	### rm -f all junk files
 	make clean
 	### clean up baisc apps
@@ -47,13 +43,9 @@ src:
 	rm -f applications/examples/databases/*             
 	rm -f applications/admin/uploads/*                 
 	rm -f applications/welcome/uploads/*               
-<<<<<<< HEAD
-	rm -f applications/examples/uploads/*             
-=======
 	rm -f applications/examples/uploads/* 
 	### make epydoc
 	make epydoc
->>>>>>> upstream/master
 	### make welcome layout and appadmin the default
 	cp applications/welcome/views/appadmin.html applications/admin/views
 	cp applications/welcome/views/appadmin.html applications/examples/views
@@ -129,10 +121,6 @@ commit:
 push:
 	hg push
 	git push
-<<<<<<< HEAD
-	git push mdipierro
-=======
->>>>>>> upstream/master
 tag:
 	git tag -l '$(S)'
 	hg tag -l '$(S)'

@@ -42,13 +42,9 @@ revision3.com
 viddler.com
 """
 
-<<<<<<< HEAD
-import re, cgi, sys
-=======
 import re
 import cgi
 import sys
->>>>>>> upstream/master
 from simplejson import loads
 import urllib
 import uuid
@@ -81,30 +77,12 @@ EMBED_MAPS = [
      'http://revision3.com/api/oembed/'),
     (re.compile('http://\S+.viddler.com/\S+'),
      'http://lab.viddler.com/services/oembed/'),
-<<<<<<< HEAD
-    ]
-=======
 ]
 
->>>>>>> upstream/master
 
 def image(url):
     return '<img src="%s" style="max-width:100%%"/>' % url
 
-<<<<<<< HEAD
-def audio(url):
-    return '<audio controls="controls" style="max-width:100%%"><source src="%s" /></audio>' % url
-
-def video(url):
-    return '<video controls="controls" style="max-width:100%%"><source src="%s" /></video>' % url
-
-def googledoc_viewer(url):
-    return '<iframe src="http://docs.google.com/viewer?url=%s&embedded=true" style="max-width:100%%"></iframe>' % urllib.quote(url)
-
-def web2py_component(url):
-    code = str(uuid.uuid4())
-    return '<div id="%s"></div><script>\nweb2py_component("%s","%s");\n</script>' % (code,url,code)
-=======
 
 def audio(url):
     return '<audio controls="controls" style="max-width:100%%"><source src="%s" /></audio>' % url
@@ -121,7 +99,6 @@ def googledoc_viewer(url):
 def web2py_component(url):
     code = str(uuid.uuid4())
     return '<div id="%s"></div><script>\nweb2py_component("%s","%s");\n</script>' % (code, url, code)
->>>>>>> upstream/master
 
 EXTENSION_MAPS = {
     'png': image,
@@ -156,25 +133,12 @@ EXTENSION_MAPS = {
     'xps': googledoc_viewer,
 }
 
-<<<<<<< HEAD
-=======
 
->>>>>>> upstream/master
 class VimeoURLOpener(urllib.FancyURLopener):
     "Vimeo blocks the urllib user agent for some reason"
     version = "Mozilla/4.0"
 urllib._urlopener = VimeoURLOpener()
 
-<<<<<<< HEAD
-def oembed(url):
-    for k,v in EMBED_MAPS:
-        if k.match(url):
-            oembed = v+'?format=json&url='+cgi.escape(url)
-            try:
-                data = urllib.urlopen(oembed).read()
-                print data
-                return loads(data) # json!
-=======
 
 def oembed(url):
     for k, v in EMBED_MAPS:
@@ -183,34 +147,22 @@ def oembed(url):
             try:
                 data = urllib.urlopen(oembed).read()
                 return loads(data)  # json!
->>>>>>> upstream/master
             except:
                 pass
     return {}
 
-<<<<<<< HEAD
-def extension(url):
-    return url.split('?')[0].split('.')[-1].lower()
-
-def expand_one(url,cdict):
-=======
 
 def extension(url):
     return url.split('?')[0].split('.')[-1].lower()
 
 
 def expand_one(url, cdict):
->>>>>>> upstream/master
     # try ombed but first check in cache
     if cdict and url in cdict:
         r = cdict[url]
     else:
         r = oembed(url)
-<<<<<<< HEAD
-        if isinstance(cdict,dict):
-=======
         if isinstance(cdict, dict):
->>>>>>> upstream/master
             cdict[url] = r
     # if oembed service
     if 'html' in r:
@@ -228,23 +180,6 @@ def expand_one(url, cdict):
     # else regular link
     return '<a href="%(u)s">%(u)s</a>' % dict(u=url)
 
-<<<<<<< HEAD
-def expand_html(html,cdict=None):
-    if not have_soup:
-        raise RuntimeError, "Missing BeautifulSoup"
-    soup = BeautifulSoup(html)
-    comments = soup.findAll(text=lambda text:isinstance(text, Comment))
-    [comment.extract() for comment in comments]
-    for txt in soup.findAll(text=True):
-        if not txt.parent.name in ('a','script','pre','code','embed','object','audio','video'):
-            ntxt = regex_link.sub(
-                lambda match: expand_one(match.group(0),cdict), txt)
-            txt.replaceWith(BeautifulSoup(ntxt))
-    return str(soup)
-
-def test():
-    example="""
-=======
 
 def expand_html(html, cdict=None):
     if not have_soup:
@@ -262,7 +197,6 @@ def expand_html(html, cdict=None):
 
 def test():
     example = """
->>>>>>> upstream/master
 <h3>Fringilla nisi parturient nullam</h3>
 <p>http://www.youtube.com/watch?v=IWBFiI5RrA0</p>
 <p>http://www.web2py.com/examples/static/images/logo_bw.png</p>
@@ -276,18 +210,8 @@ laoreet tortor.</p>
 """
     return expand_html(example)
 
-<<<<<<< HEAD
-if __name__=="__main__":
-    if len(sys.argv)>1:
-        print expand_html(open(sys.argv[1]).read())
-    else:
-        print test()
-
-
-=======
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         print expand_html(open(sys.argv[1]).read())
     else:
         print test()
->>>>>>> upstream/master

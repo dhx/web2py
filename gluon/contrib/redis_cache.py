@@ -168,11 +168,3 @@ class RedisClient(object):
     def __keyFormat__(self, key):
         return 'w2p:%s:%s' % (self.request.application,
                               key.replace(' ', '_'))
-<<<<<<< HEAD
-
-
-
-
-
-=======
->>>>>>> upstream/master

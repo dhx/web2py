@@ -368,11 +368,7 @@ db.define_table(
 
 db.define_table(
     'product',
-<<<<<<< HEAD
-    Field('seller_id',db_person),
-=======
     Field('seller_id',db.person),
->>>>>>> upstream/master
     Field('name'),
     Field('description', 'text'),
     Field('picture', 'upload', default=''),

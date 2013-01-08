@@ -106,20 +106,6 @@ def sms_email(number, provider):
     print 13123756536@tmail.com
     """
     import re
-<<<<<<< HEAD
-    if number[0]=='+1': number=number[1:]
-    elif number[0]=='+': number=number[3:]
-    elif number[:2]=='00': number=number[3:]
-    number=re.sub('[^\d]','',number)
-    return number+SMSCODES[provider]
-
-
-
-
-
-
-
-=======
     if number[0] == '+1':
         number = number[1:]
     elif number[0] == '+':
@@ -127,4 +113,3 @@ def sms_email(number, provider):
     elif number[:2] == '00': number = number[3:]
     number = re.sub('[^\d]', '', number)
     return number + SMSCODES[provider]
->>>>>>> upstream/master

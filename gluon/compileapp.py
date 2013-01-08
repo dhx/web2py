@@ -48,11 +48,7 @@ except:
     logger.warning('unable to import py_compile')
 
 is_pypy = settings.global_settings.is_pypy
-<<<<<<< HEAD
-is_gae  = settings.global_settings.web2py_runtime_gae
-=======
 is_gae = settings.global_settings.web2py_runtime_gae
->>>>>>> upstream/master
 is_jython = settings.global_settings.is_jython
 
 pjoin = os.path.join
@@ -99,10 +95,7 @@ _TEST()
 CACHED_REGEXES = {}
 CACHED_REGEXES_MAX_SIZE = 1000
 
-<<<<<<< HEAD
-=======
 
->>>>>>> upstream/master
 def re_compile(regex):
     try:
         return CACHED_REGEXES[regex]
@@ -112,10 +105,7 @@ def re_compile(regex):
         compiled_regex = CACHED_REGEXES[regex] = re.compile(regex)
         return compiled_regex
 
-<<<<<<< HEAD
-=======
 
->>>>>>> upstream/master
 class mybuiltin(object):
     """
     NOTE could simple use a dict and populate it,
@@ -155,11 +145,7 @@ def LOAD(c=None, f='index', args=None, vars=None,
     attr['_id'] = target
     request = current.request
     if '.' in f:
-<<<<<<< HEAD
-        f, extension = f.rsplit('.',1)
-=======
         f, extension = f.rsplit('.', 1)
->>>>>>> upstream/master
     if url or ajax:
         url = url or URL(request.application, c, f, r=request,
                          args=args, vars=vars, extension=extension,
@@ -263,11 +249,7 @@ class LoadFactory(object):
         attr['_id'] = target
         request = self.environment['request']
         if '.' in f:
-<<<<<<< HEAD
-            f, extension = f.rsplit('.',1)
-=======
             f, extension = f.rsplit('.', 1)
->>>>>>> upstream/master
         if url or ajax:
             url = url or html.URL(request.application, c, f, r=request,
                                   args=args, vars=vars, extension=extension,
@@ -385,14 +367,9 @@ OLD IMPLEMENTATION:
     return module
 """
 
-<<<<<<< HEAD
-_base_environment_ = dict((k,getattr(html,k)) for k  in html.__all__)
-_base_environment_.update((k,getattr(validators,k)) for k  in validators.__all__)
-=======
 _base_environment_ = dict((k, getattr(html, k)) for k in html.__all__)
 _base_environment_.update(
     (k, getattr(validators, k)) for k in validators.__all__)
->>>>>>> upstream/master
 _base_environment_['__builtins__'] = __builtins__
 _base_environment_['HTTP'] = HTTP
 _base_environment_['redirect'] = redirect
@@ -403,12 +380,8 @@ _base_environment_['SQLField'] = SQLField  # for backward compatibility
 _base_environment_['SQLFORM'] = SQLFORM
 _base_environment_['SQLTABLE'] = SQLTABLE
 _base_environment_['LOAD'] = LOAD
-<<<<<<< HEAD
- 
-=======
 
 
->>>>>>> upstream/master
 def build_environment(request, response, session, store_current=True):
     """
     Build the environment dictionary into which web2py files are executed.
@@ -421,11 +394,7 @@ def build_environment(request, response, session, store_current=True):
     # Enable standard conditional models (i.e., /*.py, /[controller]/*.py, and
     # /[controller]/[function]/*.py)
     response.models_to_run = [r'^\w+\.py$', r'^%s/\w+\.py$' % request.controller,
-<<<<<<< HEAD
-        r'^%s/%s/\w+\.py$' % (request.controller, request.function)]
-=======
                               r'^%s/%s/\w+\.py$' % (request.controller, request.function)]
->>>>>>> upstream/master
 
     t = environment['T'] = translator(os.path.join(request.folder,'languages'),
                                       request.env.http_accept_language)
@@ -445,26 +414,18 @@ def build_environment(request, response, session, store_current=True):
     elif is_pypy:  # apply the same hack to pypy too
         __builtins__ = mybuiltin()
     else:
-<<<<<<< HEAD
-        __builtins__['__import__'] = __builtin__.__import__ ### WHY?
-=======
         __builtins__['__import__'] = __builtin__.__import__  # WHY?
->>>>>>> upstream/master
     environment['request'] = request
     environment['response'] = response
     environment['session'] = session
     environment['local_import'] = \
-<<<<<<< HEAD
-       lambda name, reload=False, app=request.application:\
-       local_import_aux(name,reload,app)
-=======
         lambda name, reload=False, app=request.application:\
         local_import_aux(name, reload, app)
->>>>>>> upstream/master
     BaseAdapter.set_folder(pjoin(request.folder, 'databases'))
     response._view_environment = copy.copy(environment)
     custom_import_install()
     return environment
+
 
 def save_pyc(filename):
     """
@@ -492,16 +453,11 @@ def compile_views(folder):
     """
 
     path = pjoin(folder, 'views')
-<<<<<<< HEAD
-    for file in listdir(path, '^[\w/\-]+(\.\w+)+$'):
-        data = parse_template(file, path)
-=======
     for file in listdir(path, '^[\w/\-]+(\.\w+)*$'):
         try:
             data = parse_template(file, path)
         except Exception, e:
             raise Exception("%s in %s" % (e, file))
->>>>>>> upstream/master
         filename = ('views/%s.py' % file).replace('/', '_').replace('\\', '_')
         filename = pjoin(folder, 'compiled', filename)
         write_file(filename, data)
@@ -517,11 +473,7 @@ def compile_models(folder):
     path = pjoin(folder, 'models')
     for file in listdir(path, '.+\.py$'):
         data = read_file(pjoin(path, file))
-<<<<<<< HEAD
-        filename = pjoin(folder, 'compiled','models',file)
-=======
         filename = pjoin(folder, 'compiled', 'models', file)
->>>>>>> upstream/master
         mktree(filename)
         write_file(filename, data)
         save_pyc(filename)
@@ -536,11 +488,7 @@ def compile_controllers(folder):
     path = pjoin(folder, 'controllers')
     for file in listdir(path, '.+\.py$'):
         ### why is this here? save_pyc(pjoin(path, file))
-<<<<<<< HEAD
-        data = read_file(pjoin(path,file))
-=======
         data = read_file(pjoin(path, file))
->>>>>>> upstream/master
         exposed = regex_expose.findall(data)
         for function in exposed:
             command = data + "\nresponse._vars=response._caller(%s)\n" % \
@@ -567,32 +515,19 @@ def run_models_in(environment):
         for model in listdir(cpath, '^models_\w+\.pyc$', 0):
             restricted(read_pyc(model), environment, layer=model)
         path = pjoin(cpath, 'models')
-<<<<<<< HEAD
-        models = listdir(path, '^\w+\.pyc$',0,sort=False)
-        compiled=True
-    else:
-        path = pjoin(folder, 'models')
-        models = listdir(path, '^\w+\.py$',0,sort=False)
-        compiled=False
-=======
         models = listdir(path, '^\w+\.pyc$', 0, sort=False)
         compiled = True
     else:
         path = pjoin(folder, 'models')
         models = listdir(path, '^\w+\.py$', 0, sort=False)
         compiled = False
->>>>>>> upstream/master
     n = len(path) + 1
     for model in models:
         regex = environment['response'].models_to_run
         if isinstance(regex, list):
             regex = re_compile('|'.join(regex))
         file = model[n:].replace(os.path.sep, '/').replace('.pyc', '.py')
-<<<<<<< HEAD
-        if not regex.search(file) and c!= 'appadmin':
-=======
         if not regex.search(file) and c != 'appadmin':
->>>>>>> upstream/master
             continue
         elif compiled:
             code = read_pyc(model)
@@ -618,11 +553,7 @@ def run_controller_in(controller, function, environment):
     badf = 'invalid function (%s/%s)' % (controller, function)
     if os.path.exists(path):
         filename = pjoin(path, 'controllers_%s_%s.pyc'
-<<<<<<< HEAD
-                                 % (controller, function))
-=======
                          % (controller, function))
->>>>>>> upstream/master
         if not os.path.exists(filename):
             raise HTTP(404,
                        rewrite.THREAD_LOCAL.routes.error_message % badf,
@@ -669,11 +600,7 @@ def run_controller_in(controller, function, environment):
     vars = response._vars
     if response.postprocessing:
         vars = reduce(lambda vars, p: p(vars), response.postprocessing, vars)
-<<<<<<< HEAD
-    if isinstance(vars,unicode):
-=======
     if isinstance(vars, unicode):
->>>>>>> upstream/master
         vars = vars.encode('utf8')
     elif hasattr(vars, 'xml') and callable(vars.xml):
         vars = vars.xml()
@@ -696,11 +623,7 @@ def run_view_in(environment):
     if response.generic_patterns:
         patterns = response.generic_patterns
         regex = re_compile('|'.join(map(fnmatch.translate, patterns)))
-<<<<<<< HEAD
-        short_action =  '%(controller)s/%(function)s.%(extension)s' % request
-=======
         short_action = '%(controller)s/%(function)s.%(extension)s' % request
->>>>>>> upstream/master
         allow_generic = regex.search(short_action)
     else:
         allow_generic = False
@@ -720,11 +643,7 @@ def run_view_in(environment):
                 files.append('views_generic.pyc')
         # end backward compatibility code
         for f in files:
-<<<<<<< HEAD
-            filename = pjoin(path,f)
-=======
             filename = pjoin(path, f)
->>>>>>> upstream/master
             if os.path.exists(filename):
                 code = read_pyc(filename)
                 restricted(code, environment, layer=filename)
@@ -746,11 +665,7 @@ def run_view_in(environment):
             ccode = getcfs(layer, filename,
                            lambda: compile2(parse_template(view,
                                             pjoin(folder, 'views'),
-<<<<<<< HEAD
-                                            context=environment),layer))
-=======
                                             context=environment), layer))
->>>>>>> upstream/master
         else:
             ccode = parse_template(view,
                                    pjoin(folder, 'views'),
@@ -765,11 +680,7 @@ def remove_compiled_application(folder):
     try:
         shutil.rmtree(pjoin(folder, 'compiled'))
         path = pjoin(folder, 'controllers')
-<<<<<<< HEAD
-        for file in listdir(path,'.*\.pyc$',drop=False):
-=======
         for file in listdir(path, '.*\.pyc$', drop=False):
->>>>>>> upstream/master
             os.unlink(file)
     except OSError:
         pass
@@ -807,13 +718,3 @@ def test():
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
-<<<<<<< HEAD
-
-
-
-
-
-
-
-=======
->>>>>>> upstream/master

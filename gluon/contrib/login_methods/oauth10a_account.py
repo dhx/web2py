@@ -184,10 +184,3 @@ class OAuthAccount(object):
                        Location=auth_request_url)
 
         return None
-<<<<<<< HEAD
-
-
-
-
-=======
->>>>>>> upstream/master

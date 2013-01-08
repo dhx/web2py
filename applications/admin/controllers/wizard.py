@@ -155,11 +155,7 @@ def step2():
                     name = table + '_manage'
                     if not name in session.app['pages']:
                         session.app['pages'].append(name)
-<<<<<<< HEAD
-                        session.app['page_'+name] = \
-=======
                         session.app['page_' + name] = \
->>>>>>> upstream/master
                             '## Manage %s\n\n{{=form}}' % (table)
             if session.app['tables']:
                 redirect(URL('step3', args=0) + '/#xwizard_form')
@@ -189,11 +185,7 @@ def step3():
         try:
             tables = sort_tables(session.app['tables'])
         except RuntimeError:
-<<<<<<< HEAD
-            response.flash=T('invalid circular reference')
-=======
             response.flash = T('invalid circular reference')
->>>>>>> upstream/master
         else:
             if n < m - 1:
                 redirect(URL('step3', args=n + 1) + '/#xwizard_form')
@@ -285,18 +277,11 @@ def sort_tables(tables):
             raise RuntimeError
         for t in d[table]:
             # if not t==table: (problem, no dropdown for self references)
-<<<<<<< HEAD
-            append(t,trail=trail+[table])
-        if not table in tables:
-            tables.append(table)
-    for table in d: append(table)
-=======
             append(t, trail=trail + [table])
         if not table in tables:
             tables.append(table)
     for table in d:
         append(table)
->>>>>>> upstream/master
     return tables
 
 
@@ -394,16 +379,6 @@ def make_table(table, fields):
         s += "    Field('registration_id',default='',\n"
         s += "          writable=False,readable=False),\n"
     elif 'auth_user' in session.app['tables']:
-<<<<<<< HEAD
-        s+="    auth.signature,\n"
-    s+="    format='%("+first_field+")s',\n"
-    s+="    migrate=settings.migrate)\n\n"
-    if table=='auth_user':
-        s+="""
-db.auth_user.first_name.requires = IS_NOT_EMPTY(error_message=auth.messages.is_empty)
-db.auth_user.last_name.requires = IS_NOT_EMPTY(error_message=auth.messages.is_empty)
-db.auth_user.password.requires = CRYPT(key=auth.settings.hmac_key, min_length=4)
-=======
         s += "    auth.signature,\n"
     s += "    format='%(" + first_field + ")s',\n"
     s += "    migrate=settings.migrate)\n\n"
@@ -415,7 +390,6 @@ db.auth_user.last_name.requires = IS_NOT_EMPTY(
     error_message=auth.messages.is_empty)
 db.auth_user.password.requires = CRYPT(
     key=auth.settings.hmac_key, min_length=4)
->>>>>>> upstream/master
 db.auth_user.username.requires = IS_NOT_IN_DB(db, db.auth_user.username)
 db.auth_user.email.requires = (
     IS_EMAIL(error_message=auth.messages.invalid_email),

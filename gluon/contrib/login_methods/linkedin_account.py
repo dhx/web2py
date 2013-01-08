@@ -45,18 +45,8 @@ class LinkedInAccount(object):
             verifier=self.request.vars.verifier)
         if result:
             profile = self.api.GetProfile()
-<<<<<<< HEAD
-            profile = self.api.GetProfile(profile).public_url = "http://www.linkedin.com/in/ozgurv"
-            return dict(first_name = profile.first_name,
-                        last_name = profile.last_name,
-                        username = profile.id)
-
-
-
-=======
             profile = self.api.GetProfile(
                 profile).public_url = "http://www.linkedin.com/in/ozgurv"
             return dict(first_name=profile.first_name,
                         last_name=profile.last_name,
                         username=profile.id)
->>>>>>> upstream/master

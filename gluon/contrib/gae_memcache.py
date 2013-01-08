@@ -12,13 +12,9 @@ cache.ram=cache.disk=MemcacheClient(request)
 import time
 from google.appengine.api.memcache import Client
 
+
 class MemcacheClient(object):
 
-<<<<<<< HEAD
-=======
-class MemcacheClient(object):
-
->>>>>>> upstream/master
     client = Client()
 
     def __init__(self, request):
@@ -29,20 +25,12 @@ class MemcacheClient(object):
         key,
         f,
         time_expire=300,
-<<<<<<< HEAD
-        ):        
-=======
     ):
->>>>>>> upstream/master
         key = '%s/%s' % (self.request.application, key)
         dt = time_expire
         value = None
         obj = self.client.get(key)
-<<<<<<< HEAD
-        if obj and (dt == None or obj[0] > time.time() - dt):
-=======
         if obj and (dt is None or obj[0] > time.time() - dt):
->>>>>>> upstream/master
             value = obj[1]
         elif f is None:
             if obj:
@@ -57,36 +45,16 @@ class MemcacheClient(object):
         obj = self.client.get(key)
         if obj:
             value = obj[1] + value
-<<<<<<< HEAD
-        self.client.set(key, (time.time(), value))        
-        return value
-
-    def clear(self, key = None):
-=======
         self.client.set(key, (time.time(), value))
         return value
 
     def clear(self, key=None):
->>>>>>> upstream/master
         if key:
             key = '%s/%s' % (self.request.application, key)
             self.client.delete(key)
         else:
             self.client.flush_all()
 
-<<<<<<< HEAD
-    def delete(self,*a,**b):
-        return self.client.delete(*a,**b)
-
-    def get(self,*a,**b):
-        return self.client.delete(*a,**b)
-
-    def set(self,*a,**b):
-        return self.client.delete(*a,**b)
-
-    def flush_all(self,*a,**b):
-        return self.client.delete(*a,**b)
-=======
     def delete(self, *a, **b):
         return self.client.delete(*a, **b)
 
@@ -98,4 +66,3 @@ class MemcacheClient(object):
 
     def flush_all(self, *a, **b):
         return self.client.delete(*a, **b)
->>>>>>> upstream/master

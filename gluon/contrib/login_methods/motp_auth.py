@@ -109,4 +109,3 @@ def motp_auth(db=DAL('sqlite://storage.sqlite'),
                     return False
         return False
     return motp_auth_aux
-

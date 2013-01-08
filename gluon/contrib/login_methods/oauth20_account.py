@@ -173,11 +173,7 @@ server for requests.  It can be used for the optional"scope" parameters for Face
                     # implementations where "expires_in" becomes "expires"
                     if 'expires_in' in current.session.token:
                         exps = 'expires_in'
-<<<<<<< HEAD
-                    elif current.session.token.has_key('expires'):
-=======
                     elif 'expires' in current.session.token:
->>>>>>> upstream/master
                         exps = 'expires'
                     else:
                         exps = None
@@ -279,8 +275,3 @@ server for requests.  It can be used for the optional"scope" parameters for Face
                 self.accessToken()
                 return current.session.code
         return None
-<<<<<<< HEAD
-
-
-=======
->>>>>>> upstream/master

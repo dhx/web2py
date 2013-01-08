@@ -54,11 +54,3 @@ setup(app=['web2py.py'],
                'packages': contributed_modules,
                }},
       setup_requires=['py2app'])
-<<<<<<< HEAD
-
-
-
-
-
-=======
->>>>>>> upstream/master

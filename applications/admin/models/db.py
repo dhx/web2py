@@ -18,11 +18,7 @@ if MULTI_USER_MODE:
     mail.settings.login = EMAIL_LOGIN
 
     auth.settings.extra_fields['auth_user'] = \
-<<<<<<< HEAD
-        [Field('is_manager','boolean',default=False,writable=False)]
-=======
         [Field('is_manager', 'boolean', default=False, writable=False)]
->>>>>>> upstream/master
     auth.define_tables()                           # creates all needed tables
     auth.settings.registration_requires_verification = False
     auth.settings.registration_requires_approval = True
@@ -40,11 +36,7 @@ if not session.authorized and MULTI_USER_MODE:
 def is_manager():
     if not MULTI_USER_MODE:
         return True
-<<<<<<< HEAD
-    elif auth.user and (auth.user.id==1 or auth.user.is_manager):
-=======
     elif auth.user and (auth.user.id == 1 or auth.user.is_manager):
->>>>>>> upstream/master
         return True
     else:
         return False
