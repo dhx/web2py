@@ -687,6 +687,7 @@ class BaseAdapter(ConnectionPool):
     can_select_for_update = True
     dbpath = None
     folder = None
+
     TRUE = 'T'
     FALSE = 'F'
     T_SEP = ' '
@@ -1881,6 +1882,7 @@ class BaseAdapter(ConnectionPool):
 
     def prepare(self, key):
         if self.connection: self.connection.prepare()
+
     def commit_prepared(self, key):
         if self.connection: self.connection.commit()
 
@@ -3520,6 +3522,7 @@ class VerticaAdapter(MSSQLAdapter):
     drivers = ('pyodbc',)
     T_SEP = ' '
 
+    types = {
         'boolean': 'BOOLEAN',
         'string': 'VARCHAR(%(length)s)',
         'text': 'BYTEA',
@@ -3527,10 +3530,14 @@ class VerticaAdapter(MSSQLAdapter):
         'password': 'VARCHAR(%(length)s)',
         'blob': 'BYTEA',
         'upload': 'VARCHAR(%(length)s)',
+        'integer': 'INT',
+        'bigint': 'BIGINT',
+        'float': 'FLOAT',
         'double': 'DOUBLE PRECISION',
         'decimal': 'DECIMAL(%(precision)s,%(scale)s)',
         'date': 'DATE',
         'time': 'TIME',
+        'datetime': 'DATETIME',
         'id': 'IDENTITY',
         'reference': 'INT REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
         'list:integer': 'BYTEA',
@@ -3652,7 +3659,35 @@ class SybaseAdapter(MSSQLAdapter):
         self.connector = connector
         if do_connect: self.reconnect()
 
+
+class FireBirdAdapter(BaseAdapter):
+    drivers = ('kinterbasdb','firebirdsql','fdb','pyodbc')
+
+    commit_on_alter_table = False
+    support_distributed_transaction = True
+    types = {
+        'boolean': 'CHAR(1)',
+        'string': 'VARCHAR(%(length)s)',
+        'text': 'BLOB SUB_TYPE 1',
         'json': 'BLOB SUB_TYPE 1',
+        'password': 'VARCHAR(%(length)s)',
+        'blob': 'BLOB SUB_TYPE 0',
+        'upload': 'VARCHAR(%(length)s)',
+        'integer': 'INTEGER',
+        'bigint': 'BIGINT',
+        'float': 'FLOAT',
+        'double': 'DOUBLE PRECISION',
+        'decimal': 'DECIMAL(%(precision)s,%(scale)s)',
+        'date': 'DATE',
+        'time': 'TIME',
+        'datetime': 'TIMESTAMP',
+        'id': 'INTEGER PRIMARY KEY',
+        'reference': 'INTEGER REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
+        'list:integer': 'BLOB SUB_TYPE 1',
+        'list:string': 'BLOB SUB_TYPE 1',
+        'list:reference': 'BLOB SUB_TYPE 1',
+        'big-id': 'BIGINT PRIMARY KEY',
+        'big-reference': 'BIGINT REFERENCES %(foreign_key)s ON DELETE %(on_delete_action)s',
         }
 
     def sequence_name(self,tablename):
@@ -5660,6 +5695,7 @@ class MongoDBAdapter(NoSQLAdapter):
     def drop(self, table, mode=''):
         ctable = self.connection[table._tablename]
         ctable.drop()
+
     def truncate(self, table, mode, safe=None):
         if safe == None:
             safe=self.safe
@@ -5737,6 +5773,7 @@ class MongoDBAdapter(NoSQLAdapter):
                                 mongofields_dict, skip=limitby_skip,
                                 limit=limitby_limit, sort=mongosort_list,
                                 snapshot=snapshot)
+        rows = []
         # populate row in proper order
         # Here we replace ._id with .id to follow the standard naming
         colnames = []
@@ -7238,21 +7275,34 @@ class Row(object):
     __setitem__ = lambda self, key, value: setattr(self, str(key), value)
 
     __delitem__ = object.__delattr__
+
     __copy__ = lambda self: Row(self)
+
+    __call__ = __getitem__
+
 
     def get(self, key, default=None):
         try:
             return self.__getitem__(key)
         except(KeyError, AttributeError, TypeError):
             return self.__dict__.get(key,default)
+
     has_key = __contains__ = lambda self, key: key in self.__dict__
+
     __nonzero__ = lambda self: len(self.__dict__)>0
+
     update = lambda self, *args, **kwargs:  self.__dict__.update(*args, **kwargs)
+
     keys = lambda self: self.__dict__.keys()
+
     items = lambda self: self.__dict__.items()
+
     values = lambda self: self.__dict__.values()
+
     __iter__ = lambda self: self.__dict__.__iter__()
+
     iteritems = lambda self: self.__dict__.iteritems()
+
     __str__ = __repr__ = lambda self: '<Row %s>' % self.as_dict()
 
     __int__ = lambda self: object.__getattribute__(self,'id')
@@ -9475,8 +9525,13 @@ class Expression(object):
         return Expression(self.db, self.db._adapter.ST_ASGEOJSON, self,
                           dict(precision=precision, options=options,
                                version=version), 'string')
+
+    def st_astext(self):
+        db = self.db
         return Expression(db, db._adapter.ST_ASTEXT, self, type='string')
+
     def st_x(self):
+        db = self.db
         return Expression(db, db._adapter.ST_X, self, type='string')
 
     def st_y(self):

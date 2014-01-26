@@ -238,6 +238,7 @@ def select():
                                     or '')), TR(T('Delete:'), INPUT(_name='delete_check',
                 _class='delete', _type='checkbox', value=False), ''),
                 TR('', '', INPUT(_type='submit', _value=T('submit')))),
+                _action=URL(r=request, args=request.args))
 
     tb = None
     if form.accepts(request.vars, formname=None):
@@ -272,6 +273,9 @@ def select():
             tb = traceback.format_exc()
             (rows, nrows) = ([], 0)
             response.flash = DIV(T('Invalid Query'), PRE(str(e)))
+    # begin handle upload csv
+    csv_table = table or request.vars.table
+    if csv_table:
         formcsv = FORM(str(T('or import from csv file')) + " ",
                        INPUT(_type='file', _name='csvfile'),
                        INPUT(_type='hidden', _value=csv_table, _name='table'),
@@ -284,6 +288,7 @@ def select():
                        request.vars.csvfile.file)
             response.flash = T('data uploaded')
         except Exception, e:
+            response.flash = DIV(T('unable to parse csv file'), PRE(str(e)))
     # end handle upload csv
 
     return dict(
@@ -295,7 +300,9 @@ def select():
         nrows=nrows,
         rows=rows,
         query=request.vars.query,
+        formcsv=formcsv,
         tb=tb
+    )
 
 
 # ##########################################################
