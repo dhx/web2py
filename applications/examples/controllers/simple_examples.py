@@ -1,4 +1,3 @@
-
 def hello1():
     """ simple page without template """
 
@@ -54,13 +53,6 @@ def raisehttp():
     raise HTTP(400, 'internal error')
 
 
-def raiseexception():
-    """ generates an exeption, logs the event and returns a ticket number """
-
-    1 / 0
-    return 'oops'
-
-
 def servejs():
     """ serves a js document """
 
@@ -68,7 +60,6 @@ def servejs():
     response.headers['Content-Type'] = \
         gluon.contenttype.contenttype('.js')
     return 'alert("This is a Javascript document, it is not supposed to run!");'
-
 
 def makejson():
     import gluon.contrib.simplejson as sj

@@ -13,8 +13,8 @@ import time
 import re
 import errno
 import rewrite
-from http import HTTP
-from contenttype import contenttype
+from gluon.http import HTTP
+from gluon.contenttype import contenttype
 
 
 regex_start_range = re.compile('\d+(?=\-)')
@@ -46,8 +46,8 @@ def stream_file_or_304_or_206(
     request=None,
     headers={},
     status=200,
-    error_message=None,
-):
+    error_message=None
+    ):
     if error_message is None:
         error_message = rewrite.THREAD_LOCAL.routes.error_message % 'invalid request'
     try:

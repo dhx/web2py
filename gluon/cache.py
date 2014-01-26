@@ -19,7 +19,6 @@ When web2py is running on Google App Engine,
 caching will be provided by the GAE memcache
 (see gluon.contrib.gae_memcache)
 """
-import traceback
 import time
 import portalocker
 import shelve
@@ -27,8 +26,10 @@ import thread
 import os
 import logging
 import re
+import hashlib
+import datetime
 try:
-    import settings
+    from gluon import settings
     have_settings = True
 except ImportError:
     have_settings = False
@@ -66,7 +67,7 @@ class CacheAbstract(object):
 
     def __init__(self, request=None):
         """
-        Paremeters
+        Parameters
         ----------
         request:
             the global request object
@@ -241,7 +242,7 @@ class CacheOnDisk(CacheAbstract):
 
     This is implemented as a shelve object and it is shared by multiple web2py
     processes (and threads) as long as they share the same filesystem.
-    The file is locked wen accessed.
+    The file is locked when accessed.
 
     Disk cache provides persistance when web2py is started/stopped but it slower
     than `CacheInRam`
@@ -253,7 +254,10 @@ class CacheOnDisk(CacheAbstract):
         try:
             if self.storage:
                 self.storage.close()
+        except ValueError:
+            pass
         finally:
+            self.storage = None
             if self.locker and self.locked:
                 portalocker.unlock(self.locker)
                 self.locker.close()
@@ -276,10 +280,11 @@ class CacheOnDisk(CacheAbstract):
                 storage = shelve.open(self.shelve_name)
             except:
                 logger.error('corrupted cache file %s, will try rebuild it'
-                             % (self.shelve_name))
+                             % self.shelve_name)
                 storage = None
-            if not storage and os.path.exists(self.shelve_name):
-                os.unlink(self.shelve_name)
+            if storage is None:
+                if os.path.exists(self.shelve_name):
+                    os.unlink(self.shelve_name)
                 storage = shelve.open(self.shelve_name)
             if not CacheAbstract.cache_stats_name in storage.keys():
                 storage[CacheAbstract.cache_stats_name] = {
@@ -376,7 +381,6 @@ class CacheOnDisk(CacheAbstract):
             self._close_shelve_and_unlock()
         return value
 
-
 class CacheAction(object):
     def __init__(self, func, key, time_expire, cache, cache_model):
         self.__name__ = func.__name__
@@ -422,7 +426,7 @@ class Cache(object):
         """
         # GAE will have a special caching
         if have_settings and settings.global_settings.web2py_runtime_gae:
-            from contrib.gae_memcache import MemcacheClient
+            from gluon.contrib.gae_memcache import MemcacheClient
             self.ram = self.disk = MemcacheClient(request)
         else:
             # Otherwise use ram (and try also disk)
@@ -435,6 +439,120 @@ class Cache(object):
                 # normally not expected anymore, as GAE has already
                 # been accounted for
                 logger.warning('no cache.disk (AttributeError)')
+
+    def action(self, time_expire=DEFAULT_TIME_EXPIRE, cache_model=None,
+             prefix=None, session=False, vars=True, lang=True,
+             user_agent=False, public=True, valid_statuses=None,
+             quick=None):
+        """
+        Experimental!
+        Currently only HTTP 1.1 compliant
+        reference : http://code.google.com/p/doctype-mirror/wiki/ArticleHttpCaching
+        time_expire: same as @cache
+        cache_model: same as @cache
+        prefix: add a prefix to the calculated key
+        session: adds response.session_id to the key
+        vars: adds request.env.query_string
+        lang: adds T.accepted_language
+        user_agent: if True, adds is_mobile and is_tablet to the key.
+            Pass a dict to use all the needed values (uses str(.items())) (e.g. user_agent=request.user_agent())
+            used only if session is not True
+        public: if False forces the Cache-Control to be 'private'
+        valid_statuses: by default only status codes starting with 1,2,3 will be cached.
+            pass an explicit list of statuses on which turn the cache on
+        quick: Session,Vars,Lang,User-agent,Public:
+            fast overrides with initial strings, e.g. 'SVLP' or 'VLP', or 'VLP'
+        """
+        from gluon import current
+        from gluon.http import HTTP
+        def wrap(func):
+            def wrapped_f():
+                if current.request.env.request_method != 'GET':
+                    return func()
+                if time_expire:
+                    cache_control = 'max-age=%(time_expire)s, s-maxage=%(time_expire)s' % dict(time_expire=time_expire)
+                    if quick:
+                        session_ = True if 'S' in quick else False
+                        vars_ = True if 'V' in quick else False
+                        lang_ = True if 'L' in quick else False
+                        user_agent_ = True if 'U' in quick else False
+                        public_ = True if 'P' in quick else False
+                    else:
+                        session_, vars_, lang_, user_agent_, public_ = session, vars, lang, user_agent, public
+                    if not session_ and public_:
+                        cache_control += ', public'
+                        expires = (current.request.utcnow + datetime.timedelta(seconds=time_expire)).strftime('%a, %d %b %Y %H:%M:%S GMT')
+                    else:
+                        cache_control += ', private'
+                        expires = 'Fri, 01 Jan 1990 00:00:00 GMT'
+                if cache_model:
+                    #figure out the correct cache key
+                    cache_key = [current.request.env.path_info, current.response.view]
+                    if session_:
+                        cache_key.append(current.response.session_id)
+                    elif user_agent_:
+                        if user_agent_ is True:
+                            cache_key.append("%(is_mobile)s_%(is_tablet)s" % current.request.user_agent())
+                        else:
+                            cache_key.append(str(user_agent_.items()))
+                    if vars_:
+                        cache_key.append(current.request.env.query_string)
+                    if lang_:
+                        cache_key.append(current.T.accepted_language)
+                    cache_key = hashlib.md5('__'.join(cache_key)).hexdigest()
+                    if prefix:
+                        cache_key = prefix + cache_key
+                    try:
+                        #action returns something
+                        rtn = cache_model(cache_key, lambda : func(), time_expire=time_expire)
+                        http, status = None, current.response.status
+                    except HTTP, e:
+                        #action raises HTTP (can still be valid)
+                        rtn = cache_model(cache_key, lambda : e.body, time_expire=time_expire)
+                        http, status = HTTP(e.status, rtn, **e.headers), e.status
+                    else:
+                        #action raised a generic exception
+                        http = None
+                else:
+                    #no server-cache side involved
+                    try:
+                        #action returns something
+                        rtn = func()
+                        http, status = None, current.response.status
+                    except HTTP, e:
+                        #action raises HTTP (can still be valid)
+                        status = e.status
+                        http = HTTP(e.status, e.body, **e.headers)
+                    else:
+                        #action raised a generic exception
+                        http = None
+                send_headers = False
+                if http and isinstance(valid_statuses, list):
+                    if status in valid_statuses:
+                        send_headers = True
+                elif valid_statuses is None:
+                    if str(status)[0] in '123':
+                        send_headers = True
+                if send_headers:
+                    headers = {
+                        'Pragma' : None,
+                        'Expires' : expires,
+                        'Cache-Control' : cache_control
+                        }
+                    current.response.headers.update(headers)
+                if cache_model and not send_headers:
+                    #we cached already the value, but the status is not valid
+                    #so we need to delete the cached value
+                    cache_model(cache_key, None)
+                if http:
+                    if send_headers:
+                        http.headers.update(current.response.headers)
+                    raise http
+                return rtn
+            wrapped_f.__name__ = func.__name__
+            wrapped_f.__doc__ = func.__doc__
+            return wrapped_f
+        return wrap
 
     def __call__(self,
                  key=None,
@@ -469,7 +587,7 @@ class Cache(object):
         refresh.
 
         If the function `f` is an action, we suggest using
-        `request.env.path_info` as key.
+        @cache.client instead
         """
 
         def tmp(func, cache=self, cache_model=cache_model):

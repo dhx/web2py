@@ -3,7 +3,6 @@
 
 import __builtin__
 import os
-import re
 import sys
 import threading
 import traceback
@@ -57,30 +56,34 @@ def custom_importer(name, globals=None, locals=None, fromlist=None, level=-1):
     # if not relative and not from applications:
     if hasattr(current, 'request') \
             and level <= 0 \
-            and not name.split('.')[0] in INVALID_MODULES \
+            and not name.partition('.')[0] in INVALID_MODULES \
             and isinstance(globals, dict):
         import_tb = None
         try:
-            items = current.request.folder.split(os.path.sep)
-            if not items[-1]:
-                items = items[:-1]
-            modules_prefix = '.'.join(items[-2:]) + '.modules'
-            if not fromlist:
-                # import like "import x" or "import x.y"
-                result = None
-                for itemname in name.split("."):
-                    new_mod = base_importer(
-                        modules_prefix, globals, locals, [itemname], level)
-                    try:
-                        result = result or new_mod.__dict__[itemname]
-                    except KeyError, e:
-                        raise ImportError, 'Cannot import module %s' % str(e)
-                    modules_prefix += "." + itemname
-                return result
-            else:
-                # import like "from x import a, b, ..."
-                pname = modules_prefix + "." + name
-                return base_importer(pname, globals, locals, fromlist, level)
+            try:
+                oname = name if not name.startswith('.') else '.'+name
+                return NATIVE_IMPORTER(oname, globals, locals, fromlist, level)
+            except ImportError:
+                items = current.request.folder.split(os.path.sep)
+                if not items[-1]:
+                    items = items[:-1]
+                modules_prefix = '.'.join(items[-2:]) + '.modules'
+                if not fromlist:
+                    # import like "import x" or "import x.y"
+                    result = None
+                    for itemname in name.split("."):
+                        new_mod = base_importer(
+                            modules_prefix, globals, locals, [itemname], level)
+                        try:
+                            result = result or new_mod.__dict__[itemname]
+                        except KeyError, e:
+                            raise ImportError, 'Cannot import module %s' % str(e)
+                        modules_prefix += "." + itemname
+                    return result
+                else:
+                    # import like "from x import a, b, ..."
+                    pname = modules_prefix + "." + name
+                    return base_importer(pname, globals, locals, fromlist, level)
         except ImportError, e1:
             import_tb = sys.exc_info()[2]
             try:
@@ -115,8 +118,6 @@ class TrackImporter(object):
         globals = globals or {}
         locals = locals or {}
         fromlist = fromlist or []
-        if not hasattr(self.THREAD_LOCAL, '_modules_loaded'):
-            self.THREAD_LOCAL._modules_loaded = set()
         try:
             # Check the date and reload if needed:
             self._update_dates(name, globals, locals, fromlist, level)
@@ -171,16 +172,14 @@ class TrackImporter(object):
             if reload_mod or not date or new_date > date:
                 self._import_dates[file] = new_date
             if reload_mod or (date and new_date > date):
-                if module not in self.THREAD_LOCAL._modules_loaded:
-                    if mod_to_pack:
-                        # Module turning into a package:
-                        mod_name = module.__name__
-                        del sys.modules[mod_name]  # Delete the module
-                        # Reload the module:
-                        NATIVE_IMPORTER(mod_name, globals, locals, [], level)
-                    else:
-                        reload(module)
-                        self.THREAD_LOCAL._modules_loaded.add(module)
+                if mod_to_pack:
+                    # Module turning into a package:
+                    mod_name = module.__name__
+                    del sys.modules[mod_name]  # Delete the module
+                    # Reload the module:
+                    NATIVE_IMPORTER(mod_name, globals, locals, [], level)
+                else:
+                    reload(module)
 
     def _get_module_file(self, module):
         """

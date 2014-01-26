@@ -18,10 +18,11 @@ import platform
 import portalocker
 import fileutils
 import cPickle
-from settings import global_settings
+from gluon.settings import global_settings
 
 logger = logging.getLogger("web2py.cron")
 _cron_stopping = False
+_cron_subprocs = []
 
 
 def absolute_path_link(path):
@@ -42,7 +43,8 @@ def stopcron():
     "graceful shutdown of cron"
     global _cron_stopping
     _cron_stopping = True
-
+    while _cron_subprocs:
+        _cron_subprocs.pop().terminate()
 
 class extcron(threading.Thread):
 
@@ -115,6 +117,10 @@ class Token(object):
         if a cron job started before 60 seconds and did not stop,
         a warning is issue "Stale cron.master detected"
         """
+        if sys.platform == 'win32':
+            locktime = 59.5
+        else:
+            locktime = 59.99
         if portalocker.LOCK_EX is None:
             logger.warning('WEB2PY CRON: Disabled because no file locking')
             return None
@@ -126,7 +132,7 @@ class Token(object):
                 (start, stop) = cPickle.load(self.master)
             except:
                 (start, stop) = (0, 1)
-            if startup or self.now - start > 59.99:
+            if startup or self.now - start > locktime:
                 ret = self.now
                 if not stop:
                     # this happens if previous cron job longer than 1 minute
@@ -134,6 +140,7 @@ class Token(object):
                 logger.debug('WEB2PY CRON: Acquiring lock')
                 self.master.seek(0)
                 cPickle.dump((self.now, 0), self.master)
+                self.master.flush()
         finally:
             portalocker.unlock(self.master)
         if not ret:
@@ -232,6 +239,7 @@ class cronlauncher(threading.Thread):
 
     def run(self):
         import subprocess
+        global _cron_subprocs
         if isinstance(self.cmd, (list, tuple)):
             cmd = self.cmd
         else:
@@ -241,7 +249,9 @@ class cronlauncher(threading.Thread):
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
                                 shell=self.shell)
+        _cron_subprocs.append(proc)
         (stdoutdata, stderrdata) = proc.communicate()
+        _cron_subprocs.remove(proc)
         if proc.returncode != 0:
             logger.warning(
                 'WEB2PY CRON Call returned code %s:\n%s' %
@@ -299,7 +309,11 @@ def crondance(applications_parent, ctype='soft', startup=False, apps=None):
         for task in tasks:
             if _cron_stopping:
                 break
-            commands = [sys.executable]
+            if sys.executable.lower().endswith('pythonservice.exe'):
+                _python_exe = os.path.join(sys.exec_prefix, 'python.exe')
+            else:
+                _python_exe = sys.executable
+            commands = [_python_exe]
             w2p_path = fileutils.abspath('web2py.py', gluon=True)
             if os.path.exists(w2p_path):
                 commands.append(w2p_path)

@@ -7,7 +7,6 @@ Copyrighted by Massimo Di Pierro <mdipierro@cs.depaul.edu>
 License: LGPLv3 (http://www.gnu.org/licenses/lgpl.html)
 """
 
-import sys
 import storage
 import os
 import re
@@ -47,8 +46,8 @@ __all__ = [
 
 def parse_semantic(version="Version 1.99.0-rc.1+timestamp.2011.09.19.08.23.26"):
     "http://semver.org/"
-    re_version = re.compile('Version (\d+)\.(\d+)\.(\d+)(\-(?P<pre>[^\s+]*))?(\+(?P<build>\S*))')
-    m = re_version.match(version)
+    re_version = re.compile('(\d+)\.(\d+)\.(\d+)(\-(?P<pre>[^\s+]*))?(\+(?P<build>\S*))')
+    m = re_version.match(version.strip().split()[-1])
     if not m:
         return None
     a, b, c = int(m.group(1)), int(m.group(2)), int(m.group(3))
@@ -110,6 +109,7 @@ def listdir(
     drop=True,
     add_dirs=False,
     sort=True,
+    maxnum = None,
 ):
     """
     like os.listdir() but you can specify a regex pattern to filter files.
@@ -122,7 +122,7 @@ def listdir(
     else:
         n = 0
     regex = re.compile(expression)
-    items = []
+    items = []    
     for (root, dirs, files) in os.walk(path, topdown=True):
         for dir in dirs[:]:
             if dir.startswith('.'):
@@ -132,6 +132,8 @@ def listdir(
         for file in sorted(files):
             if regex.match(file) and not file.startswith('.'):
                 items.append(os.path.join(root, file)[n:])
+            if maxnum and len(items)>=maxnum:
+                break
     if sort:
         return sorted(items)
     else:
@@ -223,18 +225,19 @@ def _extractall(filename, path='.', members=None):
     return ret
 
 
-def tar(file, dir, expression='^.+$'):
+def tar(file, dir, expression='^.+$', filenames=None):
     """
     tars dir into file, only tars file that match expression
     """
 
     tar = tarfile.TarFile(file, 'w')
     try:
-        for file in listdir(dir, expression, add_dirs=True):
+        if filenames is None:
+            filenames = listdir(dir, expression, add_dirs=True)
+        for file in filenames:
             tar.add(os.path.join(dir, file), file, False)
     finally:
         tar.close()
-
 
 def untar(file, dir):
     """
@@ -244,14 +247,14 @@ def untar(file, dir):
     _extractall(file, dir)
 
 
-def w2p_pack(filename, path, compiled=False):
+def w2p_pack(filename, path, compiled=False, filenames=None):
     filename = abspath(filename)
     path = abspath(path)
     tarname = filename + '.tar'
     if compiled:
         tar_compiled(tarname, path, '^[\w\.\-]+$')
     else:
-        tar(tarname, path, '^[\w\.\-]+$')
+        tar(tarname, path, '^[\w\.\-]+$', filenames=filenames)
     w2pfp = gzopen(filename, 'wb')
     tarfp = open(tarname, 'rb')
     w2pfp.write(tarfp.read())
@@ -359,27 +362,44 @@ def get_session(request, other_application='admin'):
         raise KeyError
     try:
         session_id = request.cookies['session_id_' + other_application].value
-        osession = storage.load_storage(os.path.join(
-            up(request.folder), other_application, 'sessions', session_id))
+        session_filename = os.path.join(
+            up(request.folder), other_application, 'sessions', session_id)
+        osession = storage.load_storage(session_filename)
     except Exception, e:
         osession = storage.Storage()
     return osession
 
+def set_session(request, session, other_application='admin'):
+    """ checks that user is authorized to access other_application"""
+    if request.application == other_application:
+        raise KeyError
+    session_id = request.cookies['session_id_' + other_application].value
+    session_filename = os.path.join(
+        up(request.folder), other_application, 'sessions', session_id)
+    storage.save_storage(session,session_filename)
 
-def check_credentials(request, other_application='admin', expiration=60 * 60):
+def check_credentials(request, other_application='admin',
+                      expiration=60 * 60, gae_login=True):
     """ checks that user is authorized to access other_application"""
     if request.env.web2py_runtime_gae:
         from google.appengine.api import users
         if users.is_current_user_admin():
             return True
-        else:
+        elif gae_login:
             login_html = '<a href="%s">Sign in with your google account</a>.' \
                 % users.create_login_url(request.env.path_info)
             raise HTTP(200, '<html><body>%s</body></html>' % login_html)
+        else:
+            return False
     else:
-        dt = time.time() - expiration
+        t0 = time.time()
+        dt = t0 - expiration
         s = get_session(request, other_application)
-        return (s.authorized and s.last_time and s.last_time > dt)
+        r = (s.authorized and s.last_time and s.last_time > dt)
+        if r:
+            s.last_time = t0
+            set_session(request,s,other_application)
+        return r
 
 
 def fix_newlines(path):

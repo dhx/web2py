@@ -15,10 +15,9 @@ Dependencies:
 import oauth2 as oauth
 import cgi
 
-from urllib2 import urlopen
-import urllib2
 from urllib import urlencode
 
+from gluon import current
 
 class OAuthAccount(object):
     """
@@ -63,9 +62,7 @@ class OAuthAccount(object):
         Appends the _next action to the generated url so the flows continues.
         """
         r = self.request
-        http_host = r.env.http_x_forwarded_for
-        if not http_host:
-            http_host = r.env.http_host
+        http_host = r.env.http_host
 
         url_scheme = r.env.wsgi_url_scheme
         if next:
@@ -112,16 +109,17 @@ class OAuthAccount(object):
         self.session.access_token = None
         return None
 
-    def __init__(self, g, client_id, client_secret, auth_url, token_url, access_token_url):
+    def __init__(self, g, client_id, client_secret, auth_url, token_url, access_token_url, socket_timeout=60):
         self.globals = g
         self.client_id = client_id
         self.client_secret = client_secret
         self.code = None
-        self.request = g['request']
-        self.session = g['session']
+        self.request = current.request
+        self.session = current.session
         self.auth_url = auth_url
         self.token_url = token_url
         self.access_token_url = access_token_url
+        self.socket_timeout = socket_timeout
 
         # consumer init
         self.consumer = oauth.Consumer(self.client_id, self.client_secret)
@@ -157,7 +155,7 @@ class OAuthAccount(object):
 
         if not self.accessToken():
             # setup the client
-            client = oauth.Client(self.consumer, None)
+            client = oauth.Client(self.consumer, None, timeout=self.socket_timeout)
             # Get a request token.
             # oauth_callback *is REQUIRED* for OAuth1.0a
             # putting it in the body seems to work.
@@ -179,7 +177,7 @@ class OAuthAccount(object):
 
             HTTP = self.globals['HTTP']
 
-            raise HTTP(307,
+            raise HTTP(302,
                        "You are not authenticated: you are being redirected to the <a href='" + auth_request_url + "'> authentication server</a>",
                        Location=auth_request_url)
 

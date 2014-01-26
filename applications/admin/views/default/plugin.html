@@ -6,7 +6,7 @@ def all(items):
 def peekfile(path,file):
     return A(file.replace('\\\\','/'),_href=URL('peek', args=(app, path, file)))
 def editfile(path,file):
-	return A(SPAN(T('Edit')),_class='button editbutton btn',_href=URL('edit', args=(app, path, file)))
+	return A(SPAN(T('Edit')),_class='button editbutton btn btn-mini',_href=URL('edit', args=(app, path, file)))
 def testfile(path,file):
 	return A(TAG[''](IMG(_src=URL('static', 'images/test_icon.png'), _alt=T('test')), 
 						SPAN(T("Run tests in this file"))), 
@@ -16,11 +16,11 @@ def testfile(path,file):
 						**{'_data-placement':'right',
 							'_data-original-title':T("Run tests in this file")})
 def editlanguagefile(path,file):
-    return A(SPAN(T('Edit')),_class='button editbutton',_href=URL('edit_language', args=(app, path, file)))
+    return A(SPAN(T('Edit')),_class='button editbutton btn-mini',_href=URL('edit_language', args=(app, path, file)))
 def file_upload_form(location):
     form=FORM(T("upload file:")," ",
               INPUT(_type="file",_name="file")," ",T("and rename it:")," ",
-              INPUT(_type="text",_name="filename",requires=IS_NOT_EMPTY),
+              INPUT(_type="text",_name="filename",requires=IS_NOT_EMPTY()),
               INPUT(_type="hidden",_name="location",_value=location),
               INPUT(_type="hidden",_name="token",_value=session.token),
               INPUT(_type="hidden",_name="sender",_value=URL('design/'+app)),
@@ -28,7 +28,7 @@ def file_upload_form(location):
     return form
 def file_create_form(location):
     form=FORM(T("create file with filename:")," ",
-              INPUT(_type="text",_name="filename",requires=IS_NOT_EMPTY),
+              INPUT(_type="text",_name="filename",requires=IS_NOT_EMPTY()),
               INPUT(_type="hidden",_name="location",_value=location),
               INPUT(_type="hidden",_name="token",_value=session.token),
               INPUT(_type="hidden",_name="sender",_value=URL('design/'+app)),

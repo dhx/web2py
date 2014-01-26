@@ -19,9 +19,22 @@ import struct
 import decimal
 import unicodedata
 from cStringIO import StringIO
-from utils import simple_hash, web2py_uuid, DIGEST_ALG_BY_SIZE
+from gluon.utils import simple_hash, web2py_uuid, DIGEST_ALG_BY_SIZE
+from gluon.dal import FieldVirtual, FieldMethod
+
+regex_isint = re.compile('^[+-]?\d+$')
+
+JSONErrors = (NameError, TypeError, ValueError, AttributeError,
+              KeyError)
+try:
+    import json as simplejson
+except ImportError:
+    from gluon.contrib import simplejson
+    from gluon.contrib.simplejson.decoder import JSONDecodeError
+    JSONErrors += (JSONDecodeError,)
 
 __all__ = [
+    'ANY_OF',
     'CLEANUP',
     'CRYPT',
     'IS_ALPHANUMERIC',
@@ -31,6 +44,7 @@ __all__ = [
     'IS_DATETIME',
     'IS_DECIMAL_IN_RANGE',
     'IS_EMAIL',
+    'IS_LIST_OF_EMAILS',
     'IS_EMPTY_OR',
     'IS_EXPR',
     'IS_FLOAT_IN_RANGE',
@@ -39,6 +53,8 @@ __all__ = [
     'IS_IN_SET',
     'IS_INT_IN_RANGE',
     'IS_IPV4',
+    'IS_IPV6',
+    'IS_IPADDRESS',
     'IS_LENGTH',
     'IS_LIST_OF',
     'IS_LOWER',
@@ -53,6 +69,7 @@ __all__ = [
     'IS_UPLOAD_FILENAME',
     'IS_UPPER',
     'IS_URL',
+    'IS_JSON',
 ]
 
 try:
@@ -159,19 +176,30 @@ class IS_MATCH(Validator):
     """
 
     def __init__(self, expression, error_message='invalid expression',
-                 strict=False, search=False, extract=False):
+                 strict=False, search=False, extract=False,
+                 is_unicode=False):
+
         if strict or not search:
             if not expression.startswith('^'):
                 expression = '^(%s)' % expression
         if strict:
             if not expression.endswith('$'):
                 expression = '(%s)$' % expression
-        self.regex = re.compile(expression)
+        if is_unicode:
+            if not isinstance(expression,unicode):
+                expression = expression.decode('utf8')
+            self.regex = re.compile(expression,re.UNICODE)
+        else:
+            self.regex = re.compile(expression)
         self.error_message = error_message
         self.extract = extract
+        self.is_unicode = is_unicode
 
     def __call__(self, value):
-        match = self.regex.search(value)
+        if self.is_unicode and not isinstance(value,unicode):
+            match = self.regex.search(str(value).decode('utf8'))
+        else:
+            match = self.regex.search(str(value))
         if match is not None:
             return (self.extract and match.group() or value, None)
         return (value, translate(self.error_message))
@@ -226,6 +254,9 @@ class IS_EXPR(Validator):
         self.environment = environment or {}
 
     def __call__(self, value):
+        if callable(self.expression):
+            return (value, self.expression(value))
+        # for backward compatibility
         self.environment.update(value=value)
         exec '__ret__=' + self.expression in self.environment
         if self.environment['__ret__']:
@@ -288,17 +319,54 @@ class IS_LENGTH(Validator):
                     length = 0
             if self.minsize <= length <= self.maxsize:
                 return (value, None)
-        elif isinstance(value, (str, unicode, list)):
+        elif isinstance(value, str):
+            try:
+                lvalue = len(value.decode('utf8'))
+            except:
+                lvalue = len(value)
+            if self.minsize <= lvalue <= self.maxsize:
+                return (value, None)
+        elif isinstance(value, unicode):
+            if self.minsize <= len(value) <= self.maxsize:
+                return (value.encode('utf8'), None)
+        elif isinstance(value, (tuple, list)):
             if self.minsize <= len(value) <= self.maxsize:
                 return (value, None)
         elif self.minsize <= len(str(value)) <= self.maxsize:
-            try:
-                value.decode('utf8')
-                return (value, None)
-            except:
-                pass
+            return (str(value), None)
         return (value, translate(self.error_message)
                 % dict(min=self.minsize, max=self.maxsize))
+
+class IS_JSON(Validator):
+    """
+    example::
+        INPUT(_type='text', _name='name',
+            requires=IS_JSON(error_message="This is not a valid json input")
+
+        >>> IS_JSON()('{"a": 100}')
+        ({u'a': 100}, None)
+
+        >>> IS_JSON()('spam1234')
+        ('spam1234', 'invalid json')
+    """
+
+    def __init__(self, error_message='invalid json', native_json=False):
+        self.native_json = native_json
+        self.error_message = error_message
+
+    def __call__(self, value):
+        try:
+            if self.native_json:
+                simplejson.loads(value) # raises error in case of malformed json
+                return (value, None) #  the serialized value is not passed
+            return (simplejson.loads(value), None)
+        except JSONErrors:
+            return (value, translate(self.error_message))
+
+    def formatter(self,value):
+        if value is None:
+            return None
+        return simplejson.dumps(value)
 
 
 class IS_IN_SET(Validator):
@@ -465,6 +533,8 @@ class IS_IN_DB(Validator):
             fields = [f for f in table]
         else:
             fields = [table[k] for k in self.fields]
+        ignore = (FieldVirtual,FieldMethod)
+        fields = filter(lambda f:not isinstance(f,ignore), fields)
         if self.dbset.db._dbname != 'gae':
             orderby = self.orderby or reduce(lambda a, b: a | b, fields)
             groupby = self.groupby
@@ -481,7 +551,7 @@ class IS_IN_DB(Validator):
             records = self.dbset(table).select(table.ALL, **dd)
         self.theset = [str(r[self.kfield]) for r in records]
         if isinstance(self.label, str):
-            self.labels = [self.label % dict(r) for r in records]
+            self.labels = [self.label % r for r in records]
         else:
             self.labels = [self.label(r) for r in records]
 
@@ -586,15 +656,34 @@ class IS_NOT_IN_DB(Validator):
         (tablename, fieldname) = str(self.field).split('.')
         table = self.dbset.db[tablename]
         field = table[fieldname]
-        rows = self.dbset(field == value, ignore_common_filters=self.ignore_common_filters).select(limitby=(0, 1))
-        if len(rows) > 0:
-            if isinstance(self.record_id, dict):
-                for f in self.record_id:
-                    if str(getattr(rows[0], f)) != str(self.record_id[f]):
-                        return (value, translate(self.error_message))
-            elif str(rows[0][table._id.name]) != str(self.record_id):
-                    return (value, translate(self.error_message))
+        subset = self.dbset(field == value,
+                            ignore_common_filters=self.ignore_common_filters)
+        id = self.record_id
+        if isinstance(id, dict):
+            fields = [table[f] for f in id]
+            row = subset.select(*fields, **dict(limitby=(0, 1), orderby_on_limitby=False)).first()
+            if row and any(str(row[f]) != str(id[f]) for f in id):
+                return (value, translate(self.error_message))
+        else:
+            row = subset.select(table._id, field, limitby=(0, 1), orderby_on_limitby=False).first()
+            if row and str(row.id) != str(id):
+                return (value, translate(self.error_message))
         return (value, None)
+
+
+def range_error_message(error_message, what_to_enter, minimum, maximum):
+    "build the error message for the number range validators"
+    if error_message is None:
+        error_message = 'enter ' + what_to_enter
+        if minimum is not None and maximum is not None:
+            error_message += ' between %(min)g and %(max)g'
+        elif minimum is not None:
+            error_message += ' greater than or equal to %(min)g'
+        elif maximum is not None:
+            error_message += ' less than or equal to %(max)g'
+    if type(maximum) in [int, long]:
+        maximum -= 1
+    return translate(error_message) % dict(min=minimum, max=maximum)
 
 
 class IS_INT_IN_RANGE(Validator):
@@ -621,15 +710,15 @@ class IS_INT_IN_RANGE(Validator):
         >>> IS_INT_IN_RANGE(1,5)(5)
         (5, 'enter an integer between 1 and 4')
         >>> IS_INT_IN_RANGE(1,5)(3.5)
-        (3, 'enter an integer between 1 and 4')
+        (3.5, 'enter an integer between 1 and 4')
         >>> IS_INT_IN_RANGE(None,5)('4')
         (4, None)
         >>> IS_INT_IN_RANGE(None,5)('6')
-        (6, 'enter an integer less than or equal to 4')
+        ('6', 'enter an integer less than or equal to 4')
         >>> IS_INT_IN_RANGE(1,None)('4')
         (4, None)
         >>> IS_INT_IN_RANGE(1,None)('0')
-        (0, 'enter an integer greater than or equal to 1')
+        ('0', 'enter an integer greater than or equal to 1')
         >>> IS_INT_IN_RANGE()(6)
         (6, None)
         >>> IS_INT_IN_RANGE()('abc')
@@ -642,46 +731,17 @@ class IS_INT_IN_RANGE(Validator):
         maximum=None,
         error_message=None,
     ):
-        self.minimum = self.maximum = None
-        if minimum is None:
-            if maximum is None:
-                self.error_message = error_message or 'enter an integer'
-            else:
-                self.maximum = int(maximum)
-                if error_message is None:
-                    error_message = 'enter an integer less than or equal to %(max)g'
-                self.error_message = translate(
-                    error_message) % dict(max=self.maximum - 1)
-        elif maximum is None:
-            self.minimum = int(minimum)
-            if error_message is None:
-                error_message = 'enter an integer greater than or equal to %(min)g'
-            self.error_message = translate(
-                error_message) % dict(min=self.minimum)
-        else:
-            self.minimum = int(minimum)
-            self.maximum = int(maximum)
-            if error_message is None:
-                error_message = 'enter an integer between %(min)g and %(max)g'
-            self.error_message = translate(error_message) \
-                % dict(min=self.minimum, max=self.maximum - 1)
+        self.minimum = int(minimum) if minimum is not None else None
+        self.maximum = int(maximum) if maximum is not None else None
+        self.error_message = range_error_message(
+            error_message, 'an integer', self.minimum, self.maximum)
 
     def __call__(self, value):
-        try:
-            fvalue = float(value)
-            value = int(value)
-            if value != fvalue:
-                return (value, self.error_message)
-            if self.minimum is None:
-                if self.maximum is None or value < self.maximum:
-                    return (value, None)
-            elif self.maximum is None:
-                if value >= self.minimum:
-                    return (value, None)
-            elif self.minimum <= value < self.maximum:
-                    return (value, None)
-        except ValueError:
-            pass
+        if regex_isint.match(str(value)):
+            v = int(value)
+            if ((self.minimum is None or v >= self.minimum) and
+                (self.maximum is None or v < self.maximum)):
+                return (v, None)
         return (value, self.error_message)
 
 
@@ -740,42 +800,21 @@ class IS_FLOAT_IN_RANGE(Validator):
         error_message=None,
         dot='.'
     ):
-        self.minimum = self.maximum = None
-        self.dot = dot
-        if minimum is None:
-            if maximum is None:
-                if error_message is None:
-                    error_message = 'enter a number'
-            else:
-                self.maximum = float(maximum)
-                if error_message is None:
-                    error_message = 'enter a number less than or equal to %(max)g'
-        elif maximum is None:
-            self.minimum = float(minimum)
-            if error_message is None:
-                error_message = 'enter a number greater than or equal to %(min)g'
-        else:
-            self.minimum = float(minimum)
-            self.maximum = float(maximum)
-            if error_message is None:
-                error_message = 'enter a number between %(min)g and %(max)g'
-        self.error_message = translate(error_message) \
-            % dict(min=self.minimum, max=self.maximum)
+        self.minimum = float(minimum) if minimum is not None else None
+        self.maximum = float(maximum) if maximum is not None else None
+        self.dot = str(dot)
+        self.error_message = range_error_message(
+            error_message, 'a number', self.minimum, self.maximum)
 
     def __call__(self, value):
         try:
             if self.dot == '.':
-                fvalue = float(value)
+                v = float(value)
             else:
-                fvalue = float(str(value).replace(self.dot, '.'))
-            if self.minimum is None:
-                if self.maximum is None or fvalue <= self.maximum:
-                    return (fvalue, None)
-            elif self.maximum is None:
-                if fvalue >= self.minimum:
-                    return (fvalue, None)
-            elif self.minimum <= fvalue <= self.maximum:
-                    return (fvalue, None)
+                v = float(str(value).replace(self.dot, '.'))
+            if ((self.minimum is None or v >= self.minimum) and
+                (self.maximum is None or v <= self.maximum)):
+                return (v, None)
         except (ValueError, TypeError):
             pass
         return (value, self.error_message)
@@ -836,7 +875,7 @@ class IS_DECIMAL_IN_RANGE(Validator):
         >>> IS_DECIMAL_IN_RANGE(0,99)('12.34')
         (Decimal('12.34'), None)
         >>> IS_DECIMAL_IN_RANGE()('abc')
-        ('abc', 'enter a decimal number')
+        ('abc', 'enter a number')
     """
 
     def __init__(
@@ -846,27 +885,11 @@ class IS_DECIMAL_IN_RANGE(Validator):
         error_message=None,
         dot='.'
     ):
-        self.minimum = self.maximum = None
-        self.dot = dot
-        if minimum is None:
-            if maximum is None:
-                if error_message is None:
-                    error_message = 'enter a decimal number'
-            else:
-                self.maximum = decimal.Decimal(str(maximum))
-                if error_message is None:
-                    error_message = 'enter a number less than or equal to %(max)g'
-        elif maximum is None:
-            self.minimum = decimal.Decimal(str(minimum))
-            if error_message is None:
-                error_message = 'enter a number greater than or equal to %(min)g'
-        else:
-            self.minimum = decimal.Decimal(str(minimum))
-            self.maximum = decimal.Decimal(str(maximum))
-            if error_message is None:
-                error_message = 'enter a number between %(min)g and %(max)g'
-        self.error_message = translate(error_message) \
-            % dict(min=self.minimum, max=self.maximum)
+        self.minimum = decimal.Decimal(str(minimum)) if minimum is not None else None
+        self.maximum = decimal.Decimal(str(maximum)) if maximum is not None else None
+        self.dot = str(dot)
+        self.error_message = range_error_message(
+            error_message, 'a number', self.minimum, self.maximum)
 
     def __call__(self, value):
         try:
@@ -874,14 +897,9 @@ class IS_DECIMAL_IN_RANGE(Validator):
                 v = value
             else:
                 v = decimal.Decimal(str(value).replace(self.dot, '.'))
-            if self.minimum is None:
-                if self.maximum is None or v <= self.maximum:
-                    return (v, None)
-            elif self.maximum is None:
-                if v >= self.minimum:
-                    return (v, None)
-            elif self.minimum <= v <= self.maximum:
-                    return (v, None)
+            if ((self.minimum is None or v >= self.minimum) and
+                (self.maximum is None or v <= self.maximum)):
+                return (v, None)
         except (ValueError, TypeError, decimal.InvalidOperation):
             pass
         return (value, self.error_message)
@@ -1104,6 +1122,39 @@ class IS_EMAIL(Validator):
                     and (not self.forced or self.forced.match(domain)):
                 return (value, None)
         return (value, translate(self.error_message))
+
+class IS_LIST_OF_EMAILS(object):
+    """
+    use as follows:
+    Field('emails','list:string',
+          widget=SQLFORM.widgets.text.widget,
+          requires=IS_LIST_OF_EMAILS(),
+          represent=lambda v,r: \
+             SPAN(*[A(x,_href='mailto:'+x) for x in (v or [])])
+          )
+    """
+    split_emails = re.compile('[^,;\s]+')
+    def __init__(self, error_message = 'Invalid emails: %s'):
+        self.error_message = error_message
+
+    def __call__(self, value):
+        bad_emails = []
+        emails = []
+        f = IS_EMAIL()
+        for email in self.split_emails.findall(value):
+            if not email in emails:
+                emails.append(email)
+            error = f(email)[1]
+            if error and not email in bad_emails:
+                bad_emails.append(email)
+        if not bad_emails:
+            return (value, None)
+        else:
+            return (value,
+                    translate(self.error_message) % ', '.join(bad_emails))
+
+    def formatter(self,value,row=None):
+        return ', '.join(value or [])
 
 
 # URL scheme source:
@@ -2148,6 +2199,17 @@ class IS_TIME(Validator):
             pass
         return (ivalue, translate(self.error_message))
 
+# A UTC class.
+class UTC(datetime.tzinfo):
+    """UTC"""
+    ZERO = datetime.timedelta(0)
+    def utcoffset(self, dt):
+        return UTC.ZERO
+    def tzname(self, dt):
+        return "UTC"
+    def dst(self, dt):
+        return UTC.ZERO
+utc = UTC()
 
 class IS_DATE(Validator):
     """
@@ -2159,22 +2221,32 @@ class IS_DATE(Validator):
     """
 
     def __init__(self, format='%Y-%m-%d',
-                 error_message='enter date as %(format)s'):
+                 error_message='enter date as %(format)s',
+                 timezone = None):
+        """
+        timezome must be None or a pytz.timezone("America/Chicago") object
+        """
         self.format = translate(format)
         self.error_message = str(error_message)
+        self.timezone = timezone
         self.extremes = {}
 
     def __call__(self, value):
+        ovalue = value
         if isinstance(value, datetime.date):
+            if self.timezone is not None:
+                value = value - datetime.timedelta(seconds=self.timezone*3600)
             return (value, None)
         try:
             (y, m, d, hh, mm, ss, t0, t1, t2) = \
                 time.strptime(value, str(self.format))
             value = datetime.date(y, m, d)
+            if self.timezone is not None:
+                value = self.timezone.localize(value).astimezone(utc)
             return (value, None)
         except:
             self.extremes.update(IS_DATETIME.nice(self.format))
-            return (value, translate(self.error_message) % self.extremes)
+            return (ovalue, translate(self.error_message) % self.extremes)
 
     def formatter(self, value):
         if value is None:
@@ -2187,6 +2259,8 @@ class IS_DATE(Validator):
         if year < 1900:
             year = 2000
         d = datetime.date(year, value.month, value.day)
+        if self.timezone is not None:
+            d = d.replace(tzinfo=utc).astimezone(self.timezone)
         return d.strftime(format)
 
 
@@ -2219,22 +2293,30 @@ class IS_DATETIME(Validator):
         return dict(format=format)
 
     def __init__(self, format='%Y-%m-%d %H:%M:%S',
-                 error_message='enter date and time as %(format)s'):
+                 error_message='enter date and time as %(format)s',
+                 timezone=None):
+        """
+        timezome must be None or a pytz.timezone("America/Chicago") object
+        """
         self.format = translate(format)
         self.error_message = str(error_message)
         self.extremes = {}
+        self.timezone = timezone
 
     def __call__(self, value):
+        ovalue = value
         if isinstance(value, datetime.datetime):
             return (value, None)
         try:
             (y, m, d, hh, mm, ss, t0, t1, t2) = \
                 time.strptime(value, str(self.format))
             value = datetime.datetime(y, m, d, hh, mm, ss)
+            if self.timezone is not None:
+                value = self.timezone.localize(value).astimezone(utc)
             return (value, None)
         except:
             self.extremes.update(IS_DATETIME.nice(self.format))
-            return (value, translate(self.error_message) % self.extremes)
+            return (ovalue, translate(self.error_message) % self.extremes)
 
     def formatter(self, value):
         if value is None:
@@ -2248,6 +2330,8 @@ class IS_DATETIME(Validator):
             year = 2000
         d = datetime.datetime(year, value.month, value.day,
                               value.hour, value.minute, value.second)
+        if self.timezone is not None:
+            d = d.replace(tzinfo=utc).astimezone(self.timezone)
         return d.strftime(format)
 
 
@@ -2263,7 +2347,7 @@ class IS_DATE_IN_RANGE(IS_DATE):
         (datetime.date(2008, 3, 3), None)
 
         >>> v('03/03/2010')
-        (datetime.date(2010, 3, 3), 'oops')
+        ('03/03/2010', 'oops')
 
         >>> v(datetime.date(2008,3,3))
         (datetime.date(2008, 3, 3), None)
@@ -2276,7 +2360,8 @@ class IS_DATE_IN_RANGE(IS_DATE):
                  minimum=None,
                  maximum=None,
                  format='%Y-%m-%d',
-                 error_message=None):
+                 error_message=None,
+                 timezone=None):
         self.minimum = minimum
         self.maximum = maximum
         if error_message is None:
@@ -2288,17 +2373,20 @@ class IS_DATE_IN_RANGE(IS_DATE):
                 error_message = "enter date in range %(min)s %(max)s"
         IS_DATE.__init__(self,
                          format=format,
-                         error_message=error_message)
-        self.extremes = dict(min=minimum, max=maximum)
+                         error_message=error_message,
+                         timezone=timezone)
+        self.extremes = dict(min=self.formatter(minimum),
+                             max=self.formatter(maximum))
 
     def __call__(self, value):
+        ovalue = value
         (value, msg) = IS_DATE.__call__(self, value)
         if msg is not None:
             return (value, msg)
         if self.minimum and self.minimum > value:
-            return (value, translate(self.error_message) % self.extremes)
+            return (ovalue, translate(self.error_message) % self.extremes)
         if self.maximum and value > self.maximum:
-            return (value, translate(self.error_message) % self.extremes)
+            return (ovalue, translate(self.error_message) % self.extremes)
         return (value, None)
 
 
@@ -2314,7 +2402,7 @@ class IS_DATETIME_IN_RANGE(IS_DATETIME):
         (datetime.datetime(2008, 3, 3, 12, 40), None)
 
         >>> v('03/03/2010 10:34')
-        (datetime.datetime(2010, 3, 3, 10, 34), 'oops')
+        ('03/03/2010 10:34', 'oops')
 
         >>> v(datetime.datetime(2008,3,3,0,0))
         (datetime.datetime(2008, 3, 3, 0, 0), None)
@@ -2326,7 +2414,8 @@ class IS_DATETIME_IN_RANGE(IS_DATETIME):
                  minimum=None,
                  maximum=None,
                  format='%Y-%m-%d %H:%M:%S',
-                 error_message=None):
+                 error_message=None,
+                 timezone=None):
         self.minimum = minimum
         self.maximum = maximum
         if error_message is None:
@@ -2338,17 +2427,20 @@ class IS_DATETIME_IN_RANGE(IS_DATETIME):
                 error_message = "enter date and time in range %(min)s %(max)s"
         IS_DATETIME.__init__(self,
                              format=format,
-                             error_message=error_message)
-        self.extremes = dict(min=minimum, max=maximum)
+                             error_message=error_message,
+                             timezone=timezone)
+        self.extremes = dict(min=self.formatter(minimum),
+                             max=self.formatter(maximum))
 
     def __call__(self, value):
+        ovalue = value
         (value, msg) = IS_DATETIME.__call__(self, value)
         if msg is not None:
             return (value, msg)
         if self.minimum and self.minimum > value:
-            return (value, translate(self.error_message) % self.extremes)
+            return (ovalue, translate(self.error_message) % self.extremes)
         if self.maximum and value > self.maximum:
-            return (value, translate(self.error_message) % self.extremes)
+            return (ovalue, translate(self.error_message) % self.extremes)
         return (value, None)
 
 
@@ -2410,17 +2502,18 @@ class IS_UPPER(Validator):
         return (value.decode('utf8').upper().encode('utf8'), None)
 
 
-def urlify(value, maxlen=80, keep_underscores=False):
+def urlify(s, maxlen=80, keep_underscores=False):
     """
     Convert incoming string to a simplified ASCII subset.
     if (keep_underscores): underscores are retained in the string
     else: underscores are translated to hyphens (default)
     """
-    s = value.lower()                     # to lowercase
-    s = s.decode('utf-8')                 # to utf-8
+    if isinstance(s, str):
+        s = s.decode('utf-8')             # to unicode
+    s = s.lower()                         # to lowercase
     s = unicodedata.normalize('NFKD', s)  # normalize eg è => e, ñ => n
-    s = s.encode('ASCII', 'ignore')       # encode as ASCII
-    s = re.sub('&\w+;', '', s)            # strip html entities
+    s = s.encode('ascii', 'ignore')       # encode as ASCII
+    s = re.sub('&\w+?;', '', s)           # strip html entities
     if keep_underscores:
         s = re.sub('\s+', '-', s)         # whitespace to hyphens
         s = re.sub('[^\w\-]', '', s)
@@ -2491,6 +2584,38 @@ class IS_SLUG(Validator):
         if self.check and value != urlify(value, self.maxlen, self.keep_underscores):
             return (value, translate(self.error_message))
         return (urlify(value, self.maxlen, self.keep_underscores), None)
+
+
+class ANY_OF(Validator):
+    """
+    test if any of the validators in a list return successfully
+
+    >>> ANY_OF([IS_EMAIL(),IS_ALPHANUMERIC()])('a@b.co')
+    ('a@b.co', None)
+    >>> ANY_OF([IS_EMAIL(),IS_ALPHANUMERIC()])('abco')
+    ('abco', None)
+    >>> ANY_OF([IS_EMAIL(),IS_ALPHANUMERIC()])('@ab.co')
+    ('@ab.co', 'enter only letters, numbers, and underscore')
+    >>> ANY_OF([IS_ALPHANUMERIC(),IS_EMAIL()])('@ab.co')
+    ('@ab.co', 'enter a valid email address')
+    """
+
+    def __init__(self, subs):
+        self.subs = subs
+
+    def __call__(self, value):
+        for validator in self.subs:
+            value, error = validator(value)
+            if error == None:
+                break
+        return value, error
+
+    def formatter(self, value):
+        # Use the formatter of the first subvalidator
+        # that validates the value and has a formatter
+        for validator in self.subs:
+            if hasattr(validator, 'formatter') and validator(value)[1] != None:
+                return validator.formatter(value)
 
 
 class IS_EMPTY_OR(Validator):
@@ -2745,7 +2870,8 @@ class CRYPT(object):
                  key=None,
                  digest_alg='pbkdf2(1000,20,sha512)',
                  min_length=0,
-                 error_message='too short', salt=True):
+                 error_message='too short', salt=True,
+                 max_length=1024):
         """
         important, digest_alg='md5' is not the default hashing algorithm for
         web2py. This is only an example of usage of this function.
@@ -2756,10 +2882,12 @@ class CRYPT(object):
         self.key = key
         self.digest_alg = digest_alg
         self.min_length = min_length
+        self.max_length = max_length
         self.error_message = error_message
         self.salt = salt
 
     def __call__(self, value):
+        value = value and value[:self.max_length]
         if len(value) < self.min_length:
             return ('', translate(self.error_message))
         return (LazyCrypt(self, value), None)
@@ -3289,7 +3417,352 @@ class IS_IPV4(Validator):
                 return (value, None)
         return (value, translate(self.error_message))
 
-if __name__ == '__main__':
-    import doctest
-    doctest.testmod(
-        optionflags=doctest.NORMALIZE_WHITESPACE | doctest.ELLIPSIS)
+class IS_IPV6(Validator):
+    """
+    Checks if field's value is an IP version 6 address. First attempts to
+    use the ipaddress library and falls back to contrib/ipaddr.py from Google
+    (https://code.google.com/p/ipaddr-py/)
+
+    Arguments:
+    is_private: None (default): indifferent
+                True (enforce): address must be in fc00::/7 range
+                False (forbid): address must NOT be in fc00::/7 range
+    is_link_local: Same as above but uses fe80::/10 range
+    is_reserved: Same as above but uses IETF reserved range
+    is_mulicast: Same as above but uses ff00::/8 range
+    is_routeable: Similar to above but enforces not private, link_local,
+                  reserved or multicast
+    is_6to4: Same as above but uses 2002::/16 range
+    is_teredo: Same as above but uses 2001::/32 range
+    subnets: value must be a member of at least one from list of subnets
+
+    Examples:
+
+        #Check for valid IPv6 address:
+        INPUT(_type='text', _name='name', requires=IS_IPV6())
+
+        #Check for valid IPv6 address is a link_local address:
+        INPUT(_type='text', _name='name', requires=IS_IPV6(is_link_local=True))
+
+        #Check for valid IPv6 address that is Internet routeable:
+        INPUT(_type='text', _name='name', requires=IS_IPV6(is_routeable=True))
+
+        #Check for valid IPv6 address in specified subnet:
+        INPUT(_type='text', _name='name', requires=IS_IPV6(subnets=['2001::/32'])
+
+    >>> IS_IPV6()('fe80::126c:8ffa:fe22:b3af')
+    ('fe80::126c:8ffa:fe22:b3af', None)
+    >>> IS_IPV6()('192.168.1.1')
+    ('192.168.1.1', 'enter valid IPv6 address')
+    >>> IS_IPV6(error_message='bad ip')('192.168.1.1')
+    ('192.168.1.1', 'bad ip')
+    >>> IS_IPV6(is_link_local=True)('fe80::126c:8ffa:fe22:b3af')
+    ('fe80::126c:8ffa:fe22:b3af', None)
+    >>> IS_IPV6(is_link_local=False)('fe80::126c:8ffa:fe22:b3af')
+    ('fe80::126c:8ffa:fe22:b3af', 'enter valid IPv6 address')
+    >>> IS_IPV6(is_link_local=True)('2001::126c:8ffa:fe22:b3af')
+    ('2001::126c:8ffa:fe22:b3af', 'enter valid IPv6 address')
+    >>> IS_IPV6(is_multicast=True)('2001::126c:8ffa:fe22:b3af')
+    ('2001::126c:8ffa:fe22:b3af', 'enter valid IPv6 address')
+    >>> IS_IPV6(is_multicast=True)('ff00::126c:8ffa:fe22:b3af')
+    ('ff00::126c:8ffa:fe22:b3af', None)
+    >>> IS_IPV6(is_routeable=True)('2001::126c:8ffa:fe22:b3af')
+    ('2001::126c:8ffa:fe22:b3af', None)
+    >>> IS_IPV6(is_routeable=True)('ff00::126c:8ffa:fe22:b3af')
+    ('ff00::126c:8ffa:fe22:b3af', 'enter valid IPv6 address')
+    >>> IS_IPV6(subnets='2001::/32')('2001::8ffa:fe22:b3af')
+    ('2001::8ffa:fe22:b3af', None)
+    >>> IS_IPV6(subnets='fb00::/8')('2001::8ffa:fe22:b3af')
+    ('2001::8ffa:fe22:b3af', 'enter valid IPv6 address')
+    >>> IS_IPV6(subnets=['fc00::/8','2001::/32'])('2001::8ffa:fe22:b3af')
+    ('2001::8ffa:fe22:b3af', None)
+    >>> IS_IPV6(subnets='invalidsubnet')('2001::8ffa:fe22:b3af')
+    ('2001::8ffa:fe22:b3af', 'invalid subnet provided')
+
+    """
+
+    def __init__(
+            self,
+            is_private=None,
+            is_link_local=None,
+            is_reserved=None,
+            is_multicast=None,
+            is_routeable=None,
+            is_6to4=None,
+            is_teredo=None,
+            subnets=None,
+            error_message='enter valid IPv6 address'):
+        self.is_private = is_private
+        self.is_link_local = is_link_local
+        self.is_reserved = is_reserved
+        self.is_multicast = is_multicast
+        self.is_routeable = is_routeable
+        self.is_6to4 = is_6to4
+        self.is_teredo = is_teredo
+        self.subnets = subnets
+        self.error_message = error_message
+
+    def __call__(self, value):
+        try:
+            import ipaddress
+        except ImportError:
+            from gluon.contrib import ipaddr as ipaddress
+
+        try:
+            ip = ipaddress.IPv6Address(value)
+            ok = True
+        except ipaddress.AddressValueError:
+            return (value, translate(self.error_message))
+
+        if self.subnets:
+            # iterate through self.subnets to see if value is a member
+            ok = False
+            if isinstance(self.subnets, str):
+                self.subnets = [self.subnets]
+            for network in self.subnets:
+                try:
+                    ipnet = ipaddress.IPv6Network(network)
+                except (ipaddress.NetmaskValueError, ipaddress.AddressValueError):
+                    return (value, translate('invalid subnet provided'))
+                if ip in ipnet:
+                    ok = True
+
+        if self.is_routeable:
+            self.is_private = False
+            self.is_link_local = False
+            self.is_reserved = False
+            self.is_multicast = False
+
+        if not (self.is_private is None or self.is_private ==
+                ip.is_private):
+            ok = False
+        if not (self.is_link_local is None or self.is_link_local ==
+                ip.is_link_local):
+            ok = False
+        if not (self.is_reserved is None or self.is_reserved ==
+                ip.is_reserved):
+            ok = False
+        if not (self.is_multicast is None or self.is_multicast ==
+                ip.is_multicast):
+            ok = False
+        if not (self.is_6to4 is None or self.is_6to4 ==
+                ip.is_6to4):
+            ok = False
+        if not (self.is_teredo is None or self.is_teredo ==
+                ip.is_teredo):
+            ok = False
+
+        if ok:
+            return (value, None)
+
+        return (value, translate(self.error_message))
+
+
+class IS_IPADDRESS(Validator):
+    """
+    Checks if field's value is an IP Address (v4 or v6). Can be set to force
+    addresses from within a specific range. Checks are done with the correct
+    IS_IPV4 and IS_IPV6 validators.
+
+    Uses ipaddress library if found, falls back to PEP-3144 ipaddr.py from
+    Google (in contrib).
+
+    Universal arguments:
+
+    minip: lowest allowed address; accepts:
+           str, eg. 192.168.0.1
+           list or tuple of octets, eg. [192, 168, 0, 1]
+    maxip: highest allowed address; same as above
+    invert: True to allow addresses only from outside of given range; note
+            that range boundaries are not matched this way
+
+    IPv4 specific arguments:
+
+    is_localhost: localhost address treatment:
+                  None (default): indifferent
+                  True (enforce): query address must match localhost address
+                                  (127.0.0.1)
+                  False (forbid): query address must not match localhost
+                                  address
+    is_private: same as above, except that query address is checked against
+                two address ranges: 172.16.0.0 - 172.31.255.255 and
+                192.168.0.0 - 192.168.255.255
+    is_automatic: same as above, except that query address is checked against
+                  one address range: 169.254.0.0 - 169.254.255.255
+    is_ipv4: None (default): indifferent
+             True (enforce): must be an IPv4 address
+             False (forbid): must NOT be an IPv4 address
+
+    IPv6 specific arguments:
+
+    is_link_local: Same as above but uses fe80::/10 range
+    is_reserved: Same as above but uses IETF reserved range
+    is_mulicast: Same as above but uses ff00::/8 range
+    is_routeable: Similar to above but enforces not private, link_local,
+                  reserved or multicast
+    is_6to4: Same as above but uses 2002::/16 range
+    is_teredo: Same as above but uses 2001::/32 range
+    subnets: value must be a member of at least one from list of subnets
+    is_ipv6: None (default): indifferent
+             True (enforce): must be an IPv6 address
+             False (forbid): must NOT be an IPv6 address
+
+    Minip and maxip may also be lists or tuples of addresses in all above
+    forms (str, int, list / tuple), allowing setup of multiple address ranges:
+
+        minip = (minip1, minip2, ... minipN)
+                   |       |           |
+                   |       |           |
+        maxip = (maxip1, maxip2, ... maxipN)
+
+    Longer iterable will be truncated to match length of shorter one.
+
+    >>> IS_IPADDRESS()('192.168.1.5')
+    ('192.168.1.5', None)
+    >>> IS_IPADDRESS(is_ipv6=False)('192.168.1.5')
+    ('192.168.1.5', None)
+    >>> IS_IPADDRESS()('255.255.255.255')
+    ('255.255.255.255', None)
+    >>> IS_IPADDRESS()('192.168.1.5 ')
+    ('192.168.1.5 ', 'enter valid IP address')
+    >>> IS_IPADDRESS()('192.168.1.1.5')
+    ('192.168.1.1.5', 'enter valid IP address')
+    >>> IS_IPADDRESS()('123.123')
+    ('123.123', 'enter valid IP address')
+    >>> IS_IPADDRESS()('1111.2.3.4')
+    ('1111.2.3.4', 'enter valid IP address')
+    >>> IS_IPADDRESS()('0111.2.3.4')
+    ('0111.2.3.4', 'enter valid IP address')
+    >>> IS_IPADDRESS()('256.2.3.4')
+    ('256.2.3.4', 'enter valid IP address')
+    >>> IS_IPADDRESS()('300.2.3.4')
+    ('300.2.3.4', 'enter valid IP address')
+    >>> IS_IPADDRESS(minip='192.168.1.0', maxip='192.168.1.255')('192.168.1.100')
+    ('192.168.1.100', None)
+    >>> IS_IPADDRESS(minip='1.2.3.5', maxip='1.2.3.9', error_message='bad ip')('1.2.3.4')
+    ('1.2.3.4', 'bad ip')
+    >>> IS_IPADDRESS(maxip='1.2.3.4', invert=True)('127.0.0.1')
+    ('127.0.0.1', None)
+    >>> IS_IPADDRESS(maxip='192.168.1.4', invert=True)('192.168.1.4')
+    ('192.168.1.4', 'enter valid IP address')
+    >>> IS_IPADDRESS(is_localhost=True)('127.0.0.1')
+    ('127.0.0.1', None)
+    >>> IS_IPADDRESS(is_localhost=True)('192.168.1.10')
+    ('192.168.1.10', 'enter valid IP address')
+    >>> IS_IPADDRESS(is_localhost=False)('127.0.0.1')
+    ('127.0.0.1', 'enter valid IP address')
+    >>> IS_IPADDRESS(maxip='100.0.0.0', is_localhost=True)('127.0.0.1')
+    ('127.0.0.1', 'enter valid IP address')
+
+    >>> IS_IPADDRESS()('fe80::126c:8ffa:fe22:b3af')
+    ('fe80::126c:8ffa:fe22:b3af', None)
+    >>> IS_IPADDRESS(is_ipv4=False)('fe80::126c:8ffa:fe22:b3af')
+    ('fe80::126c:8ffa:fe22:b3af', None)
+    >>> IS_IPADDRESS()('fe80::126c:8ffa:fe22:b3af  ')
+    ('fe80::126c:8ffa:fe22:b3af  ', 'enter valid IP address')
+    >>> IS_IPADDRESS(is_ipv4=True)('fe80::126c:8ffa:fe22:b3af')
+    ('fe80::126c:8ffa:fe22:b3af', 'enter valid IP address')
+    >>> IS_IPADDRESS(is_ipv6=True)('192.168.1.1')
+    ('192.168.1.1', 'enter valid IP address')
+    >>> IS_IPADDRESS(is_ipv6=True, error_message='bad ip')('192.168.1.1')
+    ('192.168.1.1', 'bad ip')
+    >>> IS_IPADDRESS(is_link_local=True)('fe80::126c:8ffa:fe22:b3af')
+    ('fe80::126c:8ffa:fe22:b3af', None)
+    >>> IS_IPADDRESS(is_link_local=False)('fe80::126c:8ffa:fe22:b3af')
+    ('fe80::126c:8ffa:fe22:b3af', 'enter valid IP address')
+    >>> IS_IPADDRESS(is_link_local=True)('2001::126c:8ffa:fe22:b3af')
+    ('2001::126c:8ffa:fe22:b3af', 'enter valid IP address')
+    >>> IS_IPADDRESS(is_multicast=True)('2001::126c:8ffa:fe22:b3af')
+    ('2001::126c:8ffa:fe22:b3af', 'enter valid IP address')
+    >>> IS_IPADDRESS(is_multicast=True)('ff00::126c:8ffa:fe22:b3af')
+    ('ff00::126c:8ffa:fe22:b3af', None)
+    >>> IS_IPADDRESS(is_routeable=True)('2001::126c:8ffa:fe22:b3af')
+    ('2001::126c:8ffa:fe22:b3af', None)
+    >>> IS_IPADDRESS(is_routeable=True)('ff00::126c:8ffa:fe22:b3af')
+    ('ff00::126c:8ffa:fe22:b3af', 'enter valid IP address')
+    >>> IS_IPADDRESS(subnets='2001::/32')('2001::8ffa:fe22:b3af')
+    ('2001::8ffa:fe22:b3af', None)
+    >>> IS_IPADDRESS(subnets='fb00::/8')('2001::8ffa:fe22:b3af')
+    ('2001::8ffa:fe22:b3af', 'enter valid IP address')
+    >>> IS_IPADDRESS(subnets=['fc00::/8','2001::/32'])('2001::8ffa:fe22:b3af')
+    ('2001::8ffa:fe22:b3af', None)
+    >>> IS_IPADDRESS(subnets='invalidsubnet')('2001::8ffa:fe22:b3af')
+    ('2001::8ffa:fe22:b3af', 'invalid subnet provided')
+    """
+    def __init__(
+            self,
+            minip='0.0.0.0',
+            maxip='255.255.255.255',
+            invert=False,
+            is_localhost=None,
+            is_private=None,
+            is_automatic=None,
+            is_ipv4=None,
+            is_link_local=None,
+            is_reserved=None,
+            is_multicast=None,
+            is_routeable=None,
+            is_6to4=None,
+            is_teredo=None,
+            subnets=None,
+            is_ipv6=None,
+            error_message='enter valid IP address'):
+        self.minip = minip,
+        self.maxip = maxip,
+        self.invert = invert
+        self.is_localhost = is_localhost
+        self.is_private = is_private
+        self.is_automatic = is_automatic
+        self.is_ipv4 = is_ipv4
+        self.is_private = is_private
+        self.is_link_local = is_link_local
+        self.is_reserved = is_reserved
+        self.is_multicast = is_multicast
+        self.is_routeable = is_routeable
+        self.is_6to4 = is_6to4
+        self.is_teredo = is_teredo
+        self.subnets = subnets
+        self.is_ipv6 = is_ipv6
+        self.error_message = error_message
+
+    def __call__(self, value):
+        try:
+            import ipaddress
+        except ImportError:
+            from gluon.contrib import ipaddr as ipaddress
+
+        try:
+            ip = ipaddress.ip_address(value)
+        except ValueError, e:
+            return (value, translate(self.error_message))
+
+        if self.is_ipv4 and isinstance(ip, ipaddress.IPv6Address):
+            retval = (value, translate(self.error_message))
+        elif self.is_ipv6 and isinstance(ip, ipaddress.IPv4Address):
+            retval = (value, translate(self.error_message))
+        elif self.is_ipv4 or isinstance(ip, ipaddress.IPv4Address):
+            retval = IS_IPV4(
+                minip=self.minip,
+                maxip=self.maxip,
+                invert=self.invert,
+                is_localhost=self.is_localhost,
+                is_private=self.is_private,
+                is_automatic=self.is_automatic,
+                error_message=self.error_message
+                )(value)
+        elif self.is_ipv6 or isinstance(ip, ipaddress.IPv6Address):
+            retval = IS_IPV6(
+                is_private=self.is_private,
+                is_link_local=self.is_link_local,
+                is_reserved=self.is_reserved,
+                is_multicast=self.is_multicast,
+                is_routeable=self.is_routeable,
+                is_6to4=self.is_6to4,
+                is_teredo=self.is_teredo,
+                subnets=self.subnets,
+                error_message=self.error_message
+                )(value)
+        else:
+            retval = (value, translate(self.error_message))
+
+        return retval

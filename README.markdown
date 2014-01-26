@@ -6,6 +6,13 @@ It is written and programmable in Python. LGPLv3 License
 
 Learn more at http://web2py.com
 
+
+## Tests
+
+[![Build Status](https://travis-ci.org/web2py/web2py.png)](https://travis-ci.org/web2py/web2py)
+
+[![Coverage Status](https://coveralls.io/repos/web2py/web2py/badge.png)](https://coveralls.io/r/web2py/web2py)
+
 ## Installation Instructions
 
 To start web2py there is NO NEED to install it. Just unzip and do:
@@ -26,9 +33,9 @@ That's it!!!
         ...                        > other handlers and example files
         gluon/                     > the core libraries
             contrib/               > third party libraries
-            tests/                 > unittests
+            tests/                 > unittests	
         applications/              > are the apps
-	    admin/                 > web based IDE
+            admin/                 > web based IDE
                 ...
             examples/              > examples, docs, links
                 ...
@@ -47,9 +54,12 @@ That's it!!!
                 cron/
                 tests/
             ...                    > your own apps
+        examples/                  > example config files, mv .. and customize
+        extras/                    > other files which are required for building web2py
         scripts/                   > utility and installation scripts
         site-packages/             > additional optional modules
-
+        logs/                      > log files will go in there
+        deposit/                   > a place where web2py stores apps temporarily
 
 ## Issues?
 

@@ -24,9 +24,9 @@ import marshal
 from HTMLParser import HTMLParser
 from htmlentitydefs import name2codepoint
 
-from storage import Storage
-from utils import web2py_uuid, simple_hash, compare
-from highlight import highlight
+from gluon.storage import Storage
+from gluon.utils import web2py_uuid, simple_hash, compare
+from gluon.highlight import highlight
 
 regex_crlf = re.compile('\r|\n')
 
@@ -553,7 +553,7 @@ class XML(XmlComponent):
             'img/',
             'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
             'table', 'tr', 'td', 'div',
-            'strong',
+            'strong','span',
         ],
         allowed_attributes={
             'a': ['href', 'title', 'target'],
@@ -586,7 +586,7 @@ class XML(XmlComponent):
         return self.text
 
     def __str__(self):
-        return self.xml()
+        return self.text
 
     def __add__(self, other):
         return '%s%s' % (self, other)
@@ -600,8 +600,9 @@ class XML(XmlComponent):
     def __hash__(self):
         return hash(str(self))
 
-    def __getattr__(self, name):
-        return getattr(str(self), name)
+#    why was this here? Break unpickling in sessions
+#    def __getattr__(self, name):
+#        return getattr(str(self), name)
 
     def __getitem__(self, i):
         return str(self)[i]
@@ -840,9 +841,8 @@ class DIV(XmlComponent):
                 c.latest = self.latest
                 c.session = self.session
                 c.formname = self.formname
-                if hideerror and not \
-                        self.attributes.get('hideerror', False):
-                    c['hideerror'] = hideerror
+                if not c.attributes.get('hideerror'):
+                    c['hideerror'] = hideerror or self.attributes.get('hideerror')
                 newstatus = c._traverse(status, hideerror) and newstatus
 
         # for input, textarea, select, option
@@ -887,9 +887,8 @@ class DIV(XmlComponent):
 
         # get the attributes for this component
         # (they start with '_', others may have special meanings)
-        fa = ''
-        for key in sorted(self.attributes):
-            value = self[key]
+        attr = []
+        for key, value in self.attributes.iteritems():
             if key[:1] != '_':
                 continue
             name = key[1:]
@@ -897,8 +896,16 @@ class DIV(XmlComponent):
                 value = name
             elif value is False or value is None:
                 continue
+            attr.append((name, value))
+        data = self.attributes.get('data',{})
+        for key, value in data.iteritems():
+            name = 'data-' + key
+            value = data[key]
+            attr.append((name,value))
+        attr.sort()
+        fa = ''
+        for name,value in attr:
             fa += ' %s="%s"' % (name, xmlescape(value, True))
-
         # get the xml for the inner components
         co = join([xmlescape(component) for component in
                    self.components])
@@ -991,7 +998,7 @@ class DIV(XmlComponent):
         >>> a=FORM( INPUT(_type='text'), SELECT(range(1)), TEXTAREA() )
         >>> for c in a.elements('input, select, textarea'): c['_disabled'] = 'disabled'
         >>> a.xml()
-        '<form action="" enctype="multipart/form-data" method="post"><input disabled="disabled" type="text" /><select disabled="disabled"><option value="0">0</option></select><textarea cols="40" disabled="disabled" rows="10"></textarea></form>'
+        '<form action="#" enctype="multipart/form-data" method="post"><input disabled="disabled" type="text" /><select disabled="disabled"><option value="0">0</option></select><textarea cols="40" disabled="disabled" rows="10"></textarea></form>'
 
         Elements that are matched can also be replaced or removed by specifying
         a "replace" argument (note, a list of the original matching elements
@@ -1068,10 +1075,8 @@ class DIV(XmlComponent):
         matches = []
         # check if the component has an attribute with the same
         # value as provided
-        check = True
         tag = getattr(self, 'tag').replace('/', '')
-        if args and tag not in args:
-            check = False
+        check = not (args and tag not in args)
         for (key, value) in kargs.iteritems():
             if key not in ['first_only', 'replace', 'find_text']:
                 if isinstance(value, (str, int)):
@@ -1102,24 +1107,28 @@ class DIV(XmlComponent):
         def replace_component(i):
             if replace is None:
                 del self[i]
-            elif callable(replace):
-                self[i] = replace(self[i])
+                return i
             else:
-                self[i] = replace
+                self[i] = replace(self[i]) if callable(replace) else replace
+                return i+1
         # loop the components
         if find_text or find_components:
-            for i, c in enumerate(self.components):
+            i = 0
+            while i<len(self.components):
+                c = self[i]
+                j = i+1
                 if check and find_text and isinstance(c, str) and \
                         ((is_regex and find_text.search(c)) or (str(find_text) in c)):
-                    replace_component(i)
-                if find_components and isinstance(c, XmlComponent):
+                    j = replace_component(i)
+                elif find_components and isinstance(c, XmlComponent):
                     child_matches = c.elements(*args, **kargs)
                     if len(child_matches):
                         if not find_text and replace is not False and child_matches[0] is c:
-                            replace_component(i)
+                            j = replace_component(i)
                         if first_only:
                             return child_matches
                         matches.extend(child_matches)
+                i = j
         return matches
 
     def element(self, *args, **kargs):
@@ -1191,6 +1200,13 @@ def TAG_pickler(data):
     return (TAG_unpickler, (marshal_dump,))
 
 
+class __tag_div__(DIV):
+    def __init__(self,name,*a,**b):
+        DIV.__init__(self,*a,**b)
+        self.tag = name
+
+copy_reg.pickle(__tag_div__, TAG_pickler, TAG_unpickler)
+
 class __TAG__(XmlComponent):
 
     """
@@ -1209,11 +1225,7 @@ class __TAG__(XmlComponent):
             name = name[:-1] + '/'
         if isinstance(name, unicode):
             name = name.encode('utf-8')
-
-        class __tag__(DIV):
-            tag = name
-        copy_reg.pickle(__tag__, TAG_pickler, TAG_unpickler)
-        return lambda *a, **b: __tag__(*a, **b)
+        return lambda *a,**b: __tag_div__(name,*a,**b)
 
     def __call__(self, html):
         return web2pyHTMLParser(decoder.decoder(html)).tree
@@ -1469,29 +1481,33 @@ class A(DIV):
     def xml(self):
         if not self.components and self['_href']:
             self.append(self['_href'])
+        if not self['_disable_with']:
+            self['_data-w2p_disable_with'] = 'default'
+        if self['callback'] and not self['_id']:
+            self['_id'] = web2py_uuid()
         if self['delete']:
-            d = "jQuery(this).closest('%s').remove();" % self['delete']
-        else:
-            d = ''
+            self['_data-w2p_remove'] = self['delete']
+        if self['target']:
+            if self['target'] == '<self>':
+                self['target'] = self['_id']
+            self['_data-w2p_target'] = self['target']
         if self['component']:
-            self['_onclick'] = "web2py_component('%s','%s');%sreturn false;" % \
-                (self['component'], self['target'] or '', d)
-            self['_href'] = self['_href'] or '#null'
+            self['_data-w2p_method'] = 'GET'
+            self['_href'] = self['component']
         elif self['callback']:
-            returnfalse = "var e = arguments[0] || window.event; e.cancelBubble=true; if (e.stopPropagation) {e.stopPropagation(); e.stopImmediatePropagation(); e.preventDefault();}"
-            if d:
-                self['_onclick'] = "if(confirm(w2p_ajax_confirm_message||'Are you sure you want to delete this object?')){ajax('%s',[],'%s');%s};%s" % \
-                    (self['callback'], self['target'] or '', d, returnfalse)
-            else:
-                self['_onclick'] = "ajax('%s',[],'%s');%sreturn false" % \
-                    (self['callback'], self['target'] or '', d)
-            self['_href'] = self['_href'] or '#null'
+            self['_data-w2p_method'] = 'POST'
+            self['_href'] = self['callback']
+            if self['delete'] and not self['noconfirm']:
+                if not self['confirm']:
+                    self['_data-w2p_confirm'] = 'default'
+                else:
+                    self['_data-w2p_confirm'] = self['confirm']
         elif self['cid']:
-            pre = self['pre_call'] + ';' if self['pre_call'] else ''
-            self['_onclick'] = '%sweb2py_component("%s","%s");%sreturn false;' % \
-                (pre,self['_href'], self['cid'], d)
+            self['_data-w2p_method'] = 'GET'
+            self['_data-w2p_target'] = self['cid']
+            if self['pre_call']:
+                self['_data-w2p_pre_call'] = self['pre_call']
         return DIV.xml(self)
-
 
 class BUTTON(DIV):
 
@@ -1626,12 +1642,27 @@ class TR(DIV):
         self._wrap_components((TD, TH), TD)
 
 
+class __TRHEAD__(DIV):
+    """
+    __TRHEAD__ Component, internal only
+
+    If subcomponents are not TD/TH-components they will be wrapped in a TH
+
+    see also :class:`DIV`
+    """
+
+    tag = 'tr'
+
+    def _fixup(self):
+        self._wrap_components((TD, TH), TH)
+
+
 class THEAD(DIV):
 
     tag = 'thead'
 
     def _fixup(self):
-        self._wrap_components(TR, TR)
+        self._wrap_components((__TRHEAD__, TR), __TRHEAD__)
 
 
 class TBODY(DIV):
@@ -1930,9 +1961,9 @@ class FORM(DIV):
     example::
 
         >>> from validators import IS_NOT_EMPTY
-        >>> form=FORM(INPUT(_name=\"test\", requires=IS_NOT_EMPTY()))
+        >>> form=FORM(INPUT(_name="test", requires=IS_NOT_EMPTY()))
         >>> form.xml()
-        '<form action=\"\" enctype=\"multipart/form-data\" method=\"post\"><input name=\"test\" type=\"text\" /></form>'
+        '<form action=\"#\" enctype=\"multipart/form-data\" method=\"post\"><input name=\"test\" type=\"text\" /></form>'
 
     a FORM is container for INPUT, TEXTAREA, SELECT and other helpers
 
@@ -1985,11 +2016,15 @@ class FORM(DIV):
         status = True
         changed = False
         request_vars = self.request_vars
-        if session:
-            formkey = session.get('_formkey[%s]' % formname, None)
+        if session is not None:
+            formkey = request_vars._formkey
+            keyname = '_formkey[%s]' % formname
+            formkeys = list(session.get(keyname, []))
             # check if user tampering with form and void CSRF
-            if formkey != request_vars._formkey:
+            if not (formkey and formkeys and formkey in formkeys):
                 status = False
+            else:
+                session[keyname].remove(formkey)
         if formname != request_vars._formname:
             status = False
         if status and session:
@@ -2025,7 +2060,9 @@ class FORM(DIV):
                 formkey = self.record_hash
             else:
                 formkey = web2py_uuid()
-            self.formkey = session['_formkey[%s]' % formname] = formkey
+            self.formkey = formkey
+            keyname = '_formkey[%s]' % formname
+            session[keyname] = list(session.get(keyname,[]))[-9:] + [formkey]
         if status and not keepvalues:
             self._traverse(False, hideerror)
         self.accepted = status
@@ -2033,7 +2070,7 @@ class FORM(DIV):
 
     def _postprocessing(self):
         if not '_action' in self.attributes:
-            self['_action'] = ''
+            self['_action'] = '#'
         if not '_method' in self.attributes:
             self['_method'] = 'post'
         if not '_enctype' in self.attributes:
@@ -2051,7 +2088,7 @@ class FORM(DIV):
         if hasattr(self, 'formname') and self.formname:
             c.append(INPUT(_type='hidden', _name='_formname',
                      _value=self.formname))
-        return DIV(c, _class="hidden")
+        return DIV(c, _style="display:none;")
 
     def xml(self):
         newform = FORM(*self.components, **self.attributes)
@@ -2143,7 +2180,7 @@ class FORM(DIV):
                     current.response.flash = message_onchange
                 elif callable(onchange):
                     onchange(self)
-                return False
+            return False
 
     def process(self, **kwargs):
         """
@@ -2184,8 +2221,9 @@ class FORM(DIV):
         submit = self.element('input[type=submit]')
         submit.parent.append(
             INPUT(_type="button", _value=value, _class=_class,
-                  _onclick=self.REDIRECT_JS % url))
-
+                  _onclick=url if url.startswith('javascript:') else
+                      self.REDIRECT_JS % url))
+        
     @staticmethod
     def confirm(text='OK', buttons=None, hidden=None):
         if not buttons:
@@ -2204,6 +2242,68 @@ class FORM(DIV):
         form.process()
         return form
 
+    def as_dict(self, flat=False, sanitize=True):
+        """EXPERIMENTAL
+
+        Sanitize is naive. It should catch any unsafe value
+        for client retrieval.
+        """
+        SERIALIZABLE = (int, float, bool, basestring, long,
+                        set, list, dict, tuple, Storage, type(None))
+        UNSAFE = ("PASSWORD", "CRYPT")
+        d = self.__dict__
+
+        def sanitizer(obj):
+            if isinstance(obj, dict):
+                for k in obj.keys():
+                    if any([unsafe in str(k).upper() for
+                           unsafe in UNSAFE]):
+                       # erease unsafe pair
+                       obj.pop(k)
+            else:
+                # not implemented
+                pass
+            return obj
+
+        def flatten(obj):
+            if isinstance(obj, (dict, Storage)):
+                newobj = obj.copy()
+            else:
+                newobj = obj
+            if sanitize:
+                newobj = sanitizer(newobj)
+            if flat:
+                if type(obj) in SERIALIZABLE:
+                    if isinstance(newobj, (dict, Storage)):
+                        for k in newobj:
+                            newk = flatten(k)
+                            newobj[newk] = flatten(newobj[k])
+                            if k != newk:
+                                newobj.pop(k)
+                        return newobj
+                    elif isinstance(newobj, (list, tuple, set)):
+                        return [flatten(item) for item in newobj]
+                    else:
+                        return newobj
+                else: return str(newobj)
+            else: return newobj
+        return flatten(d)
+
+    def as_json(self, sanitize=True):
+        d = self.as_dict(flat=True, sanitize=sanitize)
+        from serializers import json
+        return json(d)
+
+    def as_yaml(self, sanitize=True):
+        d = self.as_dict(flat=True, sanitize=sanitize)
+        from serializers import yaml
+        return yaml(d)
+
+    def as_xml(self, sanitize=True):
+        d = self.as_dict(flat=True, sanitize=sanitize)
+        from serializers import xml
+        return xml(d)
+
 
 class BEAUTIFY(DIV):
 
@@ -2211,7 +2311,7 @@ class BEAUTIFY(DIV):
     example::
 
         >>> BEAUTIFY(['a', 'b', {'hello': 'world'}]).xml()
-        '<div><table><tr><td><div>a</div></td></tr><tr><td><div>b</div></td></tr><tr><td><div><table><tr><td style="font-weight:bold;vertical-align:top">hello</td><td valign="top">:</td><td><div>world</div></td></tr></table></div></td></tr></table></div>'
+        '<div><table><tr><td><div>a</div></td></tr><tr><td><div>b</div></td></tr><tr><td><div><table><tr><td style="font-weight:bold;vertical-align:top;">hello</td><td style="vertical-align:top;">:</td><td><div>world</div></td></tr></table></div></td></tr></table></div>'
 
     turns any list, dictionary, etc into decent looking html.
     Two special attributes are
@@ -2263,8 +2363,8 @@ class BEAUTIFY(DIV):
                             continue
                         rows.append(
                             TR(
-                                TD(filtered_key, _style='font-weight:bold;vertical-align:top'),
-                                TD(':', _valign='top'),
+                                TD(filtered_key, _style='font-weight:bold;vertical-align:top;'),
+                                TD(':', _style='vertical-align:top;'),
                                 TD(BEAUTIFY(value, **attributes))))
                     components.append(TABLE(*rows, **attributes))
                     continue
@@ -2328,48 +2428,59 @@ class MENU(DIV):
         else:
             ul = UL(_class=self['ul_class'])
         for item in data:
-            (name, active, link) = item[:3]
-            if isinstance(link, DIV):
-                li = LI(link)
-            elif 'no_link_url' in self.attributes and self['no_link_url'] == link:
-                li = LI(DIV(name))
-            elif isinstance(link,dict):
-                li = LI(A(name, **link))
-            elif link:
-                li = LI(A(name, _href=link))
-            elif not link and isinstance(name, A):
-                li = LI(name)
+            if isinstance(item,LI):
+                ul.append(item)
             else:
-                li = LI(A(name, _href='#',
-                          _onclick='javascript:void(0);return false;'))
-            if level == 0 and item == data[0]:
-                li['_class'] = self['li_first']
-            elif level == 0 and item == data[-1]:
-                li['_class'] = self['li_last']
-            if len(item) > 3 and item[3]:
-                li['_class'] = self['li_class']
-                li.append(self.serialize(item[3], level + 1))
-            if active or ('active_url' in self.attributes and self['active_url'] == link):
-                if li['_class']:
-                    li['_class'] = li['_class'] + ' ' + self['li_active']
+                (name, active, link) = item[:3]
+                if isinstance(link, DIV):
+                    li = LI(link)
+                elif 'no_link_url' in self.attributes and self['no_link_url'] == link:
+                    li = LI(DIV(name))
+                elif isinstance(link,dict):
+                    li = LI(A(name, **link))
+                elif link:
+                    li = LI(A(name, _href=link))
+                elif not link and isinstance(name, A):
+                    li = LI(name)
                 else:
-                    li['_class'] = self['li_active']
-            if len(item) <= 4 or item[4] == True:
-                ul.append(li)
+                    li = LI(A(name, _href='#',
+                              _onclick='javascript:void(0);return false;'))
+                if level == 0 and item == data[0]:
+                    li['_class'] = self['li_first']
+                elif level == 0 and item == data[-1]:
+                    li['_class'] = self['li_last']
+                if len(item) > 3 and item[3]:
+                    li['_class'] = self['li_class']
+                    li.append(self.serialize(item[3], level + 1))
+                if active or ('active_url' in self.attributes and self['active_url'] == link):
+                    if li['_class']:
+                        li['_class'] = li['_class'] + ' ' + self['li_active']
+                    else:
+                        li['_class'] = self['li_active']
+                if len(item) <= 4 or item[4] == True:
+                    ul.append(li)
         return ul
 
     def serialize_mobile(self, data, select=None, prefix=''):
         if not select:
             select = SELECT(**self.attributes)
+        custom_items = []
         for item in data:
-            if len(item) <= 4 or item[4] == True:
+            # Custom item aren't serialized as mobile
+            if len(item) >= 3 and (not item[0]) or (isinstance(item[0], DIV) and not (item[2])):
+            # ex: ('', False,A('title',_href=URL(...),_title="title"))
+            # ex: (A('title',_href=URL(...),_title="title"), False, None)
+                custom_items.append(item)
+            elif len(item) <= 4 or item[4] == True:
                 select.append(OPTION(CAT(prefix, item[0]),
                                      _value=item[2], _selected=item[1]))
                 if len(item) > 3 and len(item[3]):
                     self.serialize_mobile(
                         item[3], select, prefix=CAT(prefix, item[0], '/'))
         select['_onchange'] = 'window.location=this.value'
-        return select
+        # avoid to wrap the select if no custom items are present
+        html = DIV(select,  self.serialize(custom_items)) if len( custom_items) else select
+        return html
 
     def xml(self):
         if self['mobile']:
@@ -2405,37 +2516,43 @@ def test():
     Example:
 
     >>> from validators import *
-    >>> print DIV(A('click me', _href=URL(a='a', c='b', f='c')), BR(), HR(), DIV(SPAN(\"World\"), _class='unknown')).xml()
-    <div><a href=\"/a/b/c\">click me</a><br /><hr /><div class=\"unknown\"><span>World</span></div></div>
-    >>> print DIV(UL(\"doc\",\"cat\",\"mouse\")).xml()
+    >>> print DIV(A('click me', _href=URL(a='a', c='b', f='c')), BR(), HR(), DIV(SPAN("World"), _class='unknown')).xml()
+    <div><a data-w2p_disable_with="default" href="/a/b/c">click me</a><br /><hr /><div class=\"unknown\"><span>World</span></div></div>
+    >>> print DIV(UL("doc","cat","mouse")).xml()
     <div><ul><li>doc</li><li>cat</li><li>mouse</li></ul></div>
-    >>> print DIV(UL(\"doc\", LI(\"cat\", _class='feline'), 18)).xml()
+    >>> print DIV(UL("doc", LI("cat", _class='feline'), 18)).xml()
     <div><ul><li>doc</li><li class=\"feline\">cat</li><li>18</li></ul></div>
     >>> print TABLE(['a', 'b', 'c'], TR('d', 'e', 'f'), TR(TD(1), TD(2), TD(3))).xml()
     <table><tr><td>a</td><td>b</td><td>c</td></tr><tr><td>d</td><td>e</td><td>f</td></tr><tr><td>1</td><td>2</td><td>3</td></tr></table>
     >>> form=FORM(INPUT(_type='text', _name='myvar', requires=IS_EXPR('int(value)<10')))
     >>> print form.xml()
-    <form action=\"\" enctype=\"multipart/form-data\" method=\"post\"><input name=\"myvar\" type=\"text\" /></form>
+    <form action=\"#\" enctype=\"multipart/form-data\" method=\"post\"><input name=\"myvar\" type=\"text\" /></form>
     >>> print form.accepts({'myvar':'34'}, formname=None)
     False
     >>> print form.xml()
-    <form action="" enctype="multipart/form-data" method="post"><input class="invalidinput" name="myvar" type="text" value="34" /><div class="error_wrapper"><div class="error" id="myvar__error">invalid expression</div></div></form>
+    <form action="#" enctype="multipart/form-data" method="post"><input class="invalidinput" name="myvar" type="text" value="34" /><div class="error_wrapper"><div class="error" id="myvar__error">invalid expression</div></div></form>
     >>> print form.accepts({'myvar':'4'}, formname=None, keepvalues=True)
     True
     >>> print form.xml()
-    <form action=\"\" enctype=\"multipart/form-data\" method=\"post\"><input name=\"myvar\" type=\"text\" value=\"4\" /></form>
+    <form action=\"#\" enctype=\"multipart/form-data\" method=\"post\"><input name=\"myvar\" type=\"text\" value=\"4\" /></form>
     >>> form=FORM(SELECT('cat', 'dog', _name='myvar'))
     >>> print form.accepts({'myvar':'dog'}, formname=None, keepvalues=True)
     True
     >>> print form.xml()
-    <form action=\"\" enctype=\"multipart/form-data\" method=\"post\"><select name=\"myvar\"><option value=\"cat\">cat</option><option selected=\"selected\" value=\"dog\">dog</option></select></form>
+    <form action=\"#\" enctype=\"multipart/form-data\" method=\"post\"><select name=\"myvar\"><option value=\"cat\">cat</option><option selected=\"selected\" value=\"dog\">dog</option></select></form>
     >>> form=FORM(INPUT(_type='text', _name='myvar', requires=IS_MATCH('^\w+$', 'only alphanumeric!')))
     >>> print form.accepts({'myvar':'as df'}, formname=None)
     False
     >>> print form.xml()
-    <form action="" enctype="multipart/form-data" method="post"><input class="invalidinput" name="myvar" type="text" value="as df" /><div class="error_wrapper"><div class="error" id="myvar__error">only alphanumeric!</div></div></form>
+    <form action="#" enctype="multipart/form-data" method="post"><input class="invalidinput" name="myvar" type="text" value="as df" /><div class="error_wrapper"><div class="error" id="myvar__error">only alphanumeric!</div></div></form>
     >>> session={}
-    >>> form=FORM(INPUT(value=\"Hello World\", _name=\"var\", requires=IS_MATCH('^\w+$')))
+    >>> form=FORM(INPUT(value="Hello World", _name="var", requires=IS_MATCH('^\w+$')))
+    >>> isinstance(form.as_dict(), dict)
+    True
+    >>> form.as_dict(flat=True).has_key("vars")
+    True
+    >>> isinstance(form.as_json(), basestring) and len(form.as_json(sanitize=False)) > 0
+    True
     >>> if form.accepts({}, session,formname=None): print 'passed'
     >>> if form.accepts({'var':'test ', '_formkey': session['_formkey[None]']}, session, formname=None): print 'passed'
     """
@@ -2603,7 +2720,7 @@ class MARKMIN(XmlComponent):
         """
         calls the gluon.contrib.markmin render function to convert the wiki syntax
         """
-        from contrib.markmin.markmin2html import render
+        from gluon.contrib.markmin.markmin2html import render
         return render(self.text, extra=self.extra,
                       allowed=self.allowed, sep=self.sep, latex=self.latex,
                       URL=self.url, environment=self.environment,

@@ -16,7 +16,7 @@ import logging
 
 from storage import Storage
 from http import HTTP
-from html import BEAUTIFY
+from html import BEAUTIFY, XML
 
 logger = logging.getLogger("web2py")
 
@@ -48,11 +48,19 @@ class TicketStorage(Storage):
             self._store_on_disk(request, ticket_id, ticket_data)
 
     def _store_in_db(self, request, ticket_id, ticket_data):
-        table = self._get_table(self.db, self.tablename, request.application)
-        table.insert(ticket_id=ticket_id,
-                     ticket_data=cPickle.dumps(ticket_data),
-                     created_datetime=request.now)
-        logger.error('In FILE: %(layer)s\n\n%(traceback)s\n' % ticket_data)
+        self.db._adapter.reconnect()
+        try:
+            table = self._get_table(self.db, self.tablename, request.application)
+            id = table.insert(ticket_id=ticket_id,
+                         ticket_data=cPickle.dumps(ticket_data),
+                         created_datetime=request.now)
+            self.db.commit()
+            message = 'In FILE: %(layer)s\n\n%(traceback)s\n'
+        except Exception, e:
+            self.db.rollback()
+            message =' Unable to store in FILE: %(layer)s\n\n%(traceback)s\n'
+        self.db.close()
+        logger.error(message % ticket_data)
 
     def _store_on_disk(self, request, ticket_id, ticket_data):
         ef = self._error_file(request, ticket_id, 'wb')
@@ -71,16 +79,13 @@ class TicketStorage(Storage):
 
     def _get_table(self, db, tablename, app):
         tablename = tablename + '_' + app
-        table = db.get(tablename, None)
-        if table is None:
-            db.rollback()   # not necessary but one day
-                            # any app may store tickets on DB
+        table = db.get(tablename)
+        if not table:
             table = db.define_table(
                 tablename,
                 db.Field('ticket_id', length=100),
                 db.Field('ticket_data', 'text'),
-                db.Field('created_datetime', 'datetime'),
-            )
+                db.Field('created_datetime', 'datetime'))
         return table
 
     def load(
@@ -131,7 +136,7 @@ class RestrictedError(Exception):
             try:
                 self.traceback = traceback.format_exc()
             except:
-                self.traceback = 'no traceback because template parting error'
+                self.traceback = 'no traceback because template parsing error'
             try:
                 self.snapshot = snapshot(context=10, code=code,
                                          environment=self.environment)
@@ -243,7 +248,7 @@ def snapshot(info=None, context=5, code=None, environment=None):
 
     # create a snapshot dict with some basic information
     s = {}
-    s['pyver'] = 'Python ' + sys.version.split()[0] + ': ' + sys.executable
+    s['pyver'] = 'Python ' + sys.version.split()[0] + ': ' + sys.executable + ' (prefix: %s)' % sys.prefix
     s['date'] = time.ctime(time.time())
 
     # start to process frames
@@ -319,6 +324,6 @@ def snapshot(info=None, context=5, code=None, environment=None):
     # add web2py environment variables
     for k, v in environment.items():
         if k in ('request', 'response', 'session'):
-            s[k] = BEAUTIFY(v)
+            s[k] = XML(str(BEAUTIFY(v)))
 
     return s
